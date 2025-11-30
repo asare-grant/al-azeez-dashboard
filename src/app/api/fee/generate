@@ -1,0 +1,13 @@
+import { NextRequest, NextResponse } from "next/server";
+import { generateFeeMaster } from "@/lib/actions";
+
+export async function POST(req: NextRequest) {
+  try {
+    const { studentId, term, academicYear } = await req.json();
+    const invoice = await generateFeeMaster({ studentId, term, academicYear });
+    return NextResponse.json(invoice);
+  } catch (err: any) {
+    console.error("Generate Invoice Error:", err);
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+}
