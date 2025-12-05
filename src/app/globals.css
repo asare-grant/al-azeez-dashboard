@@ -165,7 +165,9 @@
 }
 
 .rbc-time-header {
-  display: none !important;
+  display: block !important;
+  margin-left: 105px !important;
+  border: none !important;
 }
 
 .rbc-time-content {
