@@ -161,7 +161,7 @@ const StudentForm = ({
           <InputField
             label="Parent Id"
             name="parentId"
-            defaultValue={data?.parentId}
+            defaultValue={data?.parentId ?? ""}
             register={register}
             error={errors.parentId}
           />

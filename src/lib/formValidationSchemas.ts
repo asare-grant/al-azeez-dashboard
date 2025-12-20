@@ -73,7 +73,7 @@ export const studentSchema = z.object({
   sex: z.enum(["MALE", "FEMALE"], { message: "Sex is required!" }),
   gradeId: z.coerce.number().min(1, { message: "Grade is required!" }),
   classId: z.coerce.number().min(1, { message: "Class is required!" }),
-  parentId: z.string().min(1, { message: "Parent Id is required!" }),
+  parentId: z.string().optional(),
   studentType: z.enum(["new", "old"], {
     message: "Student type is required!",
   }),
@@ -252,3 +252,37 @@ export const feePaymentSchema = z.object({
 });
 
 export type FeePaymentSchema = z.infer<typeof feePaymentSchema>;
+
+
+export const attendanceSchema = z.object({
+  id: z.coerce.number().optional(),
+  date: z.coerce.date({ message: "Date is required" }),
+  present: z.boolean(),
+  day: z.coerce.number({ message: "Day is required" }),
+  studentId: z.string().min(1, "Student is required"),
+});
+
+export type AttendanceSchema = z.infer<typeof attendanceSchema>;
+
+
+export const bulkAttendanceSchema = z.object({
+  date: z.coerce.date(),
+  day: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]),
+  records: z.array(
+    z.object({
+      studentId: z.string(),
+      present: z.boolean(),
+    })
+  ),
+});
+
+export type BulkAttendanceSchema = z.infer<typeof bulkAttendanceSchema>;
+
+export const termSchema = z.object({
+  id: z.coerce.number().optional(), // 👈 important
+  name: z.enum(["FIRST", "SECOND", "THIRD"]),
+  startDate: z.string().min(1, "Start date required"),
+  endDate: z.string().min(1, "End date required"),
+});
+
+export type TermSchema = z.infer<typeof termSchema>;

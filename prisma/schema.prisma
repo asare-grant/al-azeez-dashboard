@@ -30,8 +30,8 @@ model Student {
   bloodType   String
   sex         UserSex
   createdAt   DateTime     @default(now())
-  parentId    String
-  parent      Parent       @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      Parent?       @relation(fields: [parentId], references: [id], onDelete: Cascade)
   classId     Int
   class       Class        @relation(fields: [classId], references: [id])
   gradeId     Int
@@ -122,7 +122,6 @@ model Lesson {
   teacher     Teacher      @relation(fields: [teacherId], references: [id])
   exams       Exam[]
   assignments Assignment[]
-  attendances Attendance[]
 }
 
 model Exam {
@@ -163,11 +162,12 @@ model Attendance {
   id      Int      @id @default(autoincrement())
   date    DateTime
   present Boolean
+  day       Int
 
   studentId String
   student   Student @relation(fields: [studentId], references: [id])
-  lessonId  Int
-  lesson    Lesson  @relation(fields: [lessonId], references: [id])
+
+  @@unique([studentId, date])
 }
 
 model Event {
@@ -290,4 +290,21 @@ enum PaymentMethod {
   MOBILE_MONEY
   BANK
   CHEQUE
+}
+
+model SchoolTerm {
+  id        Int      @id @default(autoincrement())
+  name      TermName
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TermName {
+  FIRST 
+  SECOND
+  THIRD
 }

@@ -1,3 +1,4 @@
+import FeeStatementForm from "@/components/admin/FeeStatementForm";
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import FormContainer from "@/components/FormContainer";
@@ -5,7 +6,7 @@ import Performance from "@/components/Performance";
 import StudentAttendanceCard from "@/components/StudentAttendanceCard";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { Class, Student } from "@prisma/client";
+import { Class, Student, Grade } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -25,11 +26,13 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
   const student:
     | (Student & {
         class: Class & { _count: { lessons: number } };
+        grade: Grade;
       })
     | null = await prisma.student.findUnique({
     where: { id },
     include: {
       class: { include: { _count: { select: { lessons: true } } } },
+      grade:  true 
     },
   });
 
@@ -113,7 +116,7 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
                 className="w-6 h-6"
               />
               <div>
-                <h1 className="text-xl font-semibold">{student.class.name}</h1>
+                <h1 className="text-[16px] font-semibold">{student.grade.level}</h1>
                 <span className="text-sm text-gray-400">Grade</span>
               </div>
             </div>
@@ -145,7 +148,7 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
                 className="w-6 h-6"
               />
               <div>
-                <h1 className="text-xl font-semibold">{student.class.name}</h1>
+                <h1 className="text-[16px] font-semibold">{student.class.name}</h1>
                 <span className="text-sm text-gray-400">Class</span>
               </div>
             </div>
@@ -161,6 +164,9 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
 
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-4">
+      {role === "admin" && (
+                <FeeStatementForm studentId={student.id} />
+                )}
         <div className="bg-white p-4 rounded-md">
           <h1 className="text-xl font-semibold">Shortcuts</h1>
           <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
@@ -195,6 +201,7 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
               Student&apos;s Results
             </Link>
           </div>
+          
         </div>
         <Performance />
         <Announcements />

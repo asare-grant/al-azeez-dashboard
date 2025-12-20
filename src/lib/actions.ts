@@ -5,6 +5,8 @@ import {
   AnnouncementSchema,
   announcementSchema,
   AssignmentSchema,
+  AttendanceSchema,
+  BulkAttendanceSchema,
   ClassSchema,
   EventSchema,
   eventSchema,
@@ -311,7 +313,7 @@ export const createStudent = async (
         birthday: data.birthday,
         gradeId: data.gradeId,
         classId: data.classId,
-        parentId: data.parentId,
+        parentId: data.parentId || "",
         studentType: data.studentType,
         boardingType: data.boardingType,
       },
@@ -468,7 +470,7 @@ export const updateParent = async (
         phone: data.phone,
         address: data.address,
         students: {
-          connect: data.studentIds?.map((id) => ({ id: id })) || [],
+          set: data.studentIds?.map((id) => ({ id: id })) || [],
         },
       },
     });
@@ -1800,3 +1802,126 @@ export const generateFeeMaster = async ({
 //     return { success: false, error: err };
 //   }
 // };
+
+
+export const createAttendance = async (
+  currentState: CurrentState,
+  data: AttendanceSchema
+) => {
+  try {
+    await prisma.attendance.create({
+      data: {
+        date: data.date,
+        present: data.present,
+        day: data.day,
+        studentId: data.studentId,
+      },
+    });
+
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+
+export const updateAttendance = async (
+  currentState: CurrentState,
+  data: AttendanceSchema
+) => {
+  if (!data.id) return { success: false, error: true };
+
+  try {
+    await prisma.attendance.update({
+      where: { id: data.id },
+      data: {
+        date: data.date,
+        present: data.present,
+        day: data.day,
+        studentId: data.studentId,
+      },
+    });
+
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+
+
+// export const saveAttendanceBulk = async (
+//   currentState: CurrentState,
+//   data: BulkAttendanceSchema
+// ) => {
+//   try {
+//     const { date, day, records } = data;
+
+//     await prisma.$transaction([
+//       // Remove old attendance for the lesson/date
+//       prisma.attendance.deleteMany({
+//         where: { date },
+//       }),
+
+//       // Insert new attendance
+//       prisma.attendance.createMany({
+//         data: records.map((rec) => ({
+//           date,
+//           present: rec.present,
+//           day,
+//           studentId: rec.studentId,
+//         })),
+//       }),
+//     ]);
+
+//     return { success: true, error: false };
+//   } catch (err) {
+//     console.log(err);
+//     return { success: false, error: true };
+//   }
+// };
+
+
+
+export const saveTermSettings = async (data: {
+  id?: number;
+  name: "FIRST" | "SECOND" | "THIRD";
+  startDate: string;
+  endDate: string;
+}) => {
+  try {
+    if (data.id) {
+      // UPDATE existing term
+      await prisma.schoolTerm.update({
+        where: { id: data.id },
+        data: {
+          name: data.name,
+          startDate: new Date(data.startDate),
+          endDate: new Date(data.endDate),
+        },
+      });
+    } else {
+      // CREATE new term (deactivate old ones)
+      await prisma.schoolTerm.updateMany({
+        where: { isActive: true },
+        data: { isActive: false },
+      });
+
+      await prisma.schoolTerm.create({
+        data: {
+          name: data.name,
+          startDate: new Date(data.startDate),
+          endDate: new Date(data.endDate),
+          isActive: true,
+        },
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("TERM SAVE ERROR:", error);
+    return { success: false };
+  }
+};

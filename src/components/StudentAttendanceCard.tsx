@@ -11,12 +11,19 @@ const StudentAttendanceCard = async ({ id }: { id: string }) => {
   });
 
   const totalDays = attendance.length;
-  const presentDays = attendance.filter((day: { present: any; }) => day.present).length;
-  const percentage = (presentDays / totalDays) * 100;
+  const presentDays = attendance.filter(
+    (day: { present: any }) => day.present
+  ).length;
+  const percentage = ((presentDays / totalDays) * 100).toFixed(1);
   return (
-    <div className="">
-      <h1 className="text-xl font-semibold">{percentage || "-"}%</h1>
-      <span className="text-sm text-gray-400">Attendance</span>
+    <div className=" flex flex-col gap-4">
+      <div>
+        <h1 className="text-xl font-semibold">{percentage || "-"}%</h1>
+        <span className="text-sm text-gray-400">Attendance</span>
+      </div>
+      {/* <h3 className="flex self-center justify-center text-md font-semibold">
+        {presentDays}/{totalDays} Days
+      </h3> */}
     </div>
   );
 };
