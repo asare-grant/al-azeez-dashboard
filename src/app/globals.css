@@ -229,7 +229,8 @@
 }
 
 .signInBackground {
-  background-image: linear-gradient(rgba(237, 249, 253,0.90),rgba(255,255,255,0.90)), url(/loginBG.jpeg);
+  background-image: linear-gradient(rgba(26, 115, 145, 0.9),rgba(5, 22, 99, 0.9)), url(/loginBG.jpeg);
+  /* background-image: linear-gradient(rgba(237, 249, 253,0.90),rgba(255,255,255,0.90)), url(/loginBG.jpeg); */
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;

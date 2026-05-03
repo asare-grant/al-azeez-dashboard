@@ -139,30 +139,30 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
-const classes = [
+const grades = [
   "Creche 1",
   "Nursery 1",
   "Nursery 2",
   "KG 1",
   "KG 2",
-  "Basic 1A",
-  "Basic 1B",
-  "Basic 2A",
-  "Basic 2B",
-  "Basic 3A",
-  "Basic 3B",
-  "Basic 4A",
-  "Basic 4B",
-  "Basic 5A",
-  "Basic 5B",
-  "Basic 6A",
-  "Basic 6B",
-  "Basic 7A",
-  "Basic 7B",
-  "Basic 8A",
-  "Basic 8B",
-  "Basic 9A",
-  "Basic 9B",
+  "Basic 1",
+  // "Basic 1B",
+  "Basic 2",
+  // "Basic 2B",
+  "Basic 3",
+  // "Basic 3B",
+  "Basic 4",
+  // "Basic 4B",
+  "Basic 5",
+  // "Basic 5B",
+  "Basic 6",
+  // "Basic 6B",
+  "Basic 7",
+  // "Basic 7B",
+  "Basic 8",
+  // "Basic 8B",
+  "Basic 9",
+  // "Basic 9B",
 ];
 
 const terms = ["FIRST", "SECOND", "THIRD"];
@@ -175,7 +175,7 @@ const FilterDropdown = () => {
 
   const [filters, setFilters] = useState({
     student: "",
-    class: "",
+    grade: "",
     term: "",
   });
 
@@ -183,7 +183,7 @@ const FilterDropdown = () => {
   useEffect(() => {
     setFilters({
       student: searchParams.get("student") || "",
-      class: searchParams.get("class") || "",
+      grade: searchParams.get("grade") || "",
       term: searchParams.get("term") || "",
     });
   }, [searchParams]);
@@ -227,11 +227,11 @@ const FilterDropdown = () => {
 
   // Clear filters
   const clearFilters = () => {
-    setFilters({ student: "", class: "", term: "" });
+    setFilters({ student: "", grade: "", term: "" });
 
     const params = new URLSearchParams(window.location.search);
     params.delete("student");
-    params.delete("class");
+    params.delete("grade");
     params.delete("term");
     params.set("page", "1");
 
@@ -273,14 +273,14 @@ const FilterDropdown = () => {
 
           {/* CLASS FILTER */}
           <div className="mb-3">
-            <label className="block text-xs text-gray-600 mb-1">Class</label>
+            <label className="block text-xs text-gray-600 mb-1">Grade</label>
             <select
-              value={filters.class}
-              onChange={(e) => updateFilter("class", e.target.value)}
+              value={filters.grade}
+              onChange={(e) => updateFilter("grade", e.target.value)}
               className="w-full p-2 border rounded-md text-sm outline-none"
             >
-              <option value="">All Classes</option>
-              {classes.map((cls) => (
+              <option value="">All Grades</option>
+              {grades.map((cls) => (
                 <option key={cls} value={cls}>
                   {cls}
                 </option>

@@ -303,7 +303,7 @@ export default function FeeReportsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Fee Reports</h1>
         <Link href="/list/FinanceDashboardPage">
-          <Button className="bg-[rgb(24,101,243)] text-white" variant="outline">
+          <Button className="bg-[rgb(24,101,243)] text-white hover: cursor-pointer" variant="outline">
             Financial Dashboard
           </Button>
         </Link>

@@ -103,6 +103,7 @@ export default async function TeacherListPage(props: {
       include: { subjects: true, classes: true },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
+      orderBy: { id: "desc" },
     }),
     prisma.teacher.count({ where: query }),
   ]);

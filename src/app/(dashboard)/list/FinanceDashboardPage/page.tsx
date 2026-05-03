@@ -223,6 +223,8 @@
 //   );
 // }
 
+
+
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import Table from "@/components/Table";
@@ -268,12 +270,12 @@ export default async function FinanceDashboardPage(props: {
         };
         break;
 
-      case "class":
+      case "grade":
         query.details = {
           some: {
             structure: {
-              class: {
-                name: { contains: value as string, mode: "insensitive" },
+              grade: {
+                level: { contains: value as string, mode: "insensitive" },
               },
             },
           },
@@ -306,7 +308,7 @@ export default async function FinanceDashboardPage(props: {
       include: {
         student: true,
         details: {
-          include: { structure: { include: { type: true, class: true } } },
+          include: { structure: { include: { type: true, class: true, grade: true } } },
         },
         payments: true,
       },
@@ -341,7 +343,8 @@ export default async function FinanceDashboardPage(props: {
   // ---------------------------------------
   const columns = [
     { header: "Student", accessor: "student" },
-    { header: "Class", accessor: "class", className: "hidden lg:table-cell" },
+    { header: "Grade", accessor: "grade", className: "hidden lg:table-cell" },
+    // { header: "Class", accessor: "class", className: "hidden lg:table-cell" },
     { header: "Term", accessor: "term", className: "hidden lg:table-cell" },
     { header: "Total Fee", accessor: "totalAmount" },
     { header: "Paid", accessor: "paid", className: "hidden md:table-cell" },
@@ -372,7 +375,7 @@ export default async function FinanceDashboardPage(props: {
           {inv.student.name} {inv.student.surname}
         </td>
         <td className="p-2 hidden lg:table-cell">
-          {inv.details[0]?.structure?.class?.name || "-"}
+          {inv.details[0]?.structure?.grade?.level || "-"}
         </td>
         <td className="p-2 hidden lg:table-cell">{inv.term}</td>
         <td className="p-2">{inv.totalAmount.toFixed(2)}</td>

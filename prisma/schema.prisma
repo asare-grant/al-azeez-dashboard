@@ -27,11 +27,11 @@ model Student {
   phone       String?      @unique
   address     String
   img         String?
-  bloodType   String
+  studentID   String       @unique
   sex         UserSex
   createdAt   DateTime     @default(now())
   parentId    String?
-  parent      Parent?       @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  parent      Parent?      @relation(fields: [parentId], references: [id], onDelete: Cascade)
   classId     Int
   class       Class        @relation(fields: [classId], references: [id])
   gradeId     Int
@@ -54,7 +54,7 @@ model Teacher {
   phone     String?   @unique
   address   String
   img       String?
-  bloodType String
+  teacherID   String       @unique
   sex       UserSex
   createdAt DateTime  @default(now())
   subjects  Subject[]
@@ -76,7 +76,7 @@ model Parent {
 }
 
 model Grade {
-  id    Int @id @default(autoincrement())
+  id    Int    @id @default(autoincrement())
   level String @unique
 
   students      Student[]
@@ -162,7 +162,7 @@ model Attendance {
   id      Int      @id @default(autoincrement())
   date    DateTime
   present Boolean
-  day       Int
+  day     Int
 
   studentId String
   student   Student @relation(fields: [studentId], references: [id])
@@ -304,7 +304,7 @@ model SchoolTerm {
 }
 
 enum TermName {
-  FIRST 
+  FIRST
   SECOND
   THIRD
 }

@@ -4,8 +4,8 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 
 const BulkFeeStatementForm = () => {
-  const [term, setTerm] = useState("FIRST");
-  const [year, setYear] = useState("2024/2025");
+  const [term, setTerm] = useState("THIRD");
+  const [year, setYear] = useState("2026/2027");
 
   return (
     <div className="flex flex-col self-center bg-amber-100 p-4 rounded-md border w-full lg:w-[50%]">
@@ -25,7 +25,7 @@ const BulkFeeStatementForm = () => {
         value={year}
         onChange={(e) => setYear(e.target.value)}
         className="border rounded-md p-2 w-full mb-4 border-gray-300"
-        placeholder="Academic Year e.g. 2024/2025"
+        placeholder="Academic Year e.g. 2026/2027"
       />
 
       <a

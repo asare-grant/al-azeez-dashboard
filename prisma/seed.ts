@@ -132,7 +132,8 @@ async function main() {
         email: `teacher${i}@example.com`,
         phone: `123-456-789${i}`,
         address: `Address${i}`,
-        bloodType: "A+",
+        teacherID: `STF-${String(i).padStart(4, "0")}`,
+        // bloodType: "A+",
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
         subjects: { connect: [{ id: (i % subjects.length) + 1 }] },
         classes: { connect: [{ id: (i % classNames.length) + 1 }] },
@@ -177,7 +178,7 @@ async function main() {
         email: `student${i}@example.com`,
         phone: `987-654-321${i}`,
         address: `Address${i}`,
-        bloodType: "O-",
+        studentID: `AAIS-${String(i).padStart(4, "0")}`,
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
         parentId: `parent${((i - 1) % 25) + 1}`,
         classId: assignedClassId,
@@ -340,28 +341,28 @@ async function main() {
   });
 
   // -------------------- FEE STRUCTURE (GRADE-BASED) --------------------
-  for (const level of grades) {
-    const gradeId = gradeRecords[level];
+  // for (const level of grades) {
+  //   const gradeId = gradeRecords[level];
 
-    await prisma.feeStructure.createMany({ skipDuplicates: true,
-      data: [
-        {
-          typeId: tuitionType.id,
-          studentType: "new",
-          boardingType: "day",
-          amount: 900,
-          gradeId,
-        },
-        {
-          typeId: tuitionType.id,
-          studentType: "old",
-          boardingType: "day",
-          amount: 850,
-          gradeId,
-        },
-      ],
-    });
-  }
+  //   await prisma.feeStructure.createMany({ skipDuplicates: true,
+  //     data: [
+  //       {
+  //         typeId: tuitionType.id,
+  //         studentType: "new",
+  //         boardingType: "day",
+  //         amount: 900,
+  //         gradeId,
+  //       },
+  //       {
+  //         typeId: tuitionType.id,
+  //         studentType: "old",
+  //         boardingType: "day",
+  //         amount: 850,
+  //         gradeId,
+  //       },
+  //     ],
+  //   });
+  // }
   
 
   // Creating TERMS
@@ -369,85 +370,85 @@ async function main() {
 
 await prisma.schoolTerm.createMany({
   data: [
-    { name: "FIRST", startDate: new Date("2025-01-01"), endDate: new Date("2025-04-30"), isActive: true },
-    { name: "SECOND", startDate: new Date("2025-05-01"), endDate: new Date("2025-08-31"), isActive: false },
-    { name: "THIRD", startDate: new Date("2025-09-01"), endDate: new Date("2025-12-31"), isActive: false },
+    { name: "FIRST", startDate: new Date("2025-09-01"), endDate: new Date("2025-12-18"), isActive: false },
+    { name: "SECOND", startDate: new Date("2026-01-12"), endDate: new Date("2026-04-10"), isActive: false },
+    { name: "THIRD", startDate: new Date("2026-04-028"), endDate: new Date("2026-07-31"), isActive: true },
   ],
 });
 
   // Feeding
-  await prisma.feeStructure.createMany({ skipDuplicates: true,
-    data: [
-      { typeId: feedingType.id, studentType: "new", boardingType: "day", amount: 300 },
-      { typeId: feedingType.id, studentType: "old", boardingType: "day", amount: 250 },
-      { typeId: feedingType.id, studentType: "new", boardingType: "boarder", amount: 600 },
-      { typeId: feedingType.id, studentType: "old", boardingType: "boarder", amount: 550 },
-    ],
-  });
+  // await prisma.feeStructure.createMany({ skipDuplicates: true,
+  //   data: [
+  //     { typeId: feedingType.id, studentType: "new", boardingType: "day", amount: 300 },
+  //     { typeId: feedingType.id, studentType: "old", boardingType: "day", amount: 250 },
+  //     { typeId: feedingType.id, studentType: "new", boardingType: "boarder", amount: 600 },
+  //     { typeId: feedingType.id, studentType: "old", boardingType: "boarder", amount: 550 },
+  //   ],
+  // });
 
   // Books
-  await prisma.feeStructure.createMany({ skipDuplicates: true,
-    data: [
-      { typeId: booksType.id, studentType: "new", boardingType: "day", amount: 300 },
-      { typeId: booksType.id, studentType: "old", boardingType: "day", amount: 200 },
-    ],
-  });
+  // await prisma.feeStructure.createMany({ skipDuplicates: true,
+  //   data: [
+  //     { typeId: booksType.id, studentType: "new", boardingType: "day", amount: 300 },
+  //     { typeId: booksType.id, studentType: "old", boardingType: "day", amount: 200 },
+  //   ],
+  // });
 
   // PTA
-  await prisma.feeStructure.createMany({ skipDuplicates: true,
-    data: [
-      { typeId: ptaType.id, studentType: "new", boardingType: "day", amount: 50 },
-      { typeId: ptaType.id, studentType: "old", boardingType: "day", amount: 50 },
-    ],
-  });
+  // await prisma.feeStructure.createMany({ skipDuplicates: true,
+  //   data: [
+  //     { typeId: ptaType.id, studentType: "new", boardingType: "day", amount: 50 },
+  //     { typeId: ptaType.id, studentType: "old", boardingType: "day", amount: 50 },
+  //   ],
+  // });
 
   // Boarding Fee
-  await prisma.feeStructure.createMany({ skipDuplicates: true,
-    data: [
-      { typeId: boardingFeeType.id, studentType: "new", boardingType: "boarder", amount: 1800 },
-      { typeId: boardingFeeType.id, studentType: "old", boardingType: "boarder", amount: 1500 },
-    ],
-  });
+  // await prisma.feeStructure.createMany({ skipDuplicates: true,
+  //   data: [
+  //     { typeId: boardingFeeType.id, studentType: "new", boardingType: "boarder", amount: 1800 },
+  //     { typeId: boardingFeeType.id, studentType: "old", boardingType: "boarder", amount: 1500 },
+  //   ],
+  // });
 
   // -------------------- INVOICE / PAYMENTS --------------------
-  const students = await prisma.student.findMany();
+  // const students = await prisma.student.findMany();
 
-  for (const student of students) {
-    const applicable = await prisma.feeStructure.findMany({
-      where: {
-        studentType: student.studentType,
-        boardingType: student.boardingType,
-        OR: [{ gradeId: student.gradeId }, { gradeId: null }],
-      },
-    });
+  // for (const student of students) {
+  //   const applicable = await prisma.feeStructure.findMany({
+  //     where: {
+  //       studentType: student.studentType,
+  //       boardingType: student.boardingType,
+  //       OR: [{ gradeId: student.gradeId }, { gradeId: null }],
+  //     },
+  //   });
 
-    const total = applicable.reduce((sum, f) => sum + f.amount, 0);
+  //   const total = applicable.reduce((sum, f) => sum + f.amount, 0);
 
-    const invoice = await prisma.feeMaster.create({
-      data: {
-        studentId: student.id,
-        academicYear: "2024/2025",
-        term: "FIRST",
-        status: "PENDING",
-        totalAmount: total,
-      },
-    });
+  //   const invoice = await prisma.feeMaster.create({
+  //     data: {
+  //       studentId: student.id,
+  //       academicYear: "2025/2026",
+  //       term: "FIRST",
+  //       status: "PENDING",
+  //       totalAmount: total,
+  //     },
+  //   });
 
-    for (const f of applicable) {
-      await prisma.fee.create({
-        data: { masterId: invoice.id, structureId: f.id, amount: f.amount },
-      });
-    }
+  //   for (const f of applicable) {
+  //     await prisma.fee.create({
+  //       data: { masterId: invoice.id, structureId: f.id, amount: f.amount },
+  //     });
+  //   }
 
-    await prisma.feePayment.create({
-      data: {
-        masterId: invoice.id,
-        amount: Math.floor(total * 0.4),
-        date: new Date(),
-        method: "CASH",
-      },
-    });
-  }
+  //   await prisma.feePayment.create({
+  //     data: {
+  //       masterId: invoice.id,
+  //       amount: Math.floor(total * 0.4),
+  //       date: new Date(),
+  //       method: "CASH",
+  //     },
+  //   });
+  // }
 
   console.log("Seeding completed successfully.");
 }

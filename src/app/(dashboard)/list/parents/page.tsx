@@ -87,6 +87,7 @@ export default async function ParentListPage(props: {
       include: { students: true },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
+      orderBy: { id: "desc" },
     }),
     prisma.parent.count({ where: query }),
   ]);

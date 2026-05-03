@@ -138,7 +138,7 @@ const LoginPage = () => {
             disabled={loading}
             className="bg-blue-500 text-white my-1 rounded-md text-sm p-2.5 flex justify-center"
           > */}
-          <button type="submit" disabled={loading} className="login-button">
+          <button type="submit" disabled={loading} className="login-button flex items-center justify-center">
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
