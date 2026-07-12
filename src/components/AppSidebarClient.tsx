@@ -26,16 +26,32 @@ import {
 import {
   BarChart3,
   BookOpen,
+  BookOpenCheck,
+  BusIcon,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
+  ClipboardCheck,
+  ClipboardList,
   Database,
+  FileCheck2,
+  FileText,
   Folder,
+  FolderArchive,
+  GraduationCap,
+  Home,
   InfoIcon,
   LayoutList,
   LogOutIcon,
+  Megaphone,
+  MessageCircle,
+  NotebookTabs,
+  School,
   Settings,
   Tag,
   User2,
+  UserRound,
+  Users,
   Wallet,
 } from "lucide-react";
 import {
@@ -57,25 +73,25 @@ export default function AppSidebarClient({
 }) {
   const menuItems = [
     {
-      icon: "/home.png",
+      icon: <Home size={18} className="text-blue-600" />,
       label: "Dashboard",
       href: "/admin",
       visible: ["admin", "teacher", "student", "parent"],
     },
     {
-      icon: "/teacher.png",
+      icon: <UserRound size={18} className="text-emerald-600" />,
       label: "Teachers",
       href: "/list/teachers",
-      visible: ["admin", "teacher"],
+      visible: ["admin", "teacher", "account"],
     },
     {
-      icon: "/student.png",
+      icon: <GraduationCap size={18} className="text-violet-600" />,
       label: "Students",
       href: "/list/students",
-      visible: ["admin", "teacher"],
+      visible: ["admin", "teacher", "account"],
     },
     {
-      icon: "/parent.png",
+      icon: <Users size={18} className="text-orange-500" />,
       label: "Parents",
       href: "/list/parents",
       visible: ["admin", "teacher"],
@@ -84,106 +100,118 @@ export default function AppSidebarClient({
 
   const academics = [
     {
-      icon: "/subject.png",
+      icon: <BookOpenCheck size={18} className="text-indigo-600" />,
       label: "Subjects",
       href: "/list/subjects",
       visible: ["admin"],
     },
     {
-      icon: "/class.png",
+      icon: <School size={18} className="text-sky-600" />,
       label: "Classes",
       href: "/list/classes",
-      visible: ["admin", "teacher"],
+      visible: ["admin", "teacher", "account"],
     },
     {
-      icon: "/lesson.png",
+      icon: <NotebookTabs size={18} className="text-amber-500" />,
       label: "Lessons",
       href: "/list/lessons",
       visible: ["admin", "teacher"],
     },
     {
-      icon: "/exam.png",
+      icon: <FileCheck2 size={18} className="text-rose-500" />,
       label: "Exams",
       href: "/list/exams",
       visible: ["admin", "teacher", "student", "parent"],
     },
     {
-      icon: "/assignment.png",
+      icon: <ClipboardList size={18} className="text-cyan-600" />,
       label: "Assignments",
       href: "/list/assignments",
       visible: ["admin", "teacher", "student", "parent"],
     },
     {
-      icon: "/result.png",
+      icon: <BarChart3 size={18} className="text-purple-600" />,
       label: "Results",
       href: "/list/results",
       visible: ["admin", "teacher", "student", "parent"],
     },
     {
-      icon: "/attendance.png",
+      icon: <ClipboardCheck size={18} className="text-green-600" />,
       label: "Attendance",
       href: "/list/attendance",
-      visible: ["admin", "teacher", "student", "parent"],
+      visible: ["admin", "teacher", "account"],
     },
   ];
 
   const finances = [
     {
-      icon: <Wallet color="gray" />,
+      icon: <Wallet size={18} className="text-emerald-600" />,
       label: "Fees",
       href: "/list/fee",
       visible: ["admin"],
     },
     {
-      icon: <LayoutList color="gray" />,
+      icon: <LayoutList size={18} className="text-violet-600" />,
       label: "Fee Structure",
       href: "/list/fee-structure",
       visible: ["admin"],
     },
     {
-      icon: <Tag color="gray" />,
+      icon: <Tag size={18} className="text-orange-500" />,
       label: "Fee Type",
       href: "/list/fee-type",
       visible: ["admin"],
     },
     {
-      icon: <Folder color="gray" />,
+      icon: <Folder size={18} className="text-cyan-600" />,
       label: "Fee Category",
       href: "/list/fee-category",
       visible: ["admin"],
     },
     {
-      icon: <Database color="gray" />,
+      icon: <Database size={18} className="text-indigo-600" />,
       label: "Fee Master",
       href: "/list/fee-master",
       visible: ["admin"],
     },
     {
-      icon: <BarChart3 color="gray" />,
+      icon: <BarChart3 size={18} className="text-pink-600" />,
       label: "Fee Report",
       href: "/list/fee-report",
       visible: ["admin"],
+    },
+    {
+      icon: <FolderArchive size={18} className="text-amber-500" />,
+      label: "Feeding Fees",
+      href: "/list/feeding-fees",
+      visible: ["admin", "account"],
+    },
+    {
+      icon: <BusIcon size={18} className="text-sky-600" />,
+      label: "Bus Fees",
+      href: "/list/bus-fees",
+      visible: ["admin", "account"],
     },
   ];
 
   const informations = [
     {
-      icon: "/calendar.png",
+      icon: <CalendarDays size={18} className="text-blue-600" />,
       label: "Events",
       href: "/list/events",
-      visible: ["admin", "teacher", "student", "parent"],
+      visible: ["admin", "teacher", "student", "parent", "account"],
     },
     {
-      icon: "/announcement.png",
+      icon: <Megaphone size={18} className="text-orange-500" />,
       label: "Announcements",
       href: "/list/announcements",
-      visible: ["admin", "teacher", "student", "parent"],
+      visible: ["admin", "teacher", "student", "parent", "account"],
     },
     {
-      icon: "/message.png",
+      icon: <MessageCircle size={18} className="text-emerald-600" />,
       label: "Messages",
       href: "/list/messages",
-      visible: ["admin", "teacher", "student", "parent"],
+      visible: ["admin", "teacher", "student", "parent", "account"],
     },
   ];
 
@@ -202,6 +230,13 @@ export default function AppSidebarClient({
   useEffect(() => {
     console.log(path);
   }, [path]);
+
+  const menuLinkClass = (href: string) =>
+    `flex items-center gap-3 rounded-md transition-all duration-200 ${
+      path === href
+        ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 text-blue-700 shadow-sm"
+        : "hover:bg-slate-100"
+    }`;
 
   return (
     <Sidebar collapsible="icon">
@@ -234,20 +269,22 @@ export default function AppSidebarClient({
                       <SidebarMenuButton asChild>
                         <Link
                           href={menuItem.href}
-                          className={`flex items-center gap-3 ${
-                            path == menuItem.href && "bg-[#cfceff8c]"
-                          }`}
+                          className={menuLinkClass(menuItem.href)}
                         >
-                          <img
-                            src={menuItem.icon}
-                            alt={menuItem.label}
-                            className="w-4 h-4"
-                          />
+                          <span
+                            className={`transition-all duration-300 ${
+                              path === menuItem.href
+                                ? "scale-110 drop-shadow-md"
+                                : ""
+                            }`}
+                          >
+                            {menuItem.icon}
+                          </span>
                           <span>{menuItem.label}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  )
+                  ),
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -257,7 +294,7 @@ export default function AppSidebarClient({
         <SidebarGroup>
           <SidebarGroupLabel>Academics</SidebarGroupLabel>
           <SidebarGroupAction>
-            <BookOpen />
+            <BookOpen size={18} className="text-blue-600" />
           </SidebarGroupAction>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -268,20 +305,22 @@ export default function AppSidebarClient({
                       <SidebarMenuButton asChild>
                         <Link
                           href={academic.href}
-                          className={`flex items-center gap-3 ${
-                            path == academic.href && "bg-[#cfceff8c]"
-                          }`}
+                          className={menuLinkClass(academic.href)}
                         >
-                          <img
-                            src={academic.icon}
-                            alt={academic.label}
-                            className="w-4 h-4"
-                          />
+                          <span
+                            className={`transition-all duration-300 ${
+                              path === academic.href
+                                ? "scale-110 drop-shadow-md"
+                                : ""
+                            }`}
+                          >
+                            {academic.icon}
+                          </span>
                           <span>{academic.label}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  )
+                  ),
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -293,7 +332,10 @@ export default function AppSidebarClient({
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger>
                 Finance
-                <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                <ChevronDown
+                  size={16}
+                  className="ml-auto text-green-500 transition-transform group-data-[state=open]/collapsible:rotate-180"
+                />
               </CollapsibleTrigger>
             </SidebarGroupLabel>
             <CollapsibleContent>
@@ -306,17 +348,23 @@ export default function AppSidebarClient({
                           <SidebarMenuButton asChild>
                             <Link
                               href={finance.href}
-                              className={`flex items-center gap-3 ${
-                                path == finance.href && "bg-[#cfceff8c]"
-                              }`}
+                              className={menuLinkClass(finance.href)}
                             >
                               {/* <img src={finance.icon} alt={finance.label} className="w-4 h-4" /> */}
-                              {finance.icon}
+                              <span
+                                className={`transition-all duration-300 ${
+                                  path === finance.href
+                                    ? "scale-110 drop-shadow-md"
+                                    : ""
+                                }`}
+                              >
+                                {finance.icon}
+                              </span>
                               <span>{finance.label}</span>
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
-                      )
+                      ),
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -328,7 +376,7 @@ export default function AppSidebarClient({
         <SidebarGroup>
           <SidebarGroupLabel>Information</SidebarGroupLabel>
           <SidebarGroupAction>
-            <InfoIcon />
+            <InfoIcon size={18} className="text-orange-500" />
           </SidebarGroupAction>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -339,18 +387,22 @@ export default function AppSidebarClient({
                       <SidebarMenuButton asChild>
                         <Link
                           href={information.href}
-                          className="flex items-center gap-3"
+                          className={menuLinkClass(information.href)}
                         >
-                          <img
-                            src={information.icon}
-                            alt={information.label}
-                            className="w-4 h-4"
-                          />
+                          <span
+                            className={`transition-all duration-300 ${
+                              path === information.href
+                                ? "scale-110 drop-shadow-md"
+                                : ""
+                            }`}
+                          >
+                            {information.icon}
+                          </span>
                           <span>{information.label}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  )
+                  ),
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -395,7 +447,7 @@ export default function AppSidebarClient({
                   onClick={handleLogout}
                   className="text-red-500 cursor-pointer flex items-center gap-2"
                 >
-                  <LogOutIcon size={16} className="text-red-500"/>
+                  <LogOutIcon size={16} className="text-red-500" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

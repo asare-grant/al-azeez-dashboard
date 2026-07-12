@@ -17,7 +17,7 @@ const TermForm = ({ data }: { data?: any }) => {
     handleSubmit,
     formState: { errors },
   } = useForm<TermSchema>({
-    resolver: zodResolver(termSchema),
+    resolver: zodResolver(termSchema) as any,
     defaultValues: {
       name: data?.name ?? "FIRST",
       startDate: data?.startDate

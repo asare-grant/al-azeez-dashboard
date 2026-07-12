@@ -18,7 +18,7 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
     setValue,
     formState: { errors },
   } = useForm<ResultSchema>({
-    resolver: zodResolver(resultSchema),
+    resolver: zodResolver(resultSchema) as any,
     defaultValues: data || {},
   });
 
@@ -46,14 +46,14 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
       setStudents([]);
       setValue("studentId", "");
     }
-    setValue("classId", selectedClass); // Save classId in form
+    // setValue("classId", selectedClass); // Save classId in form
   }, [selectedClass, setValue]);
 
   const onSubmit = handleSubmit(async (formData) => {
     const preparedData: ResultSchema = {
       ...formData,
       score: Number(formData.score),
-      classId: Number(formData.classId),
+      // classId: Number(formData.classId),
       examId: formData.type === "EXAM" ? Number(formData.examId) || null : null,
       assignmentId: formData.type === "ASSIGNMENT" ? Number(formData.assignmentId) || null : null,
     };

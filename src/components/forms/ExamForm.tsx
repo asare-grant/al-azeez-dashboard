@@ -25,7 +25,7 @@ const ExamForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<ExamSchema>({
-    resolver: zodResolver(examSchema),
+    resolver: zodResolver(examSchema) as any,
     defaultValues: data || {},
   });
 
@@ -38,17 +38,9 @@ const ExamForm = ({
       const payload = {
         ...formValues,
 
-        id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
-            : undefined,
+        id: formValues.id ? Number(formValues.id) : undefined,
 
-        lessonId:
-          formValues.lessonId && formValues.lessonId !== ""
-            ? parseInt(formValues.lessonId)
-            : null,
+        lessonId: Number(formValues.lessonId),
 
         startTime: new Date(formValues.startTime),
         endTime: new Date(formValues.endTime),

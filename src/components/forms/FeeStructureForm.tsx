@@ -29,7 +29,7 @@ const FeeStructureForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<FeeStructureSchema>({
-    resolver: zodResolver(feeStructureSchema),
+    resolver: zodResolver(feeStructureSchema) as any,
     defaultValues: data || {},
   });
 
@@ -41,20 +41,12 @@ const FeeStructureForm = ({
       // Coerce IDs to numbers where needed
       const payload = {
         ...formValues,
-        id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
-            : undefined,
+        id: formValues.id ? Number(formValues.id) : undefined,
         classId:
-          formValues.classId && formValues.classId !== ""
+          formValues.classId
             ? parseInt(formValues.classId as any)
             : null,
-        gradeId:
-          formValues.gradeId && formValues.gradeId !== ""
-            ? parseInt(formValues.gradeId as any)
-            : null,
+        gradeId: Number(formValues.gradeId),
         typeId: parseInt(formValues.typeId as any),
       };
 

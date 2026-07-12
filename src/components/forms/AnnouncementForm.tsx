@@ -31,7 +31,7 @@ const AnnouncementForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<AnnouncementSchema>({
-    resolver: zodResolver(announcementSchema),
+    resolver: zodResolver(announcementSchema) as any,
     defaultValues: data || {},
   });
 
@@ -43,11 +43,11 @@ const AnnouncementForm = ({
       const payload = {
         ...formValues,
         id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? Number(formValues.id)
+          formValues.id 
+          ? Number(formValues.id)
             : undefined,
         classId:
-          formValues.classId && formValues.classId !== ""
+          formValues.classId 
             ? Number(formValues.classId)
             : null,
         date: new Date(formValues.date),

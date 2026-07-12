@@ -252,7 +252,7 @@ const LessonForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<LessonSchema>({
-    resolver: zodResolver(lessonSchema),
+    resolver: zodResolver(lessonSchema) as any,
     defaultValues: data || {
       day: "MONDAY",
       startTime: "08:00",
@@ -266,28 +266,14 @@ const LessonForm = ({
         ...formValues,
 
         // ID (for update)
-        id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
-            : undefined,
+        id: formValues.id ? Number(formValues.id) : undefined,
 
         // Foreign keys
-        classId:
-          formValues.classId && formValues.classId !== ""
-            ? parseInt(formValues.classId)
-            : null,
+        classId: Number(formValues.classId as any),
 
-        subjectId:
-          formValues.subjectId && formValues.subjectId !== ""
-            ? parseInt(formValues.subjectId)
-            : null,
+        subjectId: Number(formValues.subjectId),
 
-        teacherId:
-          formValues.teacherId && formValues.teacherId !== ""
-            ? formValues.teacherId
-            : null,
+        teacherId: formValues.teacherId
       };
 
       const action = type === "create" ? createLesson : updateLesson;

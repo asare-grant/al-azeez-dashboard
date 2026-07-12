@@ -9,7 +9,6 @@ import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import InputField from "../InputField";
 
-
 const EventForm = ({
   type,
   data,
@@ -26,7 +25,7 @@ const EventForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<EventSchema>({
-    resolver: zodResolver(eventSchema),
+    resolver: zodResolver(eventSchema) as any,
     defaultValues: data || {},
   });
 
@@ -37,19 +36,11 @@ const EventForm = ({
       // Coerce IDs to number
       const payload = {
         ...formValues,
-        id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
-            : undefined,
-        classId:
-          formValues.classId && formValues.classId !== ""
-            ? parseInt(formValues.classId)
-            : null,
+        id: formValues.id ? Number(formValues.id) : undefined,
+        classId: formValues.classId ? String(formValues.classId) : undefined,
         date: new Date(formValues.date),
-        startTime: new Date(formValues.startTime),
-        endTime: new Date(formValues.endTime),
+        startTime: formValues.startTime,
+        endTime: formValues.endTime,
       };
 
       const action = type === "create" ? createEvent : updateEvent;
@@ -58,7 +49,7 @@ const EventForm = ({
 
       if (result.success) {
         toast.success(
-          `Event has been ${type === "create" ? "created" : "updated"}!`
+          `Event has been ${type === "create" ? "created" : "updated"}!`,
         );
         setOpen(false);
         router.refresh();

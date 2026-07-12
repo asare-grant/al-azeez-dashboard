@@ -43,6 +43,12 @@ model Student {
 
   studentType  String // "new" or "old"
   boardingType String // "boarder" or "day"
+
+  feedingFeeStudent  FeedingFeeStudent?
+  feedingFeePayments FeedingFeePayment[]
+
+  busFeeStudent  BusFeeStudent?
+  busFeePayments BusFeePayment[]
 }
 
 model Teacher {
@@ -54,7 +60,7 @@ model Teacher {
   phone     String?   @unique
   address   String
   img       String?
-  teacherID   String       @unique
+  teacherID String    @unique
   sex       UserSex
   createdAt DateTime  @default(now())
   subjects  Subject[]
@@ -259,6 +265,50 @@ model FeePayment {
   amount Float
   date   DateTime      @default(now())
   method PaymentMethod
+}
+
+model FeedingFeeStudent {
+  id        Int     @id @default(autoincrement())
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model FeedingFeePayment {
+  id     Int      @id @default(autoincrement())
+  amount Float
+  date   DateTime
+  day    Int
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, date])
+}
+
+model BusFeeStudent {
+  id        Int     @id @default(autoincrement())
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model BusFeePayment {
+  id     Int      @id @default(autoincrement())
+  amount Float
+  date   DateTime
+  day    Int
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, date])
 }
 
 enum UserSex {

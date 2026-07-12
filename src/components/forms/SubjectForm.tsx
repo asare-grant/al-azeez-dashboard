@@ -44,10 +44,8 @@ const SubjectForm = ({
       const payload = {
         ...formValues,
         id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
+          formValues.id 
+          ? Number(formValues.id)
             : undefined,
         teachers: selectedTeachers,
       };

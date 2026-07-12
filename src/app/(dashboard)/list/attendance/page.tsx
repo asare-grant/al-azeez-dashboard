@@ -1,33 +1,3 @@
-// import { auth } from "@clerk/nextjs/server";
-// import prisma from "@/lib/prisma";
-// import AttendanceTable from "@/components/AttendanceTable";
-
-// export const revalidate = 0;
-
-// const AttendanceListPage = async () => {
-//   const { sessionClaims } = await auth();
-//   const role = (sessionClaims?.metadata as { role?: string })?.role;
-
-//   const classes = await prisma.class.findMany({ orderBy: { name: "asc" } });
-//   const students = await prisma.student.findMany({
-//     include: { class: true },
-//     orderBy: { name: "asc" },
-//   });
-
-//   return (
-//     <div className="p-4 m-4 mt-0 rounded-md bg-white">
-//       <h2 className="text-2xl font-bold">Attendance</h2>
-//       <AttendanceTable students={students} classes={classes} />
-//     </div>
-//   );
-// };
-
-// export default AttendanceListPage;
-
-
-
-
-
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import AttendanceTable from "@/components/AttendanceTable";

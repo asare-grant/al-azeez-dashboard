@@ -25,8 +25,7 @@ const FeeForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<FeeSchema>({
-    resolver: zodResolver(feeSchema),
-    defaultValues: data || {},
+    resolver: zodResolver(feeSchema) as any,
   });
 
   const router = useRouter();

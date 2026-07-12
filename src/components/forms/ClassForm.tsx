@@ -25,7 +25,7 @@ const ClassForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<ClassSchema>({
-    resolver: zodResolver(classSchema),
+    resolver: zodResolver(classSchema) as any,
     defaultValues: data || {},
   });
 
@@ -35,20 +35,9 @@ const ClassForm = ({
     try {
       const payload = {
         ...formValues,
-        id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
-            : undefined,
-        capacity:
-          typeof formValues.capacity === "string"
-            ? parseInt(formValues.capacity)
-            : formValues.capacity,
-        gradeId:
-          formValues.gradeId && formValues.gradeId !== ""
-            ? parseInt(formValues.gradeId)
-            : null,
+         id: formValues.id ? Number(formValues.id) : undefined,
+        capacity: Number(formValues.capacity),
+        gradeId: Number(formValues.gradeId),
       };
 
       const action = type === "create" ? createClass : updateClass;

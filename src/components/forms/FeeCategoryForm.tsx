@@ -28,7 +28,7 @@ const FeeCategoryForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<FeeCategorySchema>({
-    resolver: zodResolver(feeCategorySchema),
+    resolver: zodResolver(feeCategorySchema) as any,
     defaultValues: data || {},
   });
 

@@ -25,7 +25,7 @@ const FeeTypeForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<FeeTypeSchema>({
-    resolver: zodResolver(feeTypeSchema),
+    resolver: zodResolver(feeTypeSchema) as any,
     defaultValues: data || {},
   });
 
@@ -35,12 +35,7 @@ const FeeTypeForm = ({
     try {
       const payload = {
         ...formValues,
-        id:
-          formValues.id !== undefined && formValues.id !== ""
-            ? typeof formValues.id === "string"
-              ? parseInt(formValues.id)
-              : formValues.id
-            : undefined,
+        id: formValues.id ? Number(formValues.id) : undefined,
         categoryId: Number(formValues.categoryId),
       };
 

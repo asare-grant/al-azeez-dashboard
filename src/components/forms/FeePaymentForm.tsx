@@ -21,7 +21,7 @@ const FeePaymentForm = ({
   relatedData?: any;
 }) => {
   const { register, handleSubmit, formState: { errors } } = useForm<FeePaymentSchema>({
-    resolver: zodResolver(feePaymentSchema),
+    resolver: zodResolver(feePaymentSchema) as any,
     defaultValues: data || {},
   });
 

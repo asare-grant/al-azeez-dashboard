@@ -25,7 +25,7 @@ const FeeMasterForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<FeeMasterSchema>({
-    resolver: zodResolver(feeMasterSchema),
+    resolver: zodResolver(feeMasterSchema) as any,
     defaultValues: data || {},
   });
 

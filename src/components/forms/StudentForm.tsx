@@ -318,7 +318,7 @@ const StudentForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<StudentSchema>({
-    resolver: zodResolver(studentSchema),
+    resolver: zodResolver(studentSchema) as any,
   });
 
   const [img, setImg] = useState<any>();

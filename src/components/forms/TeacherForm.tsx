@@ -255,7 +255,7 @@ const TeacherForm = ({
     handleSubmit,
     formState: { errors },
   } = useForm<TeacherSchema>({
-    resolver: zodResolver(teacherSchema),
+    resolver: zodResolver(teacherSchema) as any,
   });
 
   const [img, setImg] = useState<any>();
