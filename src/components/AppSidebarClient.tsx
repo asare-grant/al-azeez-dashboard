@@ -141,6 +141,15 @@ export default function AppSidebarClient({
       href: "/list/attendance",
       visible: ["admin", "teacher", "account"],
     },
+    {
+      icon: <ClipboardList size={18} className="text-amber-300" />,
+      label: "Assessments",
+      href: 
+        role === "student" 
+        ? "/student/assessments" 
+        : "/list/assessments",
+      visible: ["admin", "teacher", "student"],
+    },
   ];
 
   const finances = [

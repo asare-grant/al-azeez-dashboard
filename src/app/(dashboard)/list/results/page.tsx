@@ -37,7 +37,11 @@ export default async function ResultListPage(props: {
     { header: "Title", accessor: "title" },
     { header: "Student", accessor: "student" },
     { header: "Score", accessor: "score", className: "hidden md:table-cell" },
-    { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
+    {
+      header: "Teacher",
+      accessor: "teacher",
+      className: "hidden md:table-cell",
+    },
     { header: "Class", accessor: "class", className: "hidden md:table-cell" },
     { header: "Date", accessor: "date", className: "hidden md:table-cell" },
     ...(role === "admin" || role === "teacher"
@@ -86,9 +90,21 @@ export default async function ResultListPage(props: {
           break;
         case "search":
           query.OR = [
-            { exam: { title: { contains: value as string, mode: "insensitive" } } },
-            { assignment: { title: { contains: value as string, mode: "insensitive" } } },
-            { student: { name: { contains: value as string, mode: "insensitive" } } },
+            {
+              exam: {
+                title: { contains: value as string, mode: "insensitive" },
+              },
+            },
+            {
+              assignment: {
+                title: { contains: value as string, mode: "insensitive" },
+              },
+            },
+            {
+              student: {
+                name: { contains: value as string, mode: "insensitive" },
+              },
+            },
           ];
           break;
         default:
@@ -141,6 +157,19 @@ export default async function ResultListPage(props: {
             },
           },
         },
+        assessment: {
+          include: {
+            lesson: {
+              include: {
+                subject: true,
+                class: { select: { name: true } },
+                teacher: { select: { name: true, surname: true } },
+              },
+            },
+          },
+        },
+         assessmentAttempt: true,
+
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
@@ -151,7 +180,8 @@ export default async function ResultListPage(props: {
   // ✅ Transform data for table
   const data = dataRes
     .map((item) => {
-      const assessment = item.exam || item.assignment;
+      const assessment = item.exam || item.assignment || item.assessment;
+      
       if (!assessment) return null;
 
       const isExam = "startTime" in assessment;
@@ -167,7 +197,7 @@ export default async function ResultListPage(props: {
         className: assessment.lesson.class.name,
         startTime: isExam
           ? assessment.startTime
-          : (assessment as any).startDate ?? new Date(),
+          : ((assessment as any).startDate ?? new Date()),
       };
     })
     .filter(Boolean) as ResultList[];

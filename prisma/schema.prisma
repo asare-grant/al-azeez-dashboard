@@ -38,8 +38,11 @@ model Student {
   grade       Grade        @relation(fields: [gradeId], references: [id])
   attendances Attendance[]
   results     Result[]
-  birthday    DateTime
-  feeMasters  FeeMaster[]
+
+  assessmentAttempts AssessmentAttempt[]
+
+  birthday   DateTime
+  feeMasters FeeMaster[]
 
   studentType  String // "new" or "old"
   boardingType String // "boarder" or "day"
@@ -67,6 +70,8 @@ model Teacher {
   lessons   Lesson[]
   classes   Class[]
   birthday  DateTime
+
+ reviewedAssessmentAttempts AssessmentAttempt[] @relation("AssessmentAttemptReviewer")
 }
 
 model Parent {
@@ -120,14 +125,16 @@ model Lesson {
   startTime DateTime
   endTime   DateTime
 
-  subjectId   Int
-  subject     Subject      @relation(fields: [subjectId], references: [id])
-  classId     Int
-  class       Class        @relation(fields: [classId], references: [id])
-  teacherId   String
-  teacher     Teacher      @relation(fields: [teacherId], references: [id])
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  classId   Int
+  class     Class   @relation(fields: [classId], references: [id])
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+
   exams       Exam[]
   assignments Assignment[]
+  assessments Assessment[]
 }
 
 model Exam {
@@ -153,15 +160,215 @@ model Assignment {
 }
 
 model Result {
-  id           Int         @id @default(autoincrement())
-  score        Int
-  type         ResultType
-  examId       Int?
-  exam         Exam?       @relation(fields: [examId], references: [id])
+  id Int @id @default(autoincrement())
+
+  score      Float
+  totalMarks Float?
+  percentage Float?
+  grade      String?
+  remarks    String?
+
+  type ResultType
+
+  examId Int?
+  exam   Exam? @relation(fields: [examId], references: [id], onDelete: Cascade)
+
   assignmentId Int?
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
-  studentId    String
-  student      Student     @relation(fields: [studentId], references: [id])
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  assessmentId Int?
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  assessmentAttemptId Int?               @unique
+  assessmentAttempt   AssessmentAttempt? @relation(fields: [assessmentAttemptId], references: [id], onDelete: SetNull)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([type])
+  @@index([assessmentId])
+  @@index([studentId, assessmentId])
+  @@index([studentId, type, createdAt])
+}
+
+model Assessment {
+  id           Int     @id @default(autoincrement())
+  title        String
+  instructions String?
+
+  startDate DateTime
+  dueDate   DateTime
+
+  durationMinutes Int?
+  passMarkPercent Int  @default(50)
+  maxAttempts     Int  @default(1)
+
+  shuffleQuestions Boolean @default(false)
+  shuffleOptions   Boolean @default(false)
+  allowBacktrack   Boolean @default(true)
+  allowUnanswered  Boolean @default(true)
+
+  showInstantResult  Boolean @default(true)
+  showCorrectAnswers Boolean @default(false)
+  showExplanations   Boolean @default(false)
+
+  autoSubmit Boolean @default(true)
+
+  status AssessmentStatus @default(DRAFT)
+
+  totalMarks    Int @default(0)
+  questionCount Int @default(0)
+
+  publishedAt DateTime?
+  closedAt    DateTime?
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  questions AssessmentQuestion[]
+  attempts  AssessmentAttempt[]
+  results   Result[]
+
+  academicYear String?
+
+  termId Int?
+  term   SchoolTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lessonId])
+  @@index([status])
+  @@index([startDate])
+  @@index([dueDate])
+  @@index([lessonId, status])
+  @@index([termId])
+  @@index([academicYear])
+}
+
+model AssessmentQuestion {
+  id Int @id @default(autoincrement())
+
+  assessmentId Int
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  questionText String
+  imageUrl     String?
+  explanation  String?
+
+  marks    Int @default(1)
+  position Int
+
+  options AssessmentOption[]
+  answers AssessmentAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assessmentId, position])
+  @@index([assessmentId])
+}
+
+model AssessmentOption {
+  id Int @id @default(autoincrement())
+
+  questionId Int
+  question   AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  optionText String
+  imageUrl   String?
+
+  isCorrect Boolean @default(false)
+  position  Int
+
+  selectedAnswers AssessmentAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([questionId, position])
+  @@index([questionId])
+}
+
+model AssessmentAttempt {
+  id Int @id @default(autoincrement())
+
+  assessmentId Int
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  attemptNumber Int @default(1)
+
+  status AssessmentAttemptStatus @default(IN_PROGRESS)
+
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  expiresAt   DateTime?
+
+  lastActivityAt DateTime @default(now())
+
+  timeSpentSeconds Int @default(0)
+
+  score           Int?
+  totalMarks      Int?
+  percentage      Float?
+  correctCount    Int?
+  incorrectCount  Int?
+  unansweredCount Int?
+
+  answers AssessmentAnswer[]
+  result  Result?
+
+  teacherFeedback String?
+  reviewedAt      DateTime?
+  reviewedById    String?
+
+  reviewedBy Teacher? @relation("AssessmentAttemptReviewer",fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assessmentId, studentId, attemptNumber])
+  @@index([assessmentId])
+  @@index([studentId])
+  @@index([status])
+  @@index([studentId, status])
+  @@index([assessmentId, status])
+}
+
+model AssessmentAnswer {
+  id Int @id @default(autoincrement())
+
+  attemptId Int
+  attempt   AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  questionId Int
+  question   AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  selectedOptionId Int?
+  selectedOption   AssessmentOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  isCorrect    Boolean?
+  marksAwarded Int      @default(0)
+
+  flagged Boolean @default(false)
+
+  answeredAt       DateTime?
+  timeSpentSeconds Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+  @@index([selectedOptionId])
 }
 
 model Attendance {
@@ -327,6 +534,7 @@ enum Day {
 enum ResultType {
   EXAM
   ASSIGNMENT
+  ASSESSMENT
 }
 
 enum FeeStatus {
@@ -349,6 +557,8 @@ model SchoolTerm {
   endDate   DateTime
   isActive  Boolean  @default(true)
 
+  assessments Assessment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -357,4 +567,21 @@ enum TermName {
   FIRST
   SECOND
   THIRD
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum AssessmentAttemptStatus {
+  IN_PROGRESS
+  SUBMITTING
+  SUBMITTED
+  AUTO_SUBMITTED
+  EXPIRED
+  CANCELLED
 }
