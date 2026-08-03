@@ -120,9 +120,9 @@ export default function AssessmentQuestionPanel({
               option,
               optionIndex
             ) => (
-              <AssessmentOptionCard
-                key={option.id}
-                option={option}
+            <AssessmentOptionCard
+              key={option.id}
+              option={option}
                 optionIndex={
                   optionIndex
                 }
@@ -130,13 +130,13 @@ export default function AssessmentQuestionPanel({
                   selectedOptionId ===
                   option.id
                 }
-                disabled={isSaving}
+              disabled={isSaving}
                 onSelect={() =>
                   onSelectOption(
                     option.id
                   )
                 }
-              />
+            />
             )
           )}
         </div>

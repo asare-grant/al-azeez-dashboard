@@ -25,5 +25,6 @@
         "statusBar.debuggingBackground": "#832561",
         "statusBar.debuggingForeground": "#e7e7e7"
     },
-    "peacock.color": "#832561"
+    "peacock.color": "#832561",
+    "liveServer.settings.multiRootWorkspaceName": "management_dashboard"
 }

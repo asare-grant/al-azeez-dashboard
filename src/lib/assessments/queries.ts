@@ -6,8 +6,10 @@ import { synchronizeAssessmentStatuses } from "./status";
 import { requireAssessmentManager, requireAssessmentStudent } from "./auth";
 
 import type {
+  AssessmentAcademicPeriodOption,
   AssessmentBuilderData,
   AssessmentLessonOption,
+  AssessmentResultReview,
   StudentAssessmentIntroductionData,
   StudentAssessmentPlayerData,
   TeacherAssessmentAnalytics,
@@ -16,10 +18,13 @@ import type {
   TeacherStudentSubmissionReview,
 } from "./types";
 
+import type { ParentChildAssessmentSummary } from "@/components/assessments/parent/types";
+
 import { deterministicShuffle } from "./shuffle";
 
 import { hasAttemptExpired } from "./timing";
 import { synchronizeExpiredAttempts } from "./attempt-status";
+import { auth } from "@clerk/nextjs/server";
 
 /* -------------------------------------------------------------------------- */
 /*                           TEACHER LESSON OPTIONS                           */
@@ -152,6 +157,9 @@ export async function getAssessmentBuilderData(
     id: assessment.id,
     title: assessment.title,
     instructions: assessment.instructions ?? "",
+
+    academicYear: assessment.academicYear ?? "",
+    termId: assessment.termId,
 
     lessonId: assessment.lessonId,
 
@@ -1499,6 +1507,275 @@ export async function getStudentAssessmentPlayerData({
   };
 }
 
+/*---------------------------------------------------------------------------*/
+/*                 HELPER FUNCTION                                           */
+
+async function getAssessmentResultForOwner({
+  studentId,
+  assessmentId,
+  attemptId,
+}: {
+  studentId: string;
+  assessmentId: number;
+  attemptId: number;
+}): Promise<AssessmentResultReview | null> {
+  const attempt = await prisma.assessmentAttempt.findFirst({
+    where: {
+      id: attemptId,
+      assessmentId,
+      studentId,
+
+      status: {
+        in: ["SUBMITTED", "AUTO_SUBMITTED"],
+      },
+    },
+
+    select: {
+      id: true,
+      attemptNumber: true,
+      status: true,
+
+      startedAt: true,
+      submittedAt: true,
+
+      timeSpentSeconds: true,
+
+      score: true,
+      totalMarks: true,
+      percentage: true,
+
+      correctCount: true,
+      incorrectCount: true,
+      unansweredCount: true,
+
+      teacherFeedback: true,
+      reviewedAt: true,
+
+      reviewedBy: {
+        select: {
+          name: true,
+          surname: true,
+        },
+      },
+
+      assessment: {
+        select: {
+          id: true,
+          title: true,
+
+          academicYear: true,
+
+          term: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+
+          passMarkPercent: true,
+
+          showInstantResult: true,
+          showCorrectAnswers: true,
+          showExplanations: true,
+
+          lesson: {
+            select: {
+              subject: {
+                select: {
+                  name: true,
+                },
+              },
+
+              class: {
+                select: {
+                  name: true,
+                },
+              },
+
+              teacher: {
+                select: {
+                  name: true,
+                  surname: true,
+                },
+              },
+            },
+          },
+
+          questions: {
+            orderBy: {
+              position: "asc",
+            },
+
+            select: {
+              id: true,
+              questionText: true,
+              imageUrl: true,
+              marks: true,
+              position: true,
+              explanation: true,
+
+              options: {
+                orderBy: {
+                  position: "asc",
+                },
+
+                select: {
+                  id: true,
+                  optionText: true,
+                  imageUrl: true,
+                  isCorrect: true,
+                  position: true,
+                },
+              },
+            },
+          },
+        },
+      },
+
+      result: {
+        select: {
+          grade: true,
+          remarks: true,
+        },
+      },
+
+      answers: {
+        select: {
+          questionId: true,
+          selectedOptionId: true,
+          isCorrect: true,
+          marksAwarded: true,
+        },
+      },
+    },
+  });
+
+  if (!attempt || !attempt.result || !attempt.submittedAt) {
+    return null;
+  }
+
+  if (attempt.status !== "SUBMITTED" && attempt.status !== "AUTO_SUBMITTED") {
+    return null;
+  }
+
+  const percentage = attempt.percentage ?? 0;
+
+  const passed = percentage >= attempt.assessment.passMarkPercent;
+
+  const answerMap = new Map(
+    attempt.answers.map((answer) => [answer.questionId, answer]),
+  );
+
+  const mayReviewAnswers = attempt.assessment.showCorrectAnswers;
+
+  const mayReviewExplanations =
+    mayReviewAnswers && attempt.assessment.showExplanations;
+
+  const questions = mayReviewAnswers
+    ? attempt.assessment.questions.map((question) => {
+        const answer = answerMap.get(question.id);
+
+        return {
+          id: question.id,
+
+          questionText: question.questionText,
+
+          imageUrl: question.imageUrl,
+
+          marks: question.marks,
+
+          marksAwarded: answer?.marksAwarded ?? 0,
+
+          isCorrect: answer?.isCorrect ?? false,
+
+          explanation: mayReviewExplanations ? question.explanation : null,
+
+          options: question.options.map((option) => ({
+            id: option.id,
+
+            optionText: option.optionText,
+
+            imageUrl: option.imageUrl,
+
+            isCorrect: option.isCorrect,
+
+            wasSelected: answer?.selectedOptionId === option.id,
+          })),
+        };
+      })
+    : [];
+
+  return {
+    summary: {
+      attemptId: attempt.id,
+
+      assessmentId: attempt.assessment.id,
+
+      assessmentTitle: attempt.assessment.title,
+
+      subject: attempt.assessment.lesson.subject.name,
+
+      academicYear: attempt.assessment.academicYear,
+
+      term: attempt.assessment.term
+        ? {
+            id: attempt.assessment.term.id,
+
+            name: attempt.assessment.term.name,
+          }
+        : null,
+
+      className: attempt.assessment.lesson.class.name,
+
+      teacherName: `${attempt.assessment.lesson.teacher.name} ${attempt.assessment.lesson.teacher.surname}`,
+
+      attemptNumber: attempt.attemptNumber,
+
+      submissionStatus: attempt.status,
+
+      score: attempt.score ?? 0,
+
+      totalMarks: attempt.totalMarks ?? 0,
+
+      percentage,
+
+      grade: attempt.result.grade ?? "N/A",
+
+      remarks: attempt.result.remarks ?? "Assessment completed",
+
+      passed,
+
+      correctCount: attempt.correctCount ?? 0,
+
+      incorrectCount: attempt.incorrectCount ?? 0,
+
+      unansweredCount: attempt.unansweredCount ?? 0,
+
+      timeSpentSeconds: attempt.timeSpentSeconds,
+
+      submittedAt: attempt.submittedAt,
+
+      showInstantResult: attempt.assessment.showInstantResult,
+
+      showCorrectAnswers: mayReviewAnswers,
+
+      showExplanations: mayReviewExplanations,
+
+      teacherFeedback: attempt.teacherFeedback,
+
+      reviewedAt: attempt.reviewedAt,
+
+      reviewedByName: attempt.reviewedBy
+        ? `${attempt.reviewedBy.name} ${attempt.reviewedBy.surname}`
+        : null,
+    },
+
+    questions,
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+
 /* -------------------------------------------------------------------------- */
 /*                         STUDENT ASSESSMENT RESULT                           */
 /* -------------------------------------------------------------------------- */
@@ -1546,6 +1823,15 @@ export async function getStudentAssessmentResult({
         select: {
           id: true,
           title: true,
+
+          academicYear: true,
+
+          term: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
 
           passMarkPercent: true,
 
@@ -1698,6 +1984,16 @@ export async function getStudentAssessmentResult({
       assessmentId: attempt.assessment.id,
 
       assessmentTitle: attempt.assessment.title,
+
+      academicYear: attempt.assessment.academicYear,
+
+      term: attempt.assessment.term
+        ? {
+            id: attempt.assessment.term.id,
+
+            name: attempt.assessment.term.name,
+          }
+        : null,
 
       subject: attempt.assessment.lesson.subject.name,
 
@@ -2955,4 +3251,739 @@ export async function getTeacherStudentSubmissionReview({
       averageTimeSeconds,
     },
   };
+}
+
+export async function getAssessmentAcademicPeriods(): Promise<
+  AssessmentAcademicPeriodOption[]
+> {
+  await requireAssessmentManager();
+
+  const terms = await prisma.schoolTerm.findMany({
+    select: {
+      id: true,
+      name: true,
+      startDate: true,
+      endDate: true,
+      isActive: true,
+    },
+
+    orderBy: [
+      {
+        isActive: "desc",
+      },
+      {
+        startDate: "desc",
+      },
+    ],
+  });
+
+  return terms;
+}
+
+export async function getStudentAssessmentWidget() {
+  const { userId } = await requireAssessmentStudent();
+
+  const now = new Date();
+
+  const [available, upcoming, activeAttempt, recentResults] = await Promise.all(
+    [
+      prisma.assessment.count({
+        where: {
+          status: "PUBLISHED",
+
+          startDate: {
+            lte: now,
+          },
+
+          dueDate: {
+            gt: now,
+          },
+
+          lesson: {
+            class: {
+              students: {
+                some: {
+                  id: userId,
+                },
+              },
+            },
+          },
+
+          attempts: {
+            none: {
+              studentId: userId,
+
+              status: {
+                in: ["SUBMITTED", "AUTO_SUBMITTED"],
+              },
+            },
+          },
+        },
+      }),
+
+      prisma.assessment.count({
+        where: {
+          status: "SCHEDULED",
+
+          startDate: {
+            gt: now,
+          },
+
+          lesson: {
+            class: {
+              students: {
+                some: {
+                  id: userId,
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      prisma.assessmentAttempt.findFirst({
+        where: {
+          studentId: userId,
+          status: "IN_PROGRESS",
+
+          OR: [
+            {
+              expiresAt: null,
+            },
+            {
+              expiresAt: {
+                gt: now,
+              },
+            },
+          ],
+        },
+
+        orderBy: {
+          lastActivityAt: "desc",
+        },
+
+        select: {
+          id: true,
+
+          assessment: {
+            select: {
+              id: true,
+              title: true,
+
+              questionCount: true,
+
+              lesson: {
+                select: {
+                  subject: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+
+          answers: {
+            where: {
+              selectedOptionId: {
+                not: null,
+              },
+            },
+
+            select: {
+              id: true,
+            },
+          },
+        },
+      }),
+
+      prisma.result.findMany({
+        where: {
+          studentId: userId,
+          type: "ASSESSMENT",
+        },
+
+        orderBy: {
+          createdAt: "desc",
+        },
+
+        take: 3,
+
+        select: {
+          id: true,
+          score: true,
+          totalMarks: true,
+          percentage: true,
+          grade: true,
+
+          assessment: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+
+          assessmentAttempt: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      }),
+    ],
+  );
+
+  return {
+    available,
+    upcoming,
+
+    activeAttempt: activeAttempt
+      ? {
+          id: activeAttempt.id,
+
+          assessmentId: activeAttempt.assessment.id,
+
+          title: activeAttempt.assessment.title,
+
+          subject: activeAttempt.assessment.lesson.subject.name,
+
+          answeredCount: activeAttempt.answers.length,
+
+          questionCount: activeAttempt.assessment.questionCount,
+        }
+      : null,
+
+    recentResults: recentResults.map((result) => ({
+      id: result.id,
+
+      title: result.assessment?.title ?? "Assessment",
+
+      assessmentId: result.assessment?.id ?? null,
+
+      attemptId: result.assessmentAttempt?.id ?? null,
+
+      score: result.score,
+      totalMarks: result.totalMarks,
+
+      percentage: result.percentage,
+
+      grade: result.grade,
+    })),
+  };
+}
+
+export async function getTeacherAssessmentWidget() {
+  const { userId, role } = await requireAssessmentManager();
+
+  const ownershipWhere =
+    role === "teacher"
+      ? {
+          lesson: {
+            teacherId: userId,
+          },
+        }
+      : {};
+
+  const [drafts, live, scheduled, recentAssessments] = await Promise.all([
+    prisma.assessment.count({
+      where: {
+        ...ownershipWhere,
+        status: "DRAFT",
+      },
+    }),
+
+    prisma.assessment.count({
+      where: {
+        ...ownershipWhere,
+        status: "PUBLISHED",
+      },
+    }),
+
+    prisma.assessment.count({
+      where: {
+        ...ownershipWhere,
+        status: "SCHEDULED",
+      },
+    }),
+
+    prisma.assessment.findMany({
+      where: ownershipWhere,
+
+      orderBy: {
+        updatedAt: "desc",
+      },
+
+      take: 4,
+
+      select: {
+        id: true,
+        title: true,
+        status: true,
+
+        lesson: {
+          select: {
+            subject: {
+              select: {
+                name: true,
+              },
+            },
+
+            class: {
+              select: {
+                name: true,
+
+                _count: {
+                  select: {
+                    students: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        attempts: {
+          where: {
+            status: {
+              in: ["SUBMITTED", "AUTO_SUBMITTED"],
+            },
+          },
+
+          select: {
+            studentId: true,
+            percentage: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    drafts,
+    live,
+    scheduled,
+
+    recentAssessments: recentAssessments.map((assessment) => {
+      const submittedStudents = new Set(
+        assessment.attempts.map((attempt) => attempt.studentId),
+      ).size;
+
+      const percentages = assessment.attempts
+        .map((attempt) => attempt.percentage)
+        .filter((value): value is number => typeof value === "number");
+
+      const average =
+        percentages.length > 0
+          ? Number(
+              (
+                percentages.reduce((sum, value) => sum + value, 0) /
+                percentages.length
+              ).toFixed(1),
+            )
+          : null;
+
+      return {
+        id: assessment.id,
+        title: assessment.title,
+        status: assessment.status,
+
+        subject: assessment.lesson.subject.name,
+
+        className: assessment.lesson.class.name,
+
+        submittedStudents,
+
+        totalStudents: assessment.lesson.class._count.students,
+
+        average,
+      };
+    }),
+  };
+}
+
+export async function getParentChildrenAssessmentSummary(): Promise<
+  ParentChildAssessmentSummary[]
+> {
+  const { userId, sessionClaims } = await auth();
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (!userId || role !== "parent") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const now = new Date();
+
+  const children = await prisma.student.findMany({
+    where: {
+      parentId: userId,
+    },
+
+    orderBy: [
+      {
+        surname: "asc",
+      },
+      {
+        name: "asc",
+      },
+    ],
+
+    select: {
+      id: true,
+      name: true,
+      surname: true,
+      img: true,
+      classId: true,
+
+      class: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+
+  return Promise.all(
+    children.map(async (child) => {
+      const assessments = await prisma.assessment.findMany({
+        where: {
+          lesson: {
+            classId: child.classId,
+          },
+
+          status: {
+            in: ["SCHEDULED", "PUBLISHED", "CLOSED"],
+          },
+        },
+
+        select: {
+          id: true,
+          status: true,
+          startDate: true,
+          dueDate: true,
+
+          attempts: {
+            where: {
+              studentId: child.id,
+            },
+
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      const completed = assessments.filter((assessment) =>
+        assessment.attempts.some(
+          (attempt) =>
+            attempt.status === "SUBMITTED" ||
+            attempt.status === "AUTO_SUBMITTED",
+        ),
+      ).length;
+
+      const available = assessments.filter(
+        (assessment) =>
+          assessment.status === "PUBLISHED" &&
+          assessment.startDate <= now &&
+          assessment.dueDate > now &&
+          assessment.attempts.length === 0,
+      ).length;
+
+      const upcoming = assessments.filter(
+        (assessment) => assessment.startDate > now,
+      ).length;
+
+      const missed = assessments.filter(
+        (assessment) =>
+          assessment.dueDate <= now && assessment.attempts.length === 0,
+      ).length;
+
+      const recentAttempts = await prisma.assessmentAttempt.findMany({
+        where: {
+          studentId: child.id,
+
+          status: {
+            in: ["SUBMITTED", "AUTO_SUBMITTED"],
+          },
+        },
+
+        orderBy: {
+          submittedAt: "desc",
+        },
+
+        take: 5,
+
+        select: {
+          id: true,
+          assessmentId: true,
+
+          submittedAt: true,
+
+          score: true,
+          totalMarks: true,
+          percentage: true,
+
+          assessment: {
+            select: {
+              title: true,
+
+              lesson: {
+                select: {
+                  subject: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+
+          result: {
+            select: {
+              grade: true,
+              remarks: true,
+            },
+          },
+        },
+      });
+
+      const percentages = recentAttempts
+        .map((attempt) => attempt.percentage)
+        .filter((value): value is number => typeof value === "number");
+
+      return {
+        child: {
+          id: child.id,
+          name: child.name,
+          surname: child.surname,
+          img: child.img,
+          className: child.class.name,
+        },
+
+        available,
+        upcoming,
+        completed,
+        missed,
+
+        averageScore:
+          percentages.length > 0
+            ? Number(
+                (
+                  percentages.reduce((sum, value) => sum + value, 0) /
+                  percentages.length
+                ).toFixed(1),
+              )
+            : null,
+
+        recentResults: recentAttempts.map((attempt) => ({
+          assessmentId: attempt.assessmentId,
+
+          attemptId: attempt.id,
+
+          title: attempt.assessment.title,
+
+          subject: attempt.assessment.lesson.subject.name,
+
+          score: attempt.score ?? 0,
+
+          totalMarks: attempt.totalMarks ?? 0,
+
+          percentage: attempt.percentage ?? 0,
+
+          grade: attempt.result?.grade ?? null,
+
+          remarks: attempt.result?.remarks ?? null,
+
+          date: attempt.submittedAt ?? new Date(),
+        })),
+      };
+    }),
+  );
+}
+
+export async function getParentChildAssessmentResult({
+  childId,
+  assessmentId,
+  attemptId,
+}: {
+  childId: string;
+  assessmentId: number;
+  attemptId: number;
+}) {
+  const { userId, sessionClaims } = await auth();
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (!userId || role !== "parent") {
+    return null;
+  }
+
+  const child = await prisma.student.findFirst({
+    where: {
+      id: childId,
+      parentId: userId,
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  if (!child) {
+    return null;
+  }
+
+  return getAssessmentResultForOwner({
+    studentId: child.id,
+    assessmentId,
+    attemptId,
+  });
+}
+
+export async function getStudentSubjectAssessmentScores({
+  studentId,
+  subjectId,
+  termId,
+  academicYear,
+}: {
+  studentId: string;
+  subjectId: number;
+  termId: number;
+  academicYear: string;
+}) {
+  return prisma.result.findMany({
+    where: {
+      studentId,
+      type: "ASSESSMENT",
+
+      assessment: {
+        academicYear,
+        termId,
+
+        lesson: {
+          subjectId,
+        },
+      },
+    },
+
+    orderBy: {
+      createdAt: "asc",
+    },
+
+    select: {
+      percentage: true,
+      createdAt: true,
+    },
+  });
+}
+
+export async function getClassAssessmentPerformance({
+  classId,
+  termId,
+  academicYear,
+}: {
+  classId: number;
+  termId: number;
+  academicYear: string;
+}) {
+  const results = await prisma.result.findMany({
+    where: {
+      type: "ASSESSMENT",
+
+      assessment: {
+        termId,
+        academicYear,
+
+        lesson: {
+          classId,
+        },
+      },
+    },
+
+    select: {
+      studentId: true,
+      percentage: true,
+
+      assessment: {
+        select: {
+          id: true,
+          title: true,
+
+          lesson: {
+            select: {
+              subject: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const bySubject = new Map<
+    number,
+    {
+      subjectId: number;
+      subjectName: string;
+      scores: number[];
+    }
+  >();
+
+  for (const result of results) {
+    if (typeof result.percentage !== "number" || !result.assessment) {
+      continue;
+    }
+
+    const subject = result.assessment.lesson.subject;
+
+    const existing = bySubject.get(subject.id);
+
+    if (existing) {
+      existing.scores.push(result.percentage);
+
+      continue;
+    }
+
+    bySubject.set(subject.id, {
+      subjectId: subject.id,
+      subjectName: subject.name,
+
+      scores: [result.percentage],
+    });
+  }
+
+  return Array.from(bySubject.values()).map((subject) => ({
+    subjectId: subject.subjectId,
+
+    subjectName: subject.subjectName,
+
+    average: Number(
+      (
+        subject.scores.reduce((sum, score) => sum + score, 0) /
+        subject.scores.length
+      ).toFixed(1),
+    ),
+
+    highest: Math.max(...subject.scores),
+
+    lowest: Math.min(...subject.scores),
+
+    resultCount: subject.scores.length,
+  }));
 }

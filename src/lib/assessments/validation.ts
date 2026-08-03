@@ -167,6 +167,13 @@ export const assessmentBuilderSchema = z
 
     lessonId: z.coerce.number().int().positive("Select a lesson."),
 
+    academicYear: z
+      .string()
+      .trim()
+      .regex(/^\d{4}\/\d{4}$/, "Enter the academic year as 2026/2027."),
+
+    termId: z.coerce.number().int().positive("Select an academic term."),
+
     startDate: z.coerce.date({
       message: "Enter a valid start date and time.",
     }),
@@ -331,6 +338,10 @@ export const assessmentDraftSchema = z.object({
 
   lessonId: z.coerce.number().int().positive().optional(),
 
+  termId: z.coerce.number().int().positive().nullable().optional(),
+
+  academicYear: z.string().trim().min(4).max(20).default(""),
+
   startDate: z.coerce.date().optional(),
   dueDate: z.coerce.date().optional(),
 
@@ -416,43 +427,41 @@ export const submitAssessmentSchema = z.object({
     .default("MANUAL"),
 });
 
-export type SubmitAssessmentInput = z.infer<
-  typeof submitAssessmentSchema
->;
-
+export type SubmitAssessmentInput = z.infer<typeof submitAssessmentSchema>;
 
 /*------------------------------------
 -------------------------------------
       FEEDBACK VALIDATION
 -------------------------------------
-----------------------------------*/ 
+----------------------------------*/
 
-export const assessmentTeacherFeedbackSchema =
-  z.object({
-    assessmentId: z.coerce
-      .number()
-      .int()
-      .positive(),
+export const assessmentTeacherFeedbackSchema = z.object({
+  assessmentId: z.coerce.number().int().positive(),
 
-    attemptId: z.coerce
-      .number()
-      .int()
-      .positive(),
+  attemptId: z.coerce.number().int().positive(),
 
-    studentId: z
-      .string()
-      .min(1),
+  studentId: z.string().min(1),
 
-    feedback: z
-      .string()
-      .trim()
-      .max(
-        3000,
-        "Teacher feedback cannot exceed 3,000 characters."
-      ),
-  });
+  feedback: z
+    .string()
+    .trim()
+    .max(3000, "Teacher feedback cannot exceed 3,000 characters."),
+});
 
-export type AssessmentTeacherFeedbackInput =
-  z.infer<
-    typeof assessmentTeacherFeedbackSchema
-  >;
+export type AssessmentTeacherFeedbackInput = z.infer<
+  typeof assessmentTeacherFeedbackSchema
+>;
+
+export const updateAttemptNavigationSchema = z.object({
+  attemptId: z.coerce.number().int().positive(),
+
+  nextQuestionIndex: z.number().int().min(0),
+
+  activeSessionId: z.string().uuid(),
+
+  expectedAttemptVersion: z.number().int().positive(),
+});
+
+export type UpdateAttemptNavigationInput = z.infer<
+  typeof updateAttemptNavigationSchema
+>;

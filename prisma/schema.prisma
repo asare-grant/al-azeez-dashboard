@@ -71,7 +71,7 @@ model Teacher {
   classes   Class[]
   birthday  DateTime
 
- reviewedAssessmentAttempts AssessmentAttempt[] @relation("AssessmentAttemptReviewer")
+  reviewedAssessmentAttempts AssessmentAttempt[] @relation("AssessmentAttemptReviewer")
 }
 
 model Parent {
@@ -93,6 +93,8 @@ model Grade {
   students      Student[]
   classess      Class[]
   feeStructures FeeStructure[]
+
+  academicWeightings AcademicWeighting[]
 }
 
 model Class {
@@ -143,9 +145,19 @@ model Exam {
   startTime DateTime
   endTime   DateTime
 
+  academicYear String?
+
+  termId Int?
+
+  term SchoolTerm? @relation("ExamSchoolTerm", fields: [termId], references: [id], onDelete: Restrict)
+
   lessonId Int
   lesson   Lesson   @relation(fields: [lessonId], references: [id])
   results  Result[]
+
+  @@index([lessonId])
+  @@index([academicYear])
+  @@index([termId])
 }
 
 model Assignment {
@@ -233,10 +245,14 @@ model Assessment {
   attempts  AssessmentAttempt[]
   results   Result[]
 
+  auditLogs AssessmentAuditLog[]
+
   academicYear String?
 
   termId Int?
   term   SchoolTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
+
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -295,7 +311,47 @@ model AssessmentOption {
 }
 
 model AssessmentAttempt {
-  id Int @id @default(autoincrement())
+  id            Int                     @id @default(autoincrement())
+  attemptNumber Int                     @default(1)
+  status        AssessmentAttemptStatus @default(IN_PROGRESS)
+
+  startedAt      DateTime  @default(now())
+  submittedAt    DateTime?
+  expiresAt      DateTime?
+  lastActivityAt DateTime  @default(now())
+
+  timeSpentSeconds Int @default(0)
+
+  score Int?
+
+  totalMarks      Int?
+  percentage      Float?
+  correctCount    Int?
+  incorrectCount  Int?
+  unansweredCount Int?
+
+  // Navigation progress
+  currentQuestionIndex Int @default(0)
+  highestQuestionIndex Int @default(0)
+
+  // Optimistic concurrency
+  version Int @default(1)
+
+  // Duplicate-tab protection
+  activeSessionId     String?
+  activeSessionSeenAt DateTime?
+
+  // Submission locking and recovery
+  submissionToken     String?   @unique
+  submissionStartedAt DateTime?
+  failureReason       String?
+
+  // Teacher review
+  teacherFeedback String?
+  reviewedAt      DateTime?
+  reviewedById    String?
+
+  reviewedBy Teacher? @relation("AssessmentAttemptReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   assessmentId Int
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -303,33 +359,9 @@ model AssessmentAttempt {
   studentId String
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  attemptNumber Int @default(1)
-
-  status AssessmentAttemptStatus @default(IN_PROGRESS)
-
-  startedAt   DateTime  @default(now())
-  submittedAt DateTime?
-  expiresAt   DateTime?
-
-  lastActivityAt DateTime @default(now())
-
-  timeSpentSeconds Int @default(0)
-
-  score           Int?
-  totalMarks      Int?
-  percentage      Float?
-  correctCount    Int?
-  incorrectCount  Int?
-  unansweredCount Int?
-
-  answers AssessmentAnswer[]
-  result  Result?
-
-  teacherFeedback String?
-  reviewedAt      DateTime?
-  reviewedById    String?
-
-  reviewedBy Teacher? @relation("AssessmentAttemptReviewer",fields: [reviewedById], references: [id], onDelete: SetNull)
+  answers   AssessmentAnswer[]
+  result    Result?
+  auditLogs AssessmentAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -338,8 +370,14 @@ model AssessmentAttempt {
   @@index([assessmentId])
   @@index([studentId])
   @@index([status])
-  @@index([studentId, status])
+  @@index([assessmentId, studentId])
   @@index([assessmentId, status])
+  @@index([studentId, status])
+  @@index([status, expiresAt])
+  @@index([activeSessionSeenAt])
+  @@index([submittedAt])
+  @@index([reviewedById])
+  @@index([submissionToken])
 }
 
 model AssessmentAnswer {
@@ -354,13 +392,19 @@ model AssessmentAnswer {
   selectedOptionId Int?
   selectedOption   AssessmentOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
 
+  flagged Boolean @default(false)
+
   isCorrect    Boolean?
   marksAwarded Int      @default(0)
 
-  flagged Boolean @default(false)
-
   answeredAt       DateTime?
   timeSpentSeconds Int       @default(0)
+
+  // Reject stale answer writes
+  version Int @default(1)
+
+  // Last client request successfully applied
+  clientMutationId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -369,6 +413,62 @@ model AssessmentAnswer {
   @@index([attemptId])
   @@index([questionId])
   @@index([selectedOptionId])
+  @@index([attemptId, updatedAt])
+}
+
+model AssessmentAuditLog {
+  id Int @id @default(autoincrement())
+
+  action AssessmentAuditAction
+
+  actorId   String?
+  actorRole String?
+
+  assessmentId Int?
+  attemptId    Int?
+  studentId    String?
+
+  assessment Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  attempt AssessmentAttempt? @relation(fields: [attemptId], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([assessmentId, createdAt])
+  @@index([attemptId, createdAt])
+  @@index([studentId, createdAt])
+  @@index([action, createdAt])
+}
+
+model AssessmentJobLock {
+  id String @id
+
+  lockedAt  DateTime
+  lockedBy  String
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model AssessmentRateLimit {
+  key String @id
+
+  count       Int
+  windowStart DateTime
+  expiresAt   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
 }
 
 model Attendance {
@@ -518,6 +618,62 @@ model BusFeePayment {
   @@unique([studentId, date])
 }
 
+model Notification {
+  id Int @id @default(autoincrement())
+
+  title   String
+  message String
+  type    NotificationType
+
+  recipientId   String
+  recipientRole String
+
+  actionUrl String?
+
+  readAt DateTime?
+
+  assessmentId Int?
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([recipientId, createdAt])
+  @@index([recipientId, readAt])
+  @@index([assessmentId])
+}
+
+enum NotificationType {
+  ASSESSMENT_PUBLISHED
+  ASSESSMENT_SCHEDULED
+  ASSESSMENT_DUE_SOON
+  ASSESSMENT_RESULT_READY
+  ASSESSMENT_FEEDBACK_ADDED
+  GENERAL
+}
+
+model AcademicWeighting {
+  id Int @id @default(autoincrement())
+
+  academicYear String
+
+  termId Int
+  term   SchoolTerm @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  gradeId Int?
+  grade   Grade? @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  assessmentWeight Float @default(30)
+  examWeight       Float @default(70)
+  assignmentWeight Float @default(0)
+
+  assessmentScoreStrategy AssessmentScoreStrategy @default(AVERAGE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([academicYear, termId, gradeId])
+}
+
 enum UserSex {
   MALE
   FEMALE
@@ -558,6 +714,9 @@ model SchoolTerm {
   isActive  Boolean  @default(true)
 
   assessments Assessment[]
+  exams       Exam[]       @relation("ExamSchoolTerm")
+
+  academicWeightings AcademicWeighting[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -584,4 +743,41 @@ enum AssessmentAttemptStatus {
   AUTO_SUBMITTED
   EXPIRED
   CANCELLED
+}
+
+enum AssessmentAuditAction {
+  ASSESSMENT_CREATED
+  ASSESSMENT_UPDATED
+  ASSESSMENT_PUBLISHED
+  ASSESSMENT_CLOSED
+  ASSESSMENT_ARCHIVED
+  ASSESSMENT_DUPLICATED
+  ASSESSMENT_DELETED
+
+  ATTEMPT_STARTED
+  ATTEMPT_RESUMED
+  ATTEMPT_EXPIRED
+  ATTEMPT_AUTO_SUBMITTED
+  ATTEMPT_SUBMITTED
+  ATTEMPT_CANCELLED
+
+  ANSWER_SAVED
+  ANSWER_SAVE_REJECTED
+  NAVIGATION_UPDATED
+
+  RESULT_CREATED
+  RESULT_VIEWED
+
+  FEEDBACK_CREATED
+  FEEDBACK_UPDATED
+  FEEDBACK_REMOVED
+
+  SECURITY_REJECTION
+}
+
+enum AssessmentScoreStrategy {
+  HIGHEST
+  LATEST
+  FIRST
+  AVERAGE
 }

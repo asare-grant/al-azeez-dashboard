@@ -5,6 +5,7 @@ import {
 import AssessmentStudio from "@/components/assessments/studio/AssessmentStudio";
 
 import {
+  getAssessmentAcademicPeriods,
   getAssessmentBuilderData,
   getAssessmentLessonOptions,
 } from "@/lib/assessments/queries";
@@ -34,14 +35,18 @@ export default async function EditAssessmentPage({
   }
 
   const [
-    assessment,
-    lessons,
-  ] = await Promise.all([
-    getAssessmentBuilderData(
-      parsedAssessmentId
-    ),
-    getAssessmentLessonOptions(),
-  ]);
+  assessment,
+  lessons,
+  terms,
+] = await Promise.all([
+  getAssessmentBuilderData(
+    parsedAssessmentId
+  ),
+
+  getAssessmentLessonOptions(),
+
+  getAssessmentAcademicPeriods(),
+]);
 
   if (!assessment) {
     notFound();
@@ -51,6 +56,7 @@ export default async function EditAssessmentPage({
     <AssessmentStudio
       initialAssessment={assessment}
       lessons={lessons}
+      terms={terms}
     />
   );
 }

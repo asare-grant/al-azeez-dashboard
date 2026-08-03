@@ -87,7 +87,7 @@ export default function AssessmentPlayer({ data }: AssessmentPlayerProps) {
 
   const hasPendingSaves = answers.some(
     (answer) => answer.saveStatus === "saving",
-  );
+        );
 
   function updateAnswerState(
     questionId: number,
@@ -339,7 +339,10 @@ export default function AssessmentPlayer({ data }: AssessmentPlayerProps) {
       const target = event.target as HTMLElement;
 
       const typing =
-        target.tagName === "INPUT" || target.tagName === "TEXTAREA";
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable;
 
       if (typing) {
         return;
@@ -363,63 +366,63 @@ export default function AssessmentPlayer({ data }: AssessmentPlayerProps) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AssessmentPlayerHeader
-        title={data.assessment.title}
-        subject={data.assessment.lesson.subject.name}
-        currentQuestion={currentIndex + 1}
-        questionCount={data.questions.length}
-        answeredCount={answeredCount}
-        globalSaveStatus={globalSaveStatus}
-        expiresAt={data.attempt.expiresAt}
-        isSubmitting={isSubmitting}
-        onSubmit={requestSubmission}
-        onExpire={handleExpiry}
-      />
-
-      <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-        <AssessmentMobileNavigator
-          answers={answers}
-          currentIndex={currentIndex}
-          allowBacktrack={data.assessment.allowBacktrack}
-          onNavigate={navigateToQuestion}
+        <AssessmentPlayerHeader
+          title={data.assessment.title}
+          subject={data.assessment.lesson.subject.name}
+          currentQuestion={currentIndex + 1}
+          questionCount={data.questions.length}
+          answeredCount={answeredCount}
+          globalSaveStatus={globalSaveStatus}
+          expiresAt={data.attempt.expiresAt}
+          isSubmitting={isSubmitting}
+          onSubmit={requestSubmission}
+          onExpire={handleExpiry}
         />
 
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_290px]">
-          <div className="min-w-0">
-            <AssessmentQuestionPanel
-              question={currentQuestion}
-              questionNumber={currentIndex + 1}
-              selectedOptionId={currentAnswer.selectedOptionId}
-              flagged={currentAnswer.flagged}
+        <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
+          <AssessmentMobileNavigator
+            answers={answers}
+            currentIndex={currentIndex}
+            allowBacktrack={data.assessment.allowBacktrack}
+            onNavigate={navigateToQuestion}
+          />
+
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_290px]">
+            <div className="min-w-0">
+              <AssessmentQuestionPanel
+                question={currentQuestion}
+                questionNumber={currentIndex + 1}
+                selectedOptionId={currentAnswer.selectedOptionId}
+                flagged={currentAnswer.flagged}
               isSaving={currentAnswer.saveStatus === "saving" || isSubmitting}
-              onSelectOption={handleSelectOption}
-              onClearAnswer={handleClearAnswer}
-              onToggleFlag={handleToggleFlag}
-            />
+                onSelectOption={handleSelectOption}
+                onClearAnswer={handleClearAnswer}
+                onToggleFlag={handleToggleFlag}
+              />
 
-            <AssessmentPlayerFooter
-              currentIndex={currentIndex}
-              questionCount={data.questions.length}
-              allowBacktrack={data.assessment.allowBacktrack}
-              hasCurrentAnswer={currentAnswer.selectedOptionId !== null}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              onSubmit={requestSubmission}
-            />
-          </div>
-
-          <div className="hidden lg:block">
-            <div className="sticky top-[145px]">
-              <AssessmentQuestionNavigator
-                answers={answers}
+              <AssessmentPlayerFooter
                 currentIndex={currentIndex}
+                questionCount={data.questions.length}
                 allowBacktrack={data.assessment.allowBacktrack}
-                onNavigate={navigateToQuestion}
+                hasCurrentAnswer={currentAnswer.selectedOptionId !== null}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
+                onSubmit={requestSubmission}
               />
             </div>
+
+            <div className="hidden lg:block">
+              <div className="sticky top-[145px]">
+                <AssessmentQuestionNavigator
+                  answers={answers}
+                  currentIndex={currentIndex}
+                  allowBacktrack={data.assessment.allowBacktrack}
+                  onNavigate={navigateToQuestion}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
       <AssessmentSubmitModal
         open={submitModalOpen}

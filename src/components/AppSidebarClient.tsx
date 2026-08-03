@@ -147,8 +147,10 @@ export default function AppSidebarClient({
       href: 
         role === "student" 
         ? "/student/assessments" 
+        : role === "parent" 
+        ? "/parent/assessments"
         : "/list/assessments",
-      visible: ["admin", "teacher", "student"],
+      visible: ["admin", "teacher", "student", "parent"],
     },
   ];
 

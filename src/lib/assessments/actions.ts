@@ -25,11 +25,16 @@ import {
   type AssessmentDraftInput,
   type SaveAssessmentAnswerInput,
   type SubmitAssessmentInput,
+  updateAttemptNavigationSchema,
 } from "./validation";
 
-import { 
-  gradeAssessmentAttempt 
-} from "./grade-attempt";
+import { createAssessmentAudit } from "@/lib/assessments/audit";
+
+import { withSerializableRetry } from "@/lib/assessments/transaction";
+
+import { inspectAssessmentIntegrity } from "./integrity";
+
+import { gradeAssessmentAttempt } from "./grade-attempt";
 
 import { 
   assessmentFailure, 
@@ -67,6 +72,8 @@ import {
   calculateAttemptExpiry,
   hasAttemptExpired,
 } from "./timing";
+import { AssessmentError } from "./errors";
+import { createAssessmentPublishedNotifications } from "./notifications";
 
 /* -------------------------------------------------------------------------- */
 /*                                  CONSTANTS                                 */
@@ -113,6 +120,12 @@ function getAssessmentErrorMessage(error: unknown): string {
 
       case "ASSESSMENT_HAS_ATTEMPTS":
         return "This assessment already has student attempts and cannot be deleted.";
+
+      case "ATTEMPT_NOT_FOUND":
+        return "The selected submission could not be found.";
+
+      case "ATTEMPT_NOT_COMPLETED":
+        return "Feedback can only be added to a completed submission.";
 
       default:
         return error.message || "Something went wrong.";
@@ -183,10 +196,33 @@ export async function createAssessmentDraft({
 
     const defaultDueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+    const activeTerm = await prisma.schoolTerm.findFirst({
+      where: {
+        isActive: true,
+      },
+
+      orderBy: {
+        startDate: "desc",
+      },
+
+      select: {
+        id: true,
+        startDate: true,
+      },
+    });
+
+    const currentYear = now.getFullYear();
+
+    const defaultAcademicYear = `${currentYear}/${currentYear + 1}`;
+
     const assessment = await prisma.assessment.create({
       data: {
         title: "Untitled Assessment",
         instructions: "",
+
+        academicYear: defaultAcademicYear,
+
+        termId: activeTerm?.id ?? null,
 
         startDate: now,
         dueDate: defaultDueDate,
@@ -337,6 +373,10 @@ export async function saveAssessmentMetadataDraft(
               dueDate: data.dueDate,
             }
           : {}),
+
+        academicYear: data.academicYear.trim(),
+
+        termId: data.termId,
 
         durationMinutes: data.durationMinutes ?? null,
 
@@ -506,6 +546,10 @@ export async function saveAssessmentBuilder(
 
             instructions: data.instructions?.trim() || null,
 
+            academicYear: data.academicYear.trim(),
+
+            termId: data.termId,
+
             startDate: data.startDate,
             dueDate: data.dueDate,
 
@@ -637,6 +681,14 @@ export async function publishAssessment(
       );
     }
 
+    const integrity = await inspectAssessmentIntegrity(data.id);
+
+    if (!integrity.valid) {
+      return assessmentFailure<PublishAssessmentResult>(
+        integrity.errors.join(" "),
+      );
+    }
+
     const { userId, role } = await requireAssessmentManager();
 
     const allowed = await canManageAssessment({
@@ -713,23 +765,62 @@ export async function publishAssessment(
 
     console.log("PUBLISH: updating status", nextStatus);
 
-    const published = await prisma.assessment.update({
-      where: {
-        id: assessment.id,
-      },
+    const published = await prisma.$transaction(
+      async (tx) => {
+        const updatedAssessment = await tx.assessment.update({
+          where: {
+            id: assessment.id,
+          },
 
-      data: {
-        status: nextStatus,
-        publishedAt: now,
-        closedAt: null,
-      },
+          data: {
+            status: nextStatus,
+            publishedAt: now,
+            closedAt: null,
+          },
 
-      select: {
-        id: true,
-        status: true,
-        publishedAt: true,
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            publishedAt: true,
+
+            lesson: {
+              select: {
+                class: {
+                  select: {
+                    students: {
+                      select: {
+                        id: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        await createAssessmentPublishedNotifications(tx, {
+          assessmentId: updatedAssessment.id,
+
+          assessmentTitle: updatedAssessment.title,
+
+          studentIds: updatedAssessment.lesson.class.students.map(
+            (student) => student.id,
+          ),
+
+          scheduled: updatedAssessment.status === "SCHEDULED",
+        });
+
+        return updatedAssessment;
       },
-    });
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 5_000,
+        timeout: 10_000,
+      },
+    );
 
     console.log("PUBLISH: completed", published.id, published.status);
 
@@ -1289,6 +1380,10 @@ export async function saveIncompleteAssessmentDraft(
 
             lessonId: input.lessonId,
 
+            academicYear: input.academicYear.trim(),
+
+            termId: input.termId,
+
             startDate: input.startDate ? new Date(input.startDate) : new Date(),
 
             dueDate: input.dueDate
@@ -1660,100 +1755,118 @@ export async function saveAssessmentAnswer(
   try {
     const parsed = saveAssessmentAnswerSchema.safeParse(input);
 
-    if (!parsed.success) {
+  if (!parsed.success) {
       return assessmentFailure(
         "The answer could not be saved.",
         parsed.error.flatten().fieldErrors,
       );
-    }
+  }
 
-    const {
-      attemptId,
-      questionId,
-      selectedOptionId,
-      flagged,
-      timeSpentSeconds,
-    } = parsed.data;
+  const {
+    attemptId,
+    questionId,
+    selectedOptionId,
+    flagged,
+    timeSpentSeconds,
+  } = parsed.data;
 
     const { userId } = await requireAssessmentStudent();
 
-    const now = new Date();
+          const now = new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-      const attempt = await tx.assessmentAttempt.findFirst({
-        where: {
-          id: attemptId,
-          studentId: userId,
+          const attempt = await tx.assessmentAttempt.findFirst({
+            where: {
+              id: attemptId,
+              studentId: userId,
           status: "IN_PROGRESS",
-        },
-
-        select: {
-          id: true,
-          assessmentId: true,
-          expiresAt: true,
-
-          assessment: {
-            select: {
-              dueDate: true,
-              allowBacktrack: true,
             },
-          },
-        },
-      });
 
-      if (!attempt) {
-        throw new Error("ATTEMPT_NOT_FOUND");
-      }
+            select: {
+              id: true,
+              assessmentId: true,
+              status: true,
 
-      if (
-        hasAttemptExpired({
-          expiresAt: attempt.expiresAt,
-          now,
-        }) ||
-        attempt.assessment.dueDate <= now
-      ) {
+              expiresAt: true,
+
+              assessment: {
+                select: {
+                  dueDate: true,
+                  allowBacktrack: true,
+                },
+              },
+            },
+          });
+
+          if (!attempt) {
+            throw new AssessmentError(
+              "ATTEMPT_NOT_FOUND",
+              "This assessment attempt could not be found.",
+            );
+          }
+
+          if (attempt.status !== "IN_PROGRESS") {
+            throw new AssessmentError(
+              "ATTEMPT_NOT_ACTIVE",
+              "This assessment attempt is no longer active.",
+            );
+          }
+
+          if (
+            hasAttemptExpired({
+              expiresAt: attempt.expiresAt,
+              now,
+            }) ||
+            attempt.assessment.dueDate <= now
+          ) {
         throw new Error("ATTEMPT_EXPIRED");
-      }
+          }
 
-      const question = await tx.assessmentQuestion.findFirst({
-        where: {
-          id: questionId,
-          assessmentId: attempt.assessmentId,
-        },
+          const question = await tx.assessmentQuestion.findFirst({
+            where: {
+              id: questionId,
+              assessmentId: attempt.assessmentId,
+            },
 
-        select: {
-          id: true,
-        },
-      });
+            select: {
+              id: true,
+            },
+          });
 
-      if (!question) {
-        throw new Error("QUESTION_NOT_FOUND");
-      }
+          if (!question) {
+            throw new AssessmentError(
+              "INVALID_QUESTION",
+              "The selected question is invalid.",
+            );
+          }
 
-      if (selectedOptionId !== undefined && selectedOptionId !== null) {
-        const option = await tx.assessmentOption.findFirst({
-          where: {
-            id: selectedOptionId,
-            questionId,
-          },
+          if (selectedOptionId !== undefined && selectedOptionId !== null) {
+            const option = await tx.assessmentOption.findFirst({
+              where: {
+                id: selectedOptionId,
+                questionId,
+              },
 
-          select: {
-            id: true,
-          },
-        });
+              select: {
+                id: true,
+              },
+            });
 
-        if (!option) {
-          throw new Error("OPTION_NOT_FOUND");
-        }
-      }
+            if (!option) {
+              throw new AssessmentError(
+                "INVALID_OPTION",
+                "The selected answer option is invalid.",
+              );
+            }
+          }
 
       const answer = await tx.assessmentAnswer.upsert({
-        where: {
-          attemptId_questionId: {
-            attemptId,
-            questionId,
-          },
-        },
+            where: {
+              attemptId_questionId: {
+                attemptId,
+                questionId,
+              },
+            },
 
         create: {
           attemptId,
@@ -1766,45 +1879,45 @@ export async function saveAssessmentAnswer(
           answeredAt: selectedOptionId ? now : null,
 
           timeSpentSeconds: timeSpentSeconds ?? 0,
-        },
+                },
 
         update: {
-          ...(selectedOptionId !== undefined
-            ? {
+                  ...(selectedOptionId !== undefined
+                    ? {
                 selectedOptionId: selectedOptionId ?? null,
 
-                answeredAt: selectedOptionId ? now : null,
-              }
-            : {}),
+                        answeredAt: selectedOptionId ? now : null,
+                      }
+                    : {}),
 
-          ...(flagged !== undefined
-            ? {
-                flagged,
-              }
-            : {}),
+                  ...(flagged !== undefined
+                    ? {
+                        flagged,
+                      }
+                    : {}),
 
-          ...(timeSpentSeconds !== undefined
-            ? {
-                timeSpentSeconds,
-              }
-            : {}),
-        },
+                  ...(timeSpentSeconds !== undefined
+                    ? {
+                        timeSpentSeconds,
+                      }
+                    : {}),
+                },
 
-        select: {
-          id: true,
-          updatedAt: true,
-        },
-      });
+                select: {
+                  id: true,
+                  updatedAt: true,
+                },
+              });
 
-      await tx.assessmentAttempt.update({
-        where: {
-          id: attemptId,
-        },
+          await tx.assessmentAttempt.update({
+            where: {
+              id: attemptId,
+            },
 
-        data: {
-          lastActivityAt: now,
-        },
-      });
+            data: {
+              lastActivityAt: now,
+            },
+          });
 
       return answer;
     });
@@ -2055,18 +2168,35 @@ export async function submitAssessmentAttempt(
         const lockResult = await tx.assessmentAttempt.updateMany({
           where: {
             id: attemptId,
+            assessmentId,
             studentId: userId,
-            status: "IN_PROGRESS",
+
+            OR: [
+              {
+                status: "IN_PROGRESS",
+              },
+              {
+                status: "SUBMITTING",
+              },
+            ],
           },
 
           data: {
             status: "SUBMITTING",
+
+            submissionStartedAt: now,
+
             lastActivityAt: now,
+
+            failureReason: null,
           },
         });
 
         if (lockResult.count !== 1) {
-          throw new Error("SUBMISSION_IN_PROGRESS");
+          throw new AssessmentError(
+            "ATTEMPT_SUBMITTING",
+            "This assessment is already being submitted.",
+          );
         }
 
         const attempt = await tx.assessmentAttempt.findUnique({
@@ -2127,6 +2257,23 @@ export async function submitAssessmentAttempt(
         if (!attempt) {
           throw new Error("ATTEMPT_NOT_FOUND");
         }
+
+        await tx.notification.create({
+          data: {
+            title: "Assessment result available",
+
+            message: `${attempt.assessment.title} has been marked.`,
+
+            type: "ASSESSMENT_RESULT_READY",
+
+            recipientId: userId,
+            recipientRole: "student",
+
+            assessmentId: attempt.assessment.id,
+
+            actionUrl: `/student/assessments/${attempt.assessment.id}/result?attemptId=${attemptId}`,
+          },
+        });
 
         const answeredCount = attempt.answers.filter(
           (answer) => answer.selectedOptionId !== null,
@@ -2416,126 +2563,306 @@ export async function saveAssessmentTeacherFeedback(
       );
     }
 
-    const {
-      assessmentId,
-      attemptId,
-      studentId,
-      feedback,
-    } = parsed.data;
+    const { assessmentId, attemptId, studentId, feedback } = parsed.data;
+
+    const normalizedFeedback = feedback.trim();
 
     const { userId, role } =
       await requireAssessmentManager();
 
-    const attempt =
-      await prisma.assessmentAttempt.findFirst({
-        where: {
-          id: attemptId,
-          assessmentId,
-          studentId,
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const attempt = await tx.assessmentAttempt.findFirst({
+          where: {
+            id: attemptId,
+            assessmentId,
+            studentId,
 
-          assessment: {
-            ...(role === "teacher"
-              ? {
-                  lesson: {
-                    teacherId: userId,
-                  },
-                }
-              : {}),
+            assessment: {
+              ...(role === "teacher"
+                ? {
+                    lesson: {
+                      teacherId: userId,
+                    },
+                  }
+                : {}),
+            },
           },
-        },
 
-        select: {
-          id: true,
-          status: true,
-        },
-      });
+          select: {
+            id: true,
+            status: true,
+            teacherFeedback: true,
 
-    if (!attempt) {
-      return assessmentFailure(
-        "The selected submission could not be found."
-      );
-    }
+            assessment: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        });
 
-    if (
+        if (!attempt) {
+          throw new AssessmentError(
+            "ATTEMPT_NOT_FOUND",
+            "The selected submission could not be found.",
+          );
+        }
+
+        if (
       attempt.status !==
         "SUBMITTED" &&
       attempt.status !==
         "AUTO_SUBMITTED"
-    ) {
-      return assessmentFailure(
-        "Feedback can only be added to a completed submission."
-      );
-    }
+        ) {
+          throw new AssessmentError(
+            "ATTEMPT_NOT_COMPLETED",
+            "Feedback can only be added to a completed submission.",
+          );
+        }
 
-    const reviewedAt =
-      new Date();
+        const reviewedAt = new Date();
 
-    const normalizedFeedback =
-      feedback.trim();
+        const updatedAttempt = await tx.assessmentAttempt.update({
+          where: {
+            id: attemptId,
+          },
 
-    const updatedAttempt =
-      await prisma.assessmentAttempt.update({
-        where: {
-          id: attemptId,
-        },
-
-        data: {
+          data: {
           teacherFeedback:
             normalizedFeedback ||
             null,
 
-          reviewedAt,
+            reviewedAt,
 
-          /*
+            /*
            * Administrators may not have a Teacher row
            * matching their Clerk ID.
-           */
+             */
           reviewedById:
             role === "teacher"
               ? userId
               : null,
-        },
+          },
 
-        select: {
-          id: true,
-          teacherFeedback: true,
-          reviewedAt: true,
-        },
-      });
+          select: {
+            id: true,
+            teacherFeedback: true,
+            reviewedAt: true,
+          },
+        });
 
-    revalidatePath(
-      `/list/assessments/${assessmentId}/submissions`
+        /*
+         * Notify only when feedback is added.
+         * Removing feedback should not create
+         * a new notification.
+         */
+        if (normalizedFeedback) {
+          await tx.notification.create({
+            data: {
+              title: "Teacher feedback added",
+
+              message: `Feedback has been added to your result for ${attempt.assessment.title}.`,
+
+              type: "ASSESSMENT_FEEDBACK_ADDED",
+
+              recipientId: studentId,
+
+              recipientRole: "student",
+
+              assessmentId,
+
+              actionUrl: `/student/assessments/${assessmentId}/result?attemptId=${attemptId}`,
+            },
+          });
+        }
+
+        await createAssessmentAudit(tx, {
+          action: "FEEDBACK_CREATED",
+
+          actorId: userId,
+
+          actorRole: role,
+
+          assessmentId,
+
+          attemptId,
+
+          studentId,
+
+          metadata: {
+            feedbackAdded: Boolean(normalizedFeedback),
+
+            previousFeedback: attempt.teacherFeedback,
+
+            currentFeedback: normalizedFeedback || null,
+          },
+        });
+
+        return {
+          attemptId: updatedAttempt.id,
+
+          feedback: updatedAttempt.teacherFeedback,
+
+          reviewedAt: updatedAttempt.reviewedAt ?? reviewedAt,
+        };
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 5_000,
+        timeout: 10_000,
+      },
     );
 
+    revalidatePath(`/list/assessments/${assessmentId}/submissions`);
+
     revalidatePath(
-      `/list/assessments/${assessmentId}/submissions/${studentId}`
+      `/list/assessments/${assessmentId}/submissions/${studentId}`,
     );
+
+    revalidatePath(`/student/assessments/${assessmentId}/result`);
 
     return assessmentSuccess(
       normalizedFeedback
         ? "Teacher feedback saved."
         : "Teacher feedback removed.",
-
-      {
-        attemptId:
-          updatedAttempt.id,
-
-        feedback:
-          updatedAttempt.teacherFeedback,
-
-        reviewedAt:
-          updatedAttempt.reviewedAt ??
-          reviewedAt,
-      }
+      result,
     );
   } catch (error) {
-    console.error(
-      "SAVE ASSESSMENT TEACHER FEEDBACK ERROR:",
-      error
-    );
+    console.error("SAVE ASSESSMENT TEACHER FEEDBACK ERROR:", error);
 
-    return assessmentFailure(
-      "Teacher feedback could not be saved."
-    );
+    return assessmentFailure(getAssessmentErrorMessage(error));
+  }
+}
+
+export async function updateAssessmentNavigation(rawInput: unknown) {
+  const parsed = updateAttemptNavigationSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    return assessmentFailure("The navigation request is invalid.");
+  }
+
+  const {
+    attemptId,
+    nextQuestionIndex,
+    activeSessionId,
+    expectedAttemptVersion,
+  } = parsed.data;
+
+  try {
+    const { userId } = await requireAssessmentStudent();
+
+    const result = await prisma.$transaction(async (tx) => {
+      const attempt = await tx.assessmentAttempt.findFirst({
+        where: {
+          id: attemptId,
+          studentId: userId,
+          status: "IN_PROGRESS",
+        },
+
+        select: {
+          id: true,
+          assessmentId: true,
+          version: true,
+
+          currentQuestionIndex: true,
+          highestQuestionIndex: true,
+
+          assessment: {
+            select: {
+              questionCount: true,
+              allowBacktrack: true,
+            },
+          },
+        },
+      });
+
+      if (!attempt) {
+        throw new AssessmentError(
+          "ATTEMPT_NOT_ACTIVE",
+          "The assessment attempt is no longer active.",
+        );
+      }
+
+      if (attempt.version !== expectedAttemptVersion) {
+        throw new AssessmentError(
+          "VERSION_CONFLICT",
+          "The assessment was updated in another tab.",
+          true,
+        );
+      }
+
+      if (nextQuestionIndex >= attempt.assessment.questionCount) {
+        throw new AssessmentError(
+          "INVALID_QUESTION",
+          "The selected question does not exist.",
+        );
+      }
+
+      if (
+        !attempt.assessment.allowBacktrack &&
+        nextQuestionIndex < attempt.highestQuestionIndex
+      ) {
+        throw new AssessmentError(
+          "BACKTRACKING_BLOCKED",
+          "Backtracking is disabled.",
+        );
+      }
+
+      const updated = await tx.assessmentAttempt.update({
+        where: {
+          id: attemptId,
+        },
+
+        data: {
+          currentQuestionIndex: nextQuestionIndex,
+
+          highestQuestionIndex: Math.max(
+            attempt.highestQuestionIndex,
+            nextQuestionIndex,
+          ),
+
+          activeSessionId,
+          activeSessionSeenAt: new Date(),
+
+          lastActivityAt: new Date(),
+
+          version: {
+            increment: 1,
+          },
+        },
+
+        select: {
+          currentQuestionIndex: true,
+          highestQuestionIndex: true,
+          version: true,
+        },
+      });
+
+      await createAssessmentAudit(tx, {
+        action: "NAVIGATION_UPDATED",
+
+        actorId: userId,
+        actorRole: "student",
+
+        assessmentId: attempt.assessmentId,
+
+        attemptId,
+        studentId: userId,
+
+        metadata: {
+          currentQuestionIndex: updated.currentQuestionIndex,
+
+          highestQuestionIndex: updated.highestQuestionIndex,
+        },
+      });
+
+      return updated;
+    });
+
+    return assessmentSuccess("Position saved.", result);
+  } catch (error) {
+    return assessmentFailure(getAssessmentErrorMessage(error));
   }
 }

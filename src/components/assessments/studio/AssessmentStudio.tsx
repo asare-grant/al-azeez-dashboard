@@ -7,6 +7,10 @@ import { BookOpen, FileQuestion, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 
 import {
+  useRouter,
+} from "next/navigation";
+
+import {
   publishAssessment,
   saveAssessmentBuilder,
   saveIncompleteAssessmentDraft,
@@ -15,6 +19,7 @@ import {
 import { assessmentBuilderSchema } from "@/lib/assessments/validation";
 
 import type {
+  AssessmentAcademicPeriodOption,
   AssessmentBuilderData,
   AssessmentLessonOption,
 } from "@/lib/assessments/types";
@@ -42,12 +47,16 @@ import {
 type AssessmentStudioProps = {
   initialAssessment: AssessmentBuilderData;
   lessons: AssessmentLessonOption[];
+  terms: AssessmentAcademicPeriodOption[];
 };
 
 export default function AssessmentStudio({
   initialAssessment,
   lessons,
+  terms,
 }: AssessmentStudioProps) {
+  const router = useRouter();
+
   const [assessment, setAssessment] =
     useState<AssessmentBuilderData>(initialAssessment);
 
@@ -298,10 +307,101 @@ export default function AssessmentStudio({
   }
 
   function handlePreview() {
-    toast.info(
-      "Student preview will be connected after the question player is built.",
-    );
+  if (
+    isSaving ||
+    isPublishing ||
+    publishingRef.current
+  ) {
+    return;
   }
+
+  if (!assessment.id) {
+    toast.error(
+      "Save the assessment before previewing it.",
+    );
+
+    return;
+  }
+
+  if (
+    assessment.questions.length === 0
+  ) {
+    toast.error(
+      "Add at least one question before previewing the assessment.",
+    );
+
+    setActiveSection("questions");
+
+    return;
+  }
+
+  cancelScheduledAutosave();
+
+  startSaving(async () => {
+    try {
+      setSaveStatus("saving");
+
+      if (activeAutosaveRef.current) {
+        await activeAutosaveRef.current;
+      }
+
+      const validation =
+        assessmentBuilderSchema.safeParse(
+          assessment,
+        );
+
+      /*
+       * A complete assessment should use the
+       * full builder save before preview.
+       */
+      const result =
+        validation.success
+          ? await saveAssessmentBuilder(
+              validation.data,
+            )
+          : await saveIncompleteAssessmentDraft(
+              assessment,
+            );
+
+      if (!result.success) {
+        setSaveStatus("error");
+
+        toast.error(
+          result.message,
+        );
+
+        return;
+      }
+
+      setSavedAt(
+        result.data.updatedAt,
+      );
+
+      setSaveStatus("saved");
+
+      /*
+       * Open in a separate tab so the teacher
+       * does not lose their studio position.
+       */
+      window.open(
+        `/list/assessments/${assessment.id}/preview`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } catch (error) {
+      console.error(
+        "ASSESSMENT PREVIEW ERROR:",
+        error,
+      );
+
+      setSaveStatus("error");
+
+      toast.error(
+        "The assessment preview could not be opened.",
+      );
+    }
+  });
+}
 
   function navigateToQuestion(questionIndex: number) {
     setActiveSection("questions");
@@ -400,6 +500,7 @@ export default function AssessmentStudio({
               <OverviewSection
                 assessment={assessment}
                 lessons={lessons}
+                terms={terms}
                 selectedLesson={selectedLesson}
                 updateAssessment={updateAssessment}
                 disabled={!isEditable}
@@ -493,12 +594,14 @@ type UpdateAssessmentFunction = <Key extends keyof AssessmentBuilderData>(
 function OverviewSection({
   assessment,
   lessons,
+  terms,
   selectedLesson,
   updateAssessment,
   disabled,
 }: {
   assessment: AssessmentBuilderData;
   lessons: AssessmentLessonOption[];
+  terms: AssessmentAcademicPeriodOption[];
   selectedLesson?: AssessmentLessonOption;
   updateAssessment: UpdateAssessmentFunction;
   disabled?: boolean;
@@ -573,6 +676,60 @@ function OverviewSection({
               </p>
             </div>
           ) : null}
+        </div>
+
+        {/* ACADEMIC TERM AND YEAR */}
+        
+        <div>
+          <label
+            htmlFor="assessment-academic-year"
+            className="mb-2 block text-sm font-bold text-slate-700"
+          >
+            Academic Year
+          </label>
+
+          <input
+            id="assessment-academic-year"
+            type="text"
+            value={assessment.academicYear}
+            onChange={(event) =>
+              updateAssessment("academicYear", event.target.value)
+            }
+            placeholder="2026/2027"
+            disabled={disabled}
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="assessment-term"
+            className="mb-2 block text-sm font-bold text-slate-700"
+          >
+            Academic Term
+          </label>
+
+          <select
+            id="assessment-term"
+            value={assessment.termId ?? ""}
+            onChange={(event) =>
+              updateAssessment(
+                "termId",
+                event.target.value ? Number(event.target.value) : null,
+              )
+            }
+            disabled={disabled}
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+          >
+            <option value="">Select term</option>
+
+            {terms.map((term) => (
+              <option key={term.id} value={term.id}>
+                {term.name.replace(/_/g, " ")}
+                {term.isActive ? " — Active" : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="lg:col-span-2">

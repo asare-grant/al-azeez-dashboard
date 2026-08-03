@@ -56,6 +56,9 @@ export type AssessmentBuilderData = {
 
   lessonId?: number;
 
+  academicYear: string;
+  termId: number | null;
+
   startDate?: Date | string;
   dueDate?: Date | string;
 
@@ -174,6 +177,13 @@ export type AssessmentResultSummary = {
   subject: string;
   className: string;
   teacherName: string;
+
+  academicYear: string | null;
+
+  term: {
+    id: number;
+    name: string;
+  } | null;
 
   attemptNumber: number;
 
@@ -802,4 +812,48 @@ export type TeacherStudentSubmissionReview = {
 
     averageTimeSeconds: number | null;
   };
+};
+
+export type AssessmentAcademicPeriodOption = {
+  id: number;
+  name: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  isActive: boolean;
+};
+
+
+
+export type ParentChildAssessmentSummary = {
+  child: {
+    id: string;
+    name: string;
+    surname: string;
+    img: string | null;
+    className: string;
+  };
+
+  available: number;
+  upcoming: number;
+  completed: number;
+  missed: number;
+
+  averageScore: number | null;
+
+  recentResults: {
+    assessmentId: number;
+    attemptId: number;
+
+    title: string;
+    subject: string;
+
+    score: number;
+    totalMarks: number;
+    percentage: number;
+
+    grade: string | null;
+    remarks: string | null;
+
+    date: Date | string;
+  }[];
 };
