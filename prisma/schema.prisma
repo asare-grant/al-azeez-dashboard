@@ -41,6 +41,8 @@ model Student {
 
   assessmentAttempts AssessmentAttempt[]
 
+  reportCards ReportCard[]
+
   birthday   DateTime
   feeMasters FeeMaster[]
 
@@ -95,6 +97,8 @@ model Grade {
   feeStructures FeeStructure[]
 
   academicWeightings AcademicWeighting[]
+
+  reportCards ReportCard[]
 }
 
 model Class {
@@ -111,6 +115,8 @@ model Class {
   events        Event[]
   announcements Announcement[]
   feeStructures FeeStructure[]
+
+  reportCards ReportCard[]
 }
 
 model Subject {
@@ -118,6 +124,8 @@ model Subject {
   name     String    @unique
   teachers Teacher[]
   lessons  Lesson[]
+
+  reportCardSubjects ReportCardSubject[]
 }
 
 model Lesson {
@@ -169,6 +177,11 @@ model Assignment {
   lessonId Int
   lesson   Lesson   @relation(fields: [lessonId], references: [id])
   results  Result[]
+
+  academicYear String?
+
+  termId Int?
+  term   SchoolTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
 }
 
 model Result {
@@ -659,19 +672,294 @@ model AcademicWeighting {
   termId Int
   term   SchoolTerm @relation(fields: [termId], references: [id], onDelete: Cascade)
 
-  gradeId Int?
-  grade   Grade? @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  gradeId Int
+  grade   Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
 
+  gradingScaleId Int
+  gradingScale   GradingScale @relation(fields: [gradingScaleId], references: [id], onDelete: Restrict)
+
+  assignmentWeight Float @default(0)
   assessmentWeight Float @default(30)
   examWeight       Float @default(70)
-  assignmentWeight Float @default(0)
 
   assessmentScoreStrategy AssessmentScoreStrategy @default(AVERAGE)
+
+  passMark Float @default(50)
+
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([academicYear, termId, gradeId])
+  @@unique([academicYear, termId, gradeId], name: "academicYear_termId_gradeId")
+  @@index([termId])
+  @@index([gradeId])
+  @@index([gradingScaleId])
+  @@index([academicYear])
+  @@index([isActive])
+}
+
+model GradingScale {
+  id Int @id @default(autoincrement())
+
+  name        String
+  description String?
+
+  status    GradingScaleStatus @default(DRAFT)
+  isDefault Boolean            @default(false)
+
+  boundaries         GradeBoundary[]
+  academicWeightings AcademicWeighting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+  @@index([status])
+  @@index([isDefault])
+}
+
+model GradeBoundary {
+  id Int @id @default(autoincrement())
+
+  gradingScaleId Int
+  gradingScale   GradingScale @relation(fields: [gradingScaleId], references: [id], onDelete: Cascade)
+
+  grade String
+
+  minimumScore Float
+  maximumScore Float
+
+  remark String
+
+  gradePoint Float?
+
+  position Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gradingScaleId, grade], name: "gradingScaleId_grade")
+  @@index([gradingScaleId])
+  @@index([minimumScore, maximumScore])
+  @@index([position])
+}
+
+model ReportCard {
+  id Int @id @default(autoincrement())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Restrict)
+
+  gradeId Int
+  grade   Grade @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+
+  termId Int
+  term   SchoolTerm @relation(fields: [termId], references: [id], onDelete: Restrict)
+
+  academicYear String
+
+  status            ReportCardStatus            @default(DRAFT)
+  calculationStatus ReportCardCalculationStatus @default(BLOCKED)
+
+  version Int @default(1)
+
+  /**
+   * Source IDs are retained for traceability, but they are
+   * deliberately not foreign keys. The report card remains
+   * valid even if an old configuration is later archived.
+   */
+  sourceWeightingId    Int?
+  sourceGradingScaleId Int?
+
+  subjectCount           Int @default(0)
+  completedSubjectCount  Int @default(0)
+  incompleteSubjectCount Int @default(0)
+
+  totalScore   Float  @default(0)
+  averageScore Float?
+
+  highestSubjectScore Float?
+  lowestSubjectScore  Float?
+
+  passedSubjectCount Int    @default(0)
+  failedSubjectCount Int    @default(0)
+  passRate           Float?
+
+  totalGradePoints  Float?
+  averageGradePoint Float?
+
+  overallGrade      String?
+  overallRemark     String?
+  overallGradePoint Float?
+
+  overallPosition   Int?
+  classStudentCount Int?
+
+  daysSchoolOpened     Int?
+  daysPresent          Int?
+  daysAbsent           Int?
+  attendancePercentage Float?
+
+  conduct            String?
+  classTeacherRemark String?
+  headTeacherRemark  String?
+  promotionStatus    String?
+  nextTermBegins     DateTime?
+
+  /**
+   * These JSON fields preserve the exact rules and calculated
+   * report data used at generation time.
+   */
+  weightingSnapshot    Json
+  gradingScaleSnapshot Json
+  reportSnapshot       Json
+  calculationIssues    Json
+
+  generatedAt   DateTime  @default(now())
+  regeneratedAt DateTime?
+  publishedAt   DateTime?
+  lockedAt      DateTime?
+  archivedAt    DateTime?
+
+  generatedById String?
+  publishedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subjects ReportCardSubject[]
+
+  reviewStatus ReportCardReviewStatus @default(DRAFT)
+
+  /**
+   * Review submission
+   * Actor IDs are Clerk user IDs. We use plain strings here
+   * because administrators may not have Teacher records.
+   */
+  submittedForReviewAt DateTime?
+  submittedForReviewBy String?
+
+  /**
+   * Approval
+   */
+  approvedAt DateTime?
+  approvedBy String?
+
+  /**
+   * When an administrator returns the report for correction.
+   */
+  changesRequestedAt DateTime?
+  changesRequestedBy String?
+  reviewNote         String?
+
+  /**
+   * Additional student development fields inspired by
+   * the sample report card.
+   */
+  attitude String?
+  interest String?
+
+  /**
+   * Optional editable academic-period details.
+   */
+  termClosedOn DateTime?
+
+  /**
+   * Signature and stamp snapshots.
+   * These will later preserve the exact names/images used
+   * when a card is published.
+   */
+  classTeacherNameSnapshot String?
+  classTeacherSignatureUrl String?
+
+  headTeacherNameSnapshot String?
+  headTeacherSignatureUrl String?
+
+  schoolStampUrl String?
+
+  /**
+   * Publication audit information.
+   */
+  publishedBy String?
+
+  /**
+   * Existing fields from the earlier build should remain:
+   * daysSchoolOpened
+   * daysPresent
+   * daysAbsent
+   * attendancePercentage
+   * conduct
+   * classTeacherRemark
+   * headTeacherRemark
+   * promotionStatus
+   * nextTermBegins
+   * publishedAt
+   * lockedAt
+   * archivedAt
+   */
+
+  @@unique([studentId, academicYear, termId, classId])
+  @@index([academicYear, termId, classId])
+  @@index([studentId, status])
+  @@index([classId, academicYear, termId, status])
+  @@index([reviewStatus])
+  @@index([status, reviewStatus])
+}
+
+model ReportCardSubject {
+  id Int @id @default(autoincrement())
+
+  reportCardId Int
+  reportCard   ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
+
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  subjectName String
+  teacherId   String?
+  teacherName String?
+
+  assignmentPercentage Float?
+  assignmentWeight     Float
+  assignmentScore      Float
+
+  assessmentPercentage Float?
+  assessmentWeight     Float
+  assessmentScore      Float
+
+  examinationPercentage Float?
+  examinationWeight     Float
+  examinationScore      Float
+
+  finalScore Float
+
+  grade      String
+  remark     String
+  gradePoint Float?
+
+  passed Boolean
+
+  calculationStatus ReportCardCalculationStatus
+
+  subjectPosition Int?
+  classAverage    Float?
+  highestScore    Float?
+  lowestScore     Float?
+
+  categorySnapshot  Json
+  weightedSnapshot  Json
+  gradingSnapshot   Json
+  calculationIssues Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([reportCardId, subjectId])
+  @@index([subjectId, reportCardId])
 }
 
 enum UserSex {
@@ -715,8 +1003,11 @@ model SchoolTerm {
 
   assessments Assessment[]
   exams       Exam[]       @relation("ExamSchoolTerm")
+  assignments Assignment[]
 
   academicWeightings AcademicWeighting[]
+
+  reportCards ReportCard[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -780,4 +1071,29 @@ enum AssessmentScoreStrategy {
   LATEST
   FIRST
   AVERAGE
+}
+
+enum GradingScaleStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ReportCardStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReportCardCalculationStatus {
+  READY
+  PARTIAL
+  BLOCKED
+}
+
+enum ReportCardReviewStatus {
+  DRAFT
+  SUBMITTED
+  CHANGES_REQUESTED
+  APPROVED
 }

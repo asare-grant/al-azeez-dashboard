@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { ArrowLeft, BarChart3, LayoutDashboard } from "lucide-react";
+
 import type {
   TeacherStudentSubmissionReview,
 } from "@/lib/assessments/types";
@@ -23,6 +27,31 @@ export default function StudentSubmissionReviewPage({
   return (
     <div className="print:bg-white min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="print:max-w-none mx-auto max-w-[1600px]">
+        <div className="mb-4 flex flex-wrap gap-3">
+                  <Link
+                    href="/list/assessments"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Assessments
+                  </Link>
+        
+                  <Link
+                    href="/list/results/legacy"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Results Centre
+                  </Link>
+        
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                </div>
         <StudentSubmissionReviewHeader
           data={data}
         />
