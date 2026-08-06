@@ -353,6 +353,7 @@ export async function loadClassTermReportData({
         },
       },
     }),
+    
 
     prisma.schoolTerm.findUnique({
       where: {
@@ -380,6 +381,16 @@ export async function loadClassTermReportData({
       "The selected school term could not be found.",
     );
   }
+
+  console.log(
+  "REPORT GENERATION PERIOD:",
+  {
+    classId,
+    termId,
+    academicYear:
+      normalizedAcademicYear,
+  },
+);
 
   const weighting =
     await prisma.academicWeighting.findFirst({
@@ -812,6 +823,61 @@ export async function loadClassTermReportData({
           ),
       }),
     );
+
+    console.log(
+  "REPORT SOURCE RECORDS:",
+  classRecord.lessons.map(
+    (lesson) => ({
+      lessonId:
+        lesson.id,
+
+      subject:
+        lesson.subject.name,
+
+      assignments:
+        lesson.assignments.map(
+          (assignment) => ({
+            id:
+              assignment.id,
+
+            title:
+              assignment.title,
+
+            resultCount:
+              assignment.results.length,
+          }),
+        ),
+
+      assessments:
+        lesson.assessments.map(
+          (assessment) => ({
+            id:
+              assessment.id,
+
+            title:
+              assessment.title,
+
+            resultCount:
+              assessment.results.length,
+          }),
+        ),
+
+      examinations:
+        lesson.exams.map(
+          (exam) => ({
+            id:
+              exam.id,
+
+            title:
+              exam.title,
+
+            resultCount:
+              exam.results.length,
+          }),
+        ),
+    }),
+  ),
+);
 
   return {
     period,

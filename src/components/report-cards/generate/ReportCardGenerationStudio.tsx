@@ -113,20 +113,6 @@ export default function ReportCardGenerationStudio({
     startTransition,
   ] = useTransition();
 
-  const hasWarnings =
-    Boolean(
-      readiness &&
-        readiness.warnings.length >
-          0,
-    );
-
-  const hasBlockingErrors =
-    Boolean(
-      readiness &&
-        readiness.errors.length >
-          0,
-    );
-
   const requiresPartialConsent =
     Boolean(
       readiness

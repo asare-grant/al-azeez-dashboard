@@ -99,15 +99,80 @@ export const parentSchema = z.object({
 export type ParentSchema = z.infer<typeof parentSchema>;
 
 
-export const examSchema = z.object({
-  id: z.coerce.number().optional(),
-  title: z.string().min(1, { message: "Title name is required!" }),
-  startTime: z.coerce.date({ message: "Start time is required!" }),
-  endTime: z.coerce.date({ message: "End time is required!" }),
-  lessonId: z.coerce.number({ message: "Lesson is required!" }),
-});
+export const examSchema =
+  z.object({
+    id:
+      z.coerce
+        .number()
+        .optional(),
 
-export type ExamSchema = z.infer<typeof examSchema>;
+    title:
+      z.string().min(
+        1,
+        {
+          message:
+            "Exam title is required!",
+        },
+      ),
+
+    startTime:
+      z.coerce.date({
+        message:
+          "Start time is required!",
+      }),
+
+    endTime:
+      z.coerce.date({
+        message:
+          "End time is required!",
+      }),
+
+    lessonId:
+      z.coerce.number({
+        message:
+          "Lesson is required!",
+      }),
+
+    academicYear:
+      z.string()
+        .trim()
+        .min(
+          1,
+          {
+            message:
+              "Academic year is required!",
+          },
+        ),
+
+    termId:
+      z.coerce
+        .number({
+          message:
+            "School term is required!",
+        })
+        .int()
+        .positive({
+          message:
+            "Select a valid school term.",
+        }),
+  })
+  .refine(
+    (data) =>
+      data.endTime >
+      data.startTime,
+    {
+      message:
+        "End time must be after start time.",
+      path: [
+        "endTime",
+      ],
+    },
+  );
+
+export type ExamSchema =
+  z.infer<
+    typeof examSchema
+  >;
 
 
 export const resultSchema = z.object({
@@ -144,21 +209,80 @@ export const lessonSchema = z.object({
 export type LessonSchema = z.infer<typeof lessonSchema>;
 
 
-export const assignmentSchema = z.object({
-  id: z.coerce.number().optional(), // ✅ coerce to number for edit mode
-  title: z.string().min(1, { message: "Assignment title is required!" }),
-  startDate: z.coerce.date({
-    message: "Start date is required and must be a valid date!",
-  }),
-  dueDate: z.coerce.date({
-    message: "Due date is required and must be a valid date!",
-  }),
-  lessonId: z.coerce.number({
-    message: "Lesson selection is required!",
-  }),
-});
+export const assignmentSchema =
+  z.object({
+    id:
+      z.coerce
+        .number()
+        .optional(),
 
-export type AssignmentSchema = z.infer<typeof assignmentSchema>;
+    title:
+      z.string().min(
+        1,
+        {
+          message:
+            "Assignment title is required!",
+        },
+      ),
+
+    startDate:
+      z.coerce.date({
+        message:
+          "Start date is required and must be valid!",
+      }),
+
+    dueDate:
+      z.coerce.date({
+        message:
+          "Due date is required and must be valid!",
+      }),
+
+    lessonId:
+      z.coerce.number({
+        message:
+          "Lesson selection is required!",
+      }),
+
+    academicYear:
+      z.string()
+        .trim()
+        .min(
+          1,
+          {
+            message:
+              "Academic year is required!",
+          },
+        ),
+
+    termId:
+      z.coerce
+        .number({
+          message:
+            "School term is required!",
+        })
+        .int()
+        .positive({
+          message:
+            "Select a valid school term.",
+        }),
+  })
+  .refine(
+    (data) =>
+      data.dueDate >=
+      data.startDate,
+    {
+      message:
+        "Due date cannot be before the start date.",
+      path: [
+        "dueDate",
+      ],
+    },
+  );
+
+export type AssignmentSchema =
+  z.infer<
+    typeof assignmentSchema
+  >;
 
 
 export const eventSchema = z.object({

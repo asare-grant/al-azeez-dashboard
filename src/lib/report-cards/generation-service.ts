@@ -808,6 +808,10 @@ function buildReportCardScalarData({
     
     generatedById,
 
+    isStale: false,
+    staleAt: null,
+    staleReason: null,
+
     reviewStatus:
       "DRAFT",
 
@@ -1071,7 +1075,7 @@ export async function generateClassReportCards(
             studentIds,
         },
 
-        lassId:
+        classId:
           validatedClass.id,
 
         gradeId:

@@ -73,15 +73,93 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         });
         relatedData = { students: parentStudents };
         break;
-      case "exam":
-        const examLessons = await prisma.lesson.findMany({
-          where: {
-            ...(role === "teacher" ? { teacherId: currentUserId! } : {}),
-          },
-          select: { id: true, name: true },
-        });
-        relatedData = { lessons: examLessons };
+      case "exam": {
+        const [examLessons, examTerms, examYearRows] =
+          await prisma.$transaction([
+            prisma.lesson.findMany({
+              where: {
+                ...(role === "teacher"
+                  ? {
+                      teacherId: currentUserId!,
+                    }
+                  : {}),
+              },
+
+              select: {
+                id: true,
+                name: true,
+
+                subject: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+
+              orderBy: {
+                name: "asc",
+              },
+            }),
+
+            prisma.schoolTerm.findMany({
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                isActive: true,
+              },
+
+              orderBy: {
+                startDate: "desc",
+              },
+            }),
+
+            prisma.academicWeighting.findMany({
+              where: {
+                isActive: true,
+              },
+
+              distinct: ["academicYear"],
+
+              select: {
+                academicYear: true,
+              },
+
+              orderBy: {
+                academicYear: "desc",
+              },
+            }),
+          ]);
+
+        const activeTerm = examTerms.find((term) => term.isActive) ?? null;
+
+        const academicYears = Array.from(
+          new Set(
+            examYearRows.map((row) => row.academicYear.trim()).filter(Boolean),
+          ),
+        );
+
+        relatedData = {
+          lessons: examLessons,
+
+          terms: examTerms,
+
+          academicYears,
+
+          defaultAcademicYear: academicYears[0] ?? "",
+
+          defaultTermId: activeTerm?.id ?? null,
+        };
+
         break;
+      }
       case "result":
         const resultStudents = await prisma.student.findMany({
           select: { id: true, name: true, surname: true },
@@ -119,21 +197,97 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           classes: lessonClasses,
         };
         break;
-      case "assignment":
-        const assignmentLessons = await prisma.lesson.findMany({
-          where: {
-            ...(role === "teacher" ? { teacherId: currentUserId! } : {}),
-          },
-          select: {
-            id: true,
-            name: true,
-            day: true,
-            subject: { select: { name: true } },
-            class: { select: { name: true } },
-          },
-        });
-        relatedData = { lessons: assignmentLessons };
+      case "assignment": {
+        const [assignmentLessons, assignmentTerms, assignmentYearRows] =
+          await prisma.$transaction([
+            prisma.lesson.findMany({
+              where: {
+                ...(role === "teacher"
+                  ? {
+                      teacherId: currentUserId!,
+                    }
+                  : {}),
+              },
+
+              select: {
+                id: true,
+                name: true,
+                day: true,
+
+                subject: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+
+              orderBy: {
+                name: "asc",
+              },
+            }),
+
+            prisma.schoolTerm.findMany({
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                isActive: true,
+              },
+
+              orderBy: {
+                startDate: "desc",
+              },
+            }),
+
+            prisma.academicWeighting.findMany({
+              where: {
+                isActive: true,
+              },
+
+              distinct: ["academicYear"],
+
+              select: {
+                academicYear: true,
+              },
+
+              orderBy: {
+                academicYear: "desc",
+              },
+            }),
+          ]);
+
+        const activeTerm =
+          assignmentTerms.find((term) => term.isActive) ?? null;
+
+        const academicYears = Array.from(
+          new Set(
+            assignmentYearRows
+              .map((row) => row.academicYear.trim())
+              .filter(Boolean),
+          ),
+        );
+
+        relatedData = {
+          lessons: assignmentLessons,
+
+          terms: assignmentTerms,
+
+          academicYears,
+
+          defaultAcademicYear: academicYears[0] ?? "",
+
+          defaultTermId: activeTerm?.id ?? null,
+        };
+
         break;
+      }
       case "event":
         const eventClasses = await prisma.class.findMany({
           select: { id: true, name: true },
@@ -185,17 +339,6 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           feeMasters,
         };
         break;
-
-      // case "assignment":
-      //   const assignmentLessons = await prisma.lesson.findMany({
-      //     where: {
-      //       ...(role === "teacher" ? { teacherId: currentUserId! } : {}),
-      //     },
-      //     select: { id: true, name: true, day: true },
-      //   });
-      //   relatedData = { lessons: assignmentLessons };
-      //   break;
-
       default:
         break;
     }

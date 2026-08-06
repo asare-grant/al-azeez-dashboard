@@ -73,6 +73,10 @@ export type ReportCardCommandItem = {
     | Date
     | string
     | null;
+
+  // isStale: boolean;
+  // staleAt: Date | string | null;
+  // staleReason: string | null;
 };
 
 export type ReportCardCommandMetrics = {

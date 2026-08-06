@@ -288,6 +288,8 @@ export async function bulkApproveReportCards(
 
                   calculationStatus:
                     "READY",
+
+                  isStale: false,
                 },
 
                 data: {
@@ -743,6 +745,8 @@ export async function bulkPublishReportCards(
 
                 calculationStatus:
                   "READY",
+                
+                isStale: false,
               },
 
               data: {

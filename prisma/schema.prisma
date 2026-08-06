@@ -828,6 +828,10 @@ model ReportCard {
   generatedById String?
   publishedById String?
 
+  isStale     Boolean   @default(false)
+  staleAt     DateTime?
+  staleReason String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -908,6 +912,8 @@ model ReportCard {
   @@index([classId, academicYear, termId, status])
   @@index([reviewStatus])
   @@index([status, reviewStatus])
+  @@index([isStale])
+  @@index([classId, academicYear, termId, isStale])
 }
 
 model ReportCardSubject {
@@ -1017,6 +1023,23 @@ enum TermName {
   FIRST
   SECOND
   THIRD
+}
+
+model SchoolAcademicYear {
+  id Int @id @default(autoincrement())
+
+  name String @unique
+
+  startDate DateTime
+  endDate   DateTime
+
+  isActive Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([startDate])
 }
 
 enum AssessmentStatus {

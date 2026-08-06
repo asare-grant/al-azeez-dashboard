@@ -29,17 +29,17 @@ const AssignmentForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
-  const router = useRouter();
-  const [lessons, setLessons] = useState<{ id: number; name: string }[]>([]);
-
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<AssignmentSchema>({
-    resolver: zodResolver(assignmentSchema),
+    resolver: zodResolver(assignmentSchema) as any,
     defaultValues: data || {},
   });
+  
+  const router = useRouter();
+  const [lessons, setLessons] = useState<{ id: number; name: string }[]>([]);
 
   // Fetch lessons for the current user (teacher or admin)
   useEffect(() => {
@@ -58,6 +58,10 @@ const AssignmentForm = ({
           startDate: new Date(formData.startDate),
           dueDate: new Date(formData.dueDate),
           lessonId: Number(formData.lessonId),
+          academicYear:
+            data?.academicYear ?? relatedData?.defaultAcademicYear ?? "",
+
+          termId: data?.termId ?? relatedData?.defaultTermId ?? "",
         };
 
         const result =
@@ -67,7 +71,7 @@ const AssignmentForm = ({
 
         if (result.success) {
           toast.success(
-            `Assignment has been ${type === "create" ? "created" : "updated"}!`
+            `Assignment has been ${type === "create" ? "created" : "updated"}!`,
           );
           setOpen(false);
           router.refresh();
@@ -158,6 +162,59 @@ const AssignmentForm = ({
                 {errors.lessonId.message.toString()}
               </p>
             )}
+          </div>
+
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Academic Year</label>
+
+            <select
+              {...register("academicYear")}
+              className="rounded-md p-2 ring-1 ring-gray-300"
+            >
+              <option value="">Select academic year</option>
+
+              {relatedData?.academicYears?.map((academicYear: string) => (
+                <option key={academicYear} value={academicYear}>
+                  {academicYear}
+                </option>
+              ))}
+            </select>
+
+            {errors.academicYear?.message ? (
+              <p className="text-xs text-red-400">
+                {errors.academicYear.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">School Term</label>
+
+            <select
+              {...register("termId")}
+              className="rounded-md p-2 ring-1 ring-gray-300"
+            >
+              <option value="">Select term</option>
+
+              {relatedData?.terms?.map(
+                (term: {
+                  id: number;
+
+                  name: string;
+
+                  isActive: boolean;
+                }) => (
+                  <option key={term.id} value={term.id}>
+                    {term.name.replace(/_/g, " ")}
+                    {term.isActive ? " — Active" : ""}
+                  </option>
+                ),
+              )}
+            </select>
+
+            {errors.termId?.message ? (
+              <p className="text-xs text-red-400">{errors.termId.message}</p>
+            ) : null}
           </div>
         </div>
 

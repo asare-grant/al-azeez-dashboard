@@ -534,84 +534,268 @@ export const deleteParent = async (
   }
 };
 
-export const createExam = async (
-  currentState: CurrentState,
-  data: ExamSchema
-) => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+export const createExam =
+  async (
+    currentState:
+      CurrentState,
 
-  try {
-    if (role === "teacher") {
-      const teacherLesson = await prisma.lesson.findFirst({
-        where: {
-          teacherId: userId!,
-          id: data.lessonId,
+    data:
+      ExamSchema,
+  ) => {
+    const {
+      userId,
+      sessionClaims,
+    } = await auth();
+
+    const role = (
+      sessionClaims
+        ?.metadata as {
+        role?: string;
+      }
+    )?.role;
+
+    try {
+      const academicYear =
+        data.academicYear
+          .trim();
+
+      if (
+        role ===
+        "teacher"
+      ) {
+        const teacherLesson =
+          await prisma.lesson.findFirst({
+            where: {
+              teacherId:
+                userId!,
+
+              id:
+                data.lessonId,
+            },
+
+            select: {
+              id: true,
+            },
+          });
+
+        if (
+          !teacherLesson
+        ) {
+          return {
+            success:
+              false,
+
+            error:
+              true,
+          };
+        }
+      }
+
+      const term =
+        await prisma.schoolTerm.findUnique({
+          where: {
+            id:
+              data.termId,
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+      if (!term) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+        };
+      }
+
+      await prisma.exam.create({
+        data: {
+          title:
+            data.title,
+
+          startTime:
+            data.startTime,
+
+          endTime:
+            data.endTime,
+
+          lessonId:
+            data.lessonId,
+
+          academicYear,
+
+          termId:
+            data.termId,
         },
       });
 
-      if (!teacherLesson) {
-        return { success: false, error: true };
-      }
+      revalidatePath(
+        "/list/exams",
+      );
+
+      revalidatePath(
+        "/list/results",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+      };
+    } catch (error) {
+      console.error(
+        "CREATE EXAM ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+      };
     }
+  };
 
-    await prisma.exam.create({
-      data: {
-        title: data.title,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        lessonId: data.lessonId,
-      },
-    });
+export const updateExam =
+  async (
+    currentState:
+      CurrentState,
 
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
+    data:
+      ExamSchema,
+  ) => {
+    const {
+      userId,
+      sessionClaims,
+    } = await auth();
 
-export const updateExam = async (
-  currentState: CurrentState,
-  data: ExamSchema
-) => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+    const role = (
+      sessionClaims
+        ?.metadata as {
+        role?: string;
+      }
+    )?.role;
 
-  try {
-    if (role === "teacher") {
-      const teacherLesson = await prisma.lesson.findFirst({
+    try {
+      if (!data.id) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+        };
+      }
+
+      if (
+        role ===
+        "teacher"
+      ) {
+        const teacherLesson =
+          await prisma.lesson.findFirst({
+            where: {
+              teacherId:
+                userId!,
+
+              id:
+                data.lessonId,
+            },
+
+            select: {
+              id: true,
+            },
+          });
+
+        if (
+          !teacherLesson
+        ) {
+          return {
+            success:
+              false,
+
+            error:
+              true,
+          };
+        }
+      }
+
+      const academicYear =
+        data.academicYear
+          .trim();
+
+      await prisma.exam.update({
         where: {
-          teacherId: userId!,
-          id: data.lessonId,
+          id:
+            data.id,
+        },
+
+        data: {
+          title:
+            data.title,
+
+          startTime:
+            data.startTime,
+
+          endTime:
+            data.endTime,
+
+          lessonId:
+            data.lessonId,
+
+          academicYear,
+
+          termId:
+            data.termId,
         },
       });
 
-      if (!teacherLesson) {
-        return { success: false, error: true };
-      }
+      revalidatePath(
+        "/list/exams",
+      );
+
+      revalidatePath(
+        "/list/results",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+      };
+    } catch (error) {
+      console.error(
+        "UPDATE EXAM ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+      };
     }
-
-    await prisma.exam.update({
-      where: {
-        id: data.id,
-      },
-      data: {
-        title: data.title,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        lessonId: data.lessonId,
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
-  }
-};
+  };
 
 export const deleteExam = async (
   currentState: CurrentState,
@@ -773,77 +957,242 @@ export const getLessonsForUser = async () => {
 };
 
 /* ------------------------- CREATE ASSIGNMENT ------------------------- */
-export const createAssignment = async (data: AssignmentSchema) => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+export const createAssignment =
+  async (
+    data:
+      AssignmentSchema,
+  ) => {
+    const {
+      userId,
+      sessionClaims,
+    } = await auth();
 
-  try {
-    // Teachers can only create assignments for their own lessons
-    if (role === "teacher") {
-      const teacherLesson = await prisma.lesson.findFirst({
-        where: { teacherId: userId!, id: data.lessonId },
-      });
-      if (!teacherLesson) {
-        console.warn(
-          "Unauthorized: Teacher tried to create assignment for another lesson"
-        );
-        return { success: false, error: true };
+    const role = (
+      sessionClaims
+        ?.metadata as {
+        role?: string;
       }
+    )?.role;
+
+
+    const academicYear =
+        data.academicYear
+          .trim();
+          
+    try {
+      if (
+        role ===
+        "teacher"
+      ) {
+        const teacherLesson =
+          await prisma.lesson.findFirst({
+            where: {
+              teacherId:
+                userId!,
+
+              id:
+                data.lessonId,
+            },
+
+            select: {
+              id: true,
+            },
+          });
+
+        if (
+          !teacherLesson
+        ) {
+          return {
+            success:
+              false,
+
+            error:
+              true,
+          };
+        }
+      }
+
+      await prisma.assignment.create({
+        data: {
+          title:
+            data.title,
+
+          startDate:
+            data.startDate,
+
+          dueDate:
+            data.dueDate,
+
+          lessonId:
+            data.lessonId,
+
+          academicYear,
+
+          termId:
+            data.termId,
+        },
+      });
+
+      revalidatePath(
+        "/list/assignments",
+      );
+
+      revalidatePath(
+        "/list/results",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+      };
+    } catch (error) {
+      console.error(
+        "CREATE ASSIGNMENT ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+      };
     }
-
-    await prisma.assignment.create({
-      data: {
-        title: data.title,
-        startDate: data.startDate,
-        dueDate: data.dueDate,
-        lessonId: data.lessonId,
-      },
-    });
-
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("❌ Error creating assignment:", err);
-    return { success: false, error: true };
-  }
-};
+  };
 
 /* ------------------------- UPDATE ASSIGNMENT ------------------------- */
-export const updateAssignment = async (data: AssignmentSchema) => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+export const updateAssignment =
+  async (
+    data:
+      AssignmentSchema,
+  ) => {
+    const {
+      userId,
+      sessionClaims,
+    } = await auth();
 
-  try {
-    if (!data.id) return { success: false, error: true };
-
-    // Teachers can only update assignments for their own lessons
-    if (role === "teacher") {
-      const teacherLesson = await prisma.lesson.findFirst({
-        where: { teacherId: userId!, id: data.lessonId },
-      });
-      if (!teacherLesson) {
-        console.warn(
-          "Unauthorized: Teacher tried to update assignment for another lesson"
-        );
-        return { success: false, error: true };
+    const role = (
+      sessionClaims
+        ?.metadata as {
+        role?: string;
       }
+    )?.role;
+
+    try {
+      if (!data.id) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+        };
+      }
+
+      if (
+        role ===
+        "teacher"
+      ) {
+        const teacherLesson =
+          await prisma.lesson.findFirst({
+            where: {
+              teacherId:
+                userId!,
+
+              id:
+                data.lessonId,
+            },
+
+            select: {
+              id: true,
+            },
+          });
+
+        if (
+          !teacherLesson
+        ) {
+          return {
+            success:
+              false,
+
+            error:
+              true,
+          };
+        }
+      }
+
+      const academicYear =
+        data.academicYear
+          .trim();
+
+      await prisma.assignment.update({
+        where: {
+          id:
+            data.id,
+        },
+
+        data: {
+          title:
+            data.title,
+
+          startDate:
+            data.startDate,
+
+          dueDate:
+            data.dueDate,
+
+          lessonId:
+            data.lessonId,
+
+          academicYear,
+
+          termId:
+            data.termId,
+        },
+      });
+
+      revalidatePath(
+        "/list/assignments",
+      );
+
+      revalidatePath(
+        "/list/results",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+      };
+    } catch (error) {
+      console.error(
+        "UPDATE ASSIGNMENT ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+      };
     }
-
-    await prisma.assignment.update({
-      where: { id: data.id },
-      data: {
-        title: data.title,
-        startDate: data.startDate,
-        dueDate: data.dueDate,
-        lessonId: data.lessonId,
-      },
-    });
-
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("❌ Error updating assignment:", err);
-    return { success: false, error: true };
-  }
-};
+  };
 /* -------------------------------------------------------------------------- */
 /*                             DELETE ASSIGNMENT                              */
 /* -------------------------------------------------------------------------- */
@@ -919,77 +1268,210 @@ export const deleteResult = async (
   }
 };
 
+/* ------------------------- CREATE RESULT ------------------------- */
 
-export const createResult = async (_: any, data: ResultSchema) => {
-  try {
-    // Validate that at least one assessment is selected
-    if (data.type === "EXAM" && !data.examId) {
-      throw new Error("Exam must be selected for EXAM results.");
+export const createResult =
+  async (
+    _:
+      unknown,
+
+    data:
+      ResultSchema,
+  ) => {
+    try {
+      if (
+        data.type ===
+          "EXAM" &&
+        !data.examId
+      ) {
+        throw new Error(
+          "Exam must be selected for an examination result.",
+        );
+      }
+
+      if (
+        data.type ===
+          "ASSIGNMENT" &&
+        !data.assignmentId
+      ) {
+        throw new Error(
+          "Assignment must be selected for an assignment result.",
+        );
+      }
+
+      const score =
+        Number(
+          data.score,
+        );
+
+      const percentage =
+        Math.min(
+          100,
+          Math.max(
+            0,
+            score,
+          ),
+        );
+
+      const result =
+        await prisma.result.create({
+          data: {
+            studentId:
+              data.studentId,
+
+            type:
+              data.type,
+
+            score,
+
+            /*
+             * Legacy manual result entry is currently
+             * percentage-based: 95 means 95 out of 100.
+             */
+            totalMarks:
+              100,
+
+            percentage,
+
+            examId:
+              data.type ===
+              "EXAM"
+                ? Number(
+                    data.examId,
+                  )
+                : null,
+
+            assignmentId:
+              data.type ===
+              "ASSIGNMENT"
+                ? Number(
+                    data.assignmentId,
+                  )
+                : null,
+          },
+        });
+
+      revalidatePath(
+        "/list/results",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return result;
+    } catch (error) {
+      console.error(
+        "CREATE RESULT ERROR:",
+        error,
+      );
+
+      throw error;
     }
-    if (data.type === "ASSIGNMENT" && !data.assignmentId) {
-      throw new Error("Assignment must be selected for ASSIGNMENT results.");
-    }
+  };
 
-    // Ensure the selected exam or assignment exists and has a lesson
-    let lessonId: number | null = null;
+  /* ------------------------- UPDATE RESULT ------------------------- */
 
-    if (data.type === "EXAM") {
-      const exam = await prisma.exam.findUnique({
-        where: { id: Number(data.examId) },
-        select: { lessonId: true },
+
+export const updateResult =
+  async (
+    _:
+      unknown,
+
+    data:
+      ResultSchema,
+  ) => {
+    try {
+      if (!data.id) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+        };
+      }
+
+      const score =
+        Number(
+          data.score,
+        );
+
+      const percentage =
+        Math.min(
+          100,
+          Math.max(
+            0,
+            score,
+          ),
+        );
+
+      await prisma.result.update({
+        where: {
+          id:
+            data.id,
+        },
+
+        data: {
+          studentId:
+            data.studentId,
+
+          type:
+            data.type,
+
+          score,
+
+          totalMarks:
+            100,
+
+          percentage,
+
+          examId:
+            data.type ===
+            "EXAM"
+              ? data.examId ??
+                null
+              : null,
+
+          assignmentId:
+            data.type ===
+            "ASSIGNMENT"
+              ? data.assignmentId ??
+                null
+              : null,
+        },
       });
-      if (!exam) throw new Error("Selected exam does not exist.");
-      lessonId = exam.lessonId;
+
+      revalidatePath(
+        "/list/results",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+      };
+    } catch (error) {
+      console.error(
+        "UPDATE RESULT ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+      };
     }
-
-    if (data.type === "ASSIGNMENT") {
-      const assignment = await prisma.assignment.findUnique({
-        where: { id: Number(data.assignmentId) },
-        select: { lessonId: true },
-      });
-      if (!assignment) throw new Error("Selected assignment does not exist.");
-      lessonId = assignment.lessonId;
-    }
-
-    // Create the result
-    const result = await prisma.result.create({
-      data: {
-        studentId: data.studentId,
-        score: Number(data.score),
-        type: data.type, // EXAM or ASSIGNMENT
-        examId: data.type === "EXAM" ? Number(data.examId) : null,
-        assignmentId:
-          data.type === "ASSIGNMENT" ? Number(data.assignmentId) : null,
-      },
-    });
-
-    return result;
-  } catch (error) {
-    console.error("❌ Error creating result:", error);
-    throw error;
-  }
-};
-
-export const updateResult = async (_: any, data: ResultSchema) => {
-  try {
-    await prisma.result.update({
-      where: { id: data.id },
-      data: {
-        studentId: data.studentId,
-        type: data.type,
-        score: data.score,
-        examId: data.type === "EXAM" ? data.examId ?? null : null,
-        assignmentId:
-          data.type === "ASSIGNMENT" ? data.assignmentId ?? null : null,
-      },
-    });
-
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("❌ Error updating result:", err);
-    return { success: false, error: true };
-  }
-};
+  };
 
 /* ------------------------- CREATE EVENT ------------------------- */
 export const createEvent = async (

@@ -13,9 +13,6 @@ import prisma from "@/lib/prisma";
 
 import {
   requireReportCardAdmin,
-} from "./auth";
-
-import {
   requireReportCardManager,
 } from "./auth";
 
@@ -286,6 +283,8 @@ export async function publishReportCard(
 
           calculationStatus:
             "READY",
+          
+          isStale: false,
         },
 
         data: {
@@ -552,6 +551,8 @@ export async function publishClassReportCards({
           
           calculationStatus:
             "READY",
+
+          isStale: false,
         },
 
         select: {
@@ -597,6 +598,8 @@ export async function publishClassReportCards({
 
           calculationStatus:
             "READY",
+
+          isStale: false,
         },
 
         data: {
