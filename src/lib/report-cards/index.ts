@@ -14,9 +14,9 @@ export {
   getParentChildrenForReportCards,
 } from "./queries";
 
-export {
-  persistClassTermReport,
-} from "./persistence-service";
+// export {
+//   persistClassTermReport,
+// } from "./persistence-service";
 
 export {
   REPORT_CARD_GENERATE_PATH,
@@ -28,8 +28,6 @@ export {
 } from "./paths";
 
 export type {
-  GenerateClassReportCardsInput,
-  GenerateClassReportCardsResult,
   PublishClassReportCardsResult,
   PublishReportCardResult,
   ReportCardActionResult,
@@ -155,3 +153,30 @@ export {
   bulkPublishReportCards,
   bulkRequestReportCardChanges,
 } from "./bulk-review-actions";
+
+
+export {
+  validateReportCardGeneration,
+} from "./generation-validator";
+
+export type {
+  ReportCardGenerationCheck,
+  ReportCardGenerationCheckSeverity,
+  ReportCardGenerationCheckStatus,
+  ReportCardGenerationSubjectSummary,
+  ReportCardGenerationValidation,
+  ReportCardGenerationValidationSummary,
+} from "./generation-validator";
+
+
+export {
+  generateClassReportCards,
+} from "./generation-service";
+
+
+export type {
+  GeneratedReportCardAction,
+  GeneratedReportCardItem,
+  GenerateClassReportCardsInput,
+  ReportCardGenerationSummary,
+} from "./generation-types";

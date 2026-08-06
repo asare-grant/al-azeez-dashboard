@@ -10,18 +10,18 @@ import {
 
 import prisma from "@/lib/prisma";
 
-import {
-  generateClassTermReportPreview,
-} from "@/lib/academic-engine/server";
 
 import {
   requireReportCardAdmin,
+} from "./auth";
+
+import {
   requireReportCardManager,
 } from "./auth";
 
 import {
-  persistClassTermReport,
-} from "./persistence-service";
+  generateClassReportCards,
+} from "./generation-service";
 
 import {
   REPORT_CARD_LIST_PATH,
@@ -32,9 +32,13 @@ import {
 
 import type {
   GenerateClassReportCardsInput,
-  GenerateClassReportCardsResult,
+  ReportCardGenerationSummary,
+} from "./generation-types";
+
+import type {
   PublishClassReportCardsResult,
   PublishReportCardResult,
+  ReportCardAcademicPeriodInput,
   ReportCardActionResult,
 } from "./types";
 
@@ -101,19 +105,20 @@ function getReportCardErrorMessage(
   return "The report-card operation could not be completed.";
 }
 
+
 /* -------------------------------------------------------------------------- */
 /*                      GENERATE OR REGENERATE DRAFTS                         */
 /* -------------------------------------------------------------------------- */
 
 export async function generateClassReportCardDrafts(
-  input: GenerateClassReportCardsInput,
+  input:
+    GenerateClassReportCardsInput,
 ): Promise<
-  ReportCardActionResult<GenerateClassReportCardsResult>
+  ReportCardActionResult<ReportCardGenerationSummary>
 > {
   try {
     const {
       userId,
-      role,
     } = await requireReportCardManager();
 
     const classId =
@@ -138,83 +143,92 @@ export async function generateClassReportCardDrafts(
     }
 
     /*
-     * Teachers may generate only classes they teach.
+     * Authentication, role permissions, class ownership,
+     * weighting validation and source-result validation are
+     * enforced by the generation validator and service.
      */
-    if (role === "teacher") {
-      const manageableLesson =
-        await prisma.lesson.findFirst({
-          where: {
-            classId,
-            teacherId:
-              userId,
-          },
+      const summary =
+      await generateClassReportCards(
+        {
+          classId,
+          termId,
+          academicYear,
 
-          select: {
-            id: true,
-          },
-        });
+          allowPartial:
+            input.allowPartial ??
+            false,
+        },
 
-      if (!manageableLesson) {
-        return reportCardFailure(
-          "You are not assigned to this class.",
-        );
-      }
-    }
-
-    const generated =
-      await generateClassTermReportPreview({
-        classId,
-        academicYear,
-        termId,
-      });
-
-    if (!generated.success) {
-      return reportCardFailure(
-        generated.message,
+        userId,
       );
-    }
-
-    const persisted =
-      await persistClassTermReport({
-        report:
-          generated.report,
-
-        generatedById:
-          userId,
-      });
-
-    revalidatePath(
-      REPORT_CARD_LIST_PATH,
-    );
 
     revalidatePath(
       `${REPORT_CARD_LIST_PATH}/generate`,
     );
 
+    revalidatePath(
+      `${REPORT_CARD_LIST_PATH}/review`,
+    );
+
+    revalidatePath(
+      `/teacher/classes/${classId}/report-cards`,
+    );
+
+    /*
+     * Only changed drafts need individual route
+     * revalidation. Published and archived snapshots
+     * remain untouched.
+     */
+    for (
+      const item of
+      summary.reportCards
+    ) {
+      if (
+        item.action !==
+          "CREATED" &&
+        item.action !==
+          "REGENERATED"
+      ) {
+        continue;
+      }
+
+      revalidatePath(
+        reportCardDetailsPath(
+          item.reportCardId,
+        ),
+      );
+
+      revalidatePath(
+        `${reportCardDetailsPath(
+          item.reportCardId,
+        )}/review`,
+      );
+
+      revalidatePath(
+        `${reportCardDetailsPath(
+          item.reportCardId,
+        )}/print`,
+      );
+    }
+
+    const changedCount =
+      summary.created +
+      summary.regenerated;
+
+    const message =
+      changedCount > 0
+        ? `${changedCount} report-card draft${
+            changedCount === 1
+              ? ""
+              : "s"
+          } generated successfully.`
+        : summary.preserved > 0
+          ? "No drafts required updating. Published or archived report cards were preserved."
+          : "No report-card drafts required updating.";
+
     return reportCardSuccess(
-      persisted.lockedCount > 0
-        ? "Draft report cards generated. Published cards were left unchanged."
-        : "Report-card drafts generated successfully.",
-
-      {
-        classId,
-        academicYear,
-        termId,
-
-        generatedCount:
-          persisted.generatedCount,
-
-        regeneratedCount:
-          persisted.regeneratedCount,
-
-        lockedCount:
-          persisted.lockedCount,
-
-        failedCount: 0,
-
-        reportCardIds:
-          persisted.reportCardIds,
-      },
+      message,
+      summary,
     );
   } catch (error) {
     console.error(
@@ -512,7 +526,7 @@ export async function publishClassReportCards({
   classId,
   academicYear,
   termId,
-}: GenerateClassReportCardsInput): Promise<
+}: ReportCardAcademicPeriodInput): Promise<
   ReportCardActionResult<PublishClassReportCardsResult>
 > {
   try {

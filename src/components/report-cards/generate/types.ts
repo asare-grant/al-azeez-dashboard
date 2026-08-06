@@ -2,6 +2,13 @@ import type {
   TermName,
 } from "@prisma/client";
 
+import type {
+  ReportCardGenerationSummary,
+} from "@/lib/report-cards/generation-types";
+
+import type {
+  ReportCardGenerationValidation,
+} from "@/lib/report-cards/generation-validator";
 /* -------------------------------------------------------------------------- */
 /*                              CLASS OPTION                                  */
 /* -------------------------------------------------------------------------- */
@@ -95,38 +102,23 @@ export type ReportCardGenerationSelection = {
     | null;
 };
 
-/* -------------------------------------------------------------------------- */
-/*                         EXISTING REPORT COUNTS                             */
-/* -------------------------------------------------------------------------- */
-
-export type ReportCardGenerationExistingReports = {
-  total: number;
-  draft: number;
-  published: number;
-  archived: number;
-};
 
 /* -------------------------------------------------------------------------- */
-/*                        CONFIGURATION READINESS                             */
+/*                     SHARED GENERATION READINESS                            */
 /* -------------------------------------------------------------------------- */
 
-export type ReportCardGenerationReadiness = {
-  ready: boolean;
+/**
+ * The Generation Studio consumes the exact result returned
+ * by validateReportCardGeneration().
+ *
+ * Do not create a second UI-specific readiness interface.
+ */
+export type ReportCardGenerationReadiness =
+  ReportCardGenerationValidation;
 
-  classOption:
-    | ReportCardGenerationClassOption
-    | null;
+/* -------------------------------------------------------------------------- */
+/*                         GENERATION RESULT                                  */
+/* -------------------------------------------------------------------------- */
 
-  term:
-    | ReportCardGenerationTermOption
-    | null;
-
-  weighting:
-    | ReportCardGenerationWeighting
-    | null;
-
-  existingReportCards:
-    ReportCardGenerationExistingReports;
-
-  issues: string[];
-};
+export type ReportCardGenerationResult =
+  ReportCardGenerationSummary;

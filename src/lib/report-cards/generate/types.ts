@@ -2,6 +2,28 @@ import type {
   TermName,
 } from "@prisma/client";
 
+import type {
+  ReportCardGenerationSummary,
+} from "@/lib/report-cards/generation-types";
+
+import type {
+  ReportCardGenerationValidation,
+} from "@/lib/report-cards/generation-validator";
+
+/* -------------------------------------------------------------------------- */
+/*                         GENERATION SELECTION                               */
+/* -------------------------------------------------------------------------- */
+
+export type ReportCardGenerationSelection = {
+  classId: number | null;
+  academicYear: string;
+  termId: number | null;
+};
+
+/* -------------------------------------------------------------------------- */
+/*                            CLASS OPTION                                    */
+/* -------------------------------------------------------------------------- */
+
 export type ReportCardGenerationClassOption = {
   id: number;
   name: string;
@@ -15,6 +37,10 @@ export type ReportCardGenerationClassOption = {
   lessonCount: number;
 };
 
+/* -------------------------------------------------------------------------- */
+/*                             TERM OPTION                                    */
+/* -------------------------------------------------------------------------- */
+
 export type ReportCardGenerationTermOption = {
   id: number;
   name: TermName;
@@ -25,64 +51,36 @@ export type ReportCardGenerationTermOption = {
   isActive: boolean;
 };
 
-export type ReportCardGenerationWeighting = {
-  id: number;
-
-  academicYear: string;
-
-  classId: number;
-  gradeId: number;
-
-  assignmentWeight: number;
-  assessmentWeight: number;
-  examWeight: number;
-
-  passMark: number;
-
-  gradingScale: {
-    id: number;
-    name: string;
-  };
-};
+/* -------------------------------------------------------------------------- */
+/*                              PAGE DATA                                     */
+/* -------------------------------------------------------------------------- */
 
 export type ReportCardGenerationPageData = {
-  classes: ReportCardGenerationClassOption[];
+  classes:
+    ReportCardGenerationClassOption[];
 
-  terms: ReportCardGenerationTermOption[];
+  terms:
+    ReportCardGenerationTermOption[];
 
   academicYears: string[];
 
-  defaultAcademicYear: string | null;
-  defaultTermId: number | null;
+  defaultAcademicYear:
+    string | null;
+
+  defaultTermId:
+    number | null;
 };
 
-export type ReportCardGenerationSelection = {
-  classId: number | null;
-  academicYear: string;
-  termId: number | null;
-};
+/* -------------------------------------------------------------------------- */
+/*                    SINGLE SHARED READINESS CONTRACT                        */
+/* -------------------------------------------------------------------------- */
 
-export type ReportCardGenerationReadiness = {
-  ready: boolean;
+export type ReportCardGenerationReadiness =
+  ReportCardGenerationValidation;
 
-  classOption:
-    | ReportCardGenerationClassOption
-    | null;
+/* -------------------------------------------------------------------------- */
+/*                         GENERATION RESULT                                  */
+/* -------------------------------------------------------------------------- */
 
-  term:
-    | ReportCardGenerationTermOption
-    | null;
-
-  weighting:
-    | ReportCardGenerationWeighting
-    | null;
-
-  existingReportCards: {
-    total: number;
-    draft: number;
-    published: number;
-    archived: number;
-  };
-
-  issues: string[];
-};
+export type ReportCardGenerationResult =
+  ReportCardGenerationSummary;

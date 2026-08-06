@@ -4,10 +4,12 @@ export {
 
 export type {
   ReportCardGenerationClassOption,
-  ReportCardGenerationExistingReports,
+  // ReportCardGenerationExistingReports,
   ReportCardGenerationPageData,
   ReportCardGenerationReadiness,
   ReportCardGenerationSelection,
   ReportCardGenerationTermOption,
   ReportCardGenerationWeighting,
+  ReportCardGenerationResult,
 } from "./types";
+

@@ -23,24 +23,24 @@ export type ReportCardActionResult<T = never> =
       >;
     };
 
-export type GenerateClassReportCardsInput = {
-  classId: number;
-  academicYear: string;
-  termId: number;
-};
+// export type GenerateClassReportCardsInput = {
+//   classId: number;
+//   academicYear: string;
+//   termId: number;
+// };
 
-export type GenerateClassReportCardsResult = {
-  classId: number;
-  academicYear: string;
-  termId: number;
+// export type GenerateClassReportCardsResult = {
+//   classId: number;
+//   academicYear: string;
+//   termId: number;
 
-  generatedCount: number;
-  regeneratedCount: number;
-  lockedCount: number;
-  failedCount: number;
+//   generatedCount: number;
+//   regeneratedCount: number;
+//   lockedCount: number;
+//   failedCount: number;
 
-  reportCardIds: number[];
-};
+//   reportCardIds: number[];
+// };
 
 export type PublishReportCardResult = {
   reportCardId: number;
@@ -99,3 +99,19 @@ export type ReportCardListItem = {
 };
 
 
+/* -------------------------------------------------------------------------- */
+/*                        GENERATION TYPE EXPORTS                             */
+/* -------------------------------------------------------------------------- */
+
+export type {
+  GeneratedReportCardAction,
+  GeneratedReportCardItem,
+  GenerateClassReportCardsInput,
+  ReportCardGenerationSummary,
+} from "./generation-types";
+
+export type ReportCardAcademicPeriodInput = {
+  classId: number;
+  academicYear: string;
+  termId: number;
+};

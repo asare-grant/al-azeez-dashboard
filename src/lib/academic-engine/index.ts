@@ -242,3 +242,11 @@ export type {
   ClassReportIssueCode,
   SubjectRankingSummary,
 } from "./types";
+
+export {
+  loadClassTermReportData,
+} from "./data-loader";
+
+export type {
+  LoadClassTermReportDataInput,
+} from "./data-loader";

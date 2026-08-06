@@ -7,6 +7,10 @@ import {
   getReportCardGenerationReadiness,
 } from "@/lib/report-cards/queries";
 
+import type {
+  ReportCardGenerationValidation,
+} from "@/lib/report-cards/generation-validator";
+
 export const dynamic =
   "force-dynamic";
 
@@ -63,19 +67,18 @@ export default async function GenerateReportCardsPage({
     termId ??
     options.defaultTermId;
 
-  const readiness =
-    classId &&
-    selectedTermId &&
-    academicYear
-      ? await getReportCardGenerationReadiness({
-          classId,
-
-          academicYear,
-
-          termId:
-            selectedTermId,
-        })
-      : null;
+const readiness:
+  ReportCardGenerationValidation | null =
+  classId &&
+  selectedTermId &&
+  academicYear
+    ? await getReportCardGenerationReadiness({
+        classId,
+        academicYear,
+        termId:
+          selectedTermId,
+      })
+    : null;
 
   return (
     <ReportCardGenerationStudio
