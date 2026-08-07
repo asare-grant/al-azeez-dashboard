@@ -168,10 +168,87 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           select: { id: true, name: true },
         });
         const resultExams = await prisma.exam.findMany({
-          select: { id: true, title: true },
+          where: {
+            ...(role === "teacher"
+              ? {
+                  lesson: {
+                    teacherId: currentUserId!,
+                  },
+                }
+              : {}),
+          },
+
+          select: {
+            id: true,
+            title: true,
+
+            academicYear: true,
+            termId: true,
+
+            lesson: {
+              select: {
+                classId: true,
+
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                subject: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+
+          orderBy: {
+            startTime: "desc",
+          },
         });
+
         const resultAssignments = await prisma.assignment.findMany({
-          select: { id: true, title: true },
+          where: {
+            ...(role === "teacher"
+              ? {
+                  lesson: {
+                    teacherId: currentUserId!,
+                  },
+                }
+              : {}),
+          },
+
+          select: {
+            id: true,
+            title: true,
+
+            academicYear: true,
+            termId: true,
+
+            lesson: {
+              select: {
+                classId: true,
+
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                subject: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+
+          orderBy: {
+            startDate: "desc",
+          },
         });
         relatedData = {
           students: resultStudents,

@@ -35,7 +35,6 @@ import {
   ClipboardList,
   Database,
   FileCheck2,
-  FileText,
   Folder,
   FolderArchive,
   GraduationCap,
@@ -53,6 +52,14 @@ import {
   UserRound,
   Users,
   Wallet,
+  FileCog,
+  FilePlus2,
+  FileSearch,
+  FileText,
+  Layers3,
+  Scale,
+  Settings2,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Collapsible,
@@ -61,13 +68,16 @@ import {
 } from "@/components/ui/collapsible";
 import { usePathname, useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
+import type { AppRole } from "@/lib/navigation/roles";
+
+import { getRoleDashboardPath } from "@/lib/navigation/roles";
 
 export default function AppSidebarClient({
   role,
   name,
   imageUrl,
 }: {
-  role: string;
+  role: AppRole;
   name: string;
   imageUrl: string;
 }) {
@@ -75,8 +85,8 @@ export default function AppSidebarClient({
     {
       icon: <Home size={18} className="text-blue-600" />,
       label: "Dashboard",
-      href: "/admin",
-      visible: ["admin", "teacher", "student", "parent"],
+      href: getRoleDashboardPath(role),
+      visible: ["admin", "teacher", "student", "parent", "account"],
     },
     {
       icon: <UserRound size={18} className="text-emerald-600" />,
@@ -144,13 +154,79 @@ export default function AppSidebarClient({
     {
       icon: <ClipboardList size={18} className="text-amber-300" />,
       label: "Assessments",
-      href: 
-        role === "student" 
-        ? "/student/assessments" 
-        : role === "parent" 
-        ? "/parent/assessments"
-        : "/list/assessments",
+      href:
+        role === "student"
+          ? "/student/assessments"
+          : role === "parent"
+            ? "/parent/assessments"
+            : "/list/assessments",
       visible: ["admin", "teacher", "student", "parent"],
+    },
+  ];
+
+  const reportCards = [
+    {
+      icon: <FileText size={18} className="text-blue-600" />,
+
+      label:
+        role === "student"
+          ? "My Report Cards"
+          : role === "parent"
+            ? "Children's Reports"
+            : role === "teacher"
+              ? "Class Report Cards"
+              : "Report Command Centre",
+
+      href:
+        role === "student"
+          ? "/student/report-cards"
+          : role === "parent"
+            ? "/parent/children"
+            : role === "teacher"
+              ? "/teacher/classes"
+              : "/list/report-cards",
+
+      visible: ["admin", "teacher", "student", "parent"],
+    },
+
+    {
+      icon: <FilePlus2 size={18} className="text-emerald-600" />,
+
+      label: "Generate Reports",
+
+      href: "/list/report-cards/generate",
+
+      visible: ["admin"],
+    },
+
+    {
+      icon: <ClipboardCheck size={18} className="text-violet-600" />,
+
+      label: "Bulk Review",
+
+      href: "/list/report-cards/review",
+
+      visible: ["admin"],
+    },
+
+    {
+      icon: <Scale size={18} className="text-amber-600" />,
+
+      label: "Academic Weighting",
+
+      href: "/list/academic-settings/weightings",
+
+      visible: ["admin"],
+    },
+
+    {
+      icon: <FileCog size={18} className="text-cyan-600" />,
+
+      label: "Grading Scales",
+
+      href: "/list/academic-settings/grading-scales",
+
+      visible: ["admin"],
     },
   ];
 
@@ -205,6 +281,12 @@ export default function AppSidebarClient({
     },
   ];
 
+  const visibleFinances = finances.filter((finance) =>
+    finance.visible.includes(role),
+  );
+
+  const canSeeFinance = visibleFinances.length > 0;
+
   const informations = [
     {
       icon: <CalendarDays size={18} className="text-blue-600" />,
@@ -242,12 +324,66 @@ export default function AppSidebarClient({
     console.log(path);
   }, [path]);
 
-  const menuLinkClass = (href: string) =>
-    `flex items-center gap-3 rounded-md transition-all duration-200 ${
-      path === href
-        ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 text-blue-700 shadow-sm"
+  function routeIsActive(href: string, exact = false) {
+    /*
+     * Exact-match items.
+     */
+    if (exact) {
+      return path === href;
+    }
+
+    /*
+     * Special handling for the admin Report Card
+     * Command Centre.
+     *
+     * It should stay active for individual report-card
+     * detail/review/print pages, but NOT for the dedicated
+     * Generate or Bulk Review sections.
+     */
+    if (href === "/list/report-cards") {
+      if (path === "/list/report-cards") {
+        return true;
+      }
+
+      if (path.startsWith("/list/report-cards/generate")) {
+        return false;
+      }
+
+      if (path.startsWith("/list/report-cards/review")) {
+        return false;
+      }
+
+      return path.startsWith("/list/report-cards/");
+    }
+
+    /*
+     * Dashboard roots should be exact.
+     */
+    if (
+      href === "/admin" ||
+      href === "/teacher" ||
+      href === "/student" ||
+      href === "/parent" ||
+      href === "/account"
+    ) {
+      return path === href;
+    }
+
+    /*
+     * Normal nested-route matching.
+     */
+    return path === href || path.startsWith(`${href}/`);
+  }
+
+  const menuLinkClass = (href: string) => {
+    const active = routeIsActive(href);
+
+    return `flex items-center gap-3 rounded-md transition-all duration-200 ${
+      active
+        ? "border-l-4 border-blue-600 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm"
         : "hover:bg-slate-100"
     }`;
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -284,7 +420,7 @@ export default function AppSidebarClient({
                         >
                           <span
                             className={`transition-all duration-300 ${
-                              path === menuItem.href
+                              routeIsActive(menuItem.href)
                                 ? "scale-110 drop-shadow-md"
                                 : ""
                             }`}
@@ -320,7 +456,7 @@ export default function AppSidebarClient({
                         >
                           <span
                             className={`transition-all duration-300 ${
-                              path === academic.href
+                              routeIsActive(academic.href)
                                 ? "scale-110 drop-shadow-md"
                                 : ""
                             }`}
@@ -337,51 +473,106 @@ export default function AppSidebarClient({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* FINANCE COLLAPSIBLE */}
-        <Collapsible defaultOpen className="group/collapsible">
+        {/* REPORT CARDS */}
+        <Collapsible
+          defaultOpen={
+            path.startsWith("/list/report-cards") ||
+            path.startsWith("/teacher/classes") ||
+            path.startsWith("/student/report-cards") ||
+            path.startsWith("/parent/children") ||
+            path.startsWith("/list/academic-settings")
+          }
+          className="group/report-cards"
+        >
           <SidebarGroup>
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger>
-                Finance
+                Report Cards
                 <ChevronDown
                   size={16}
-                  className="ml-auto text-green-500 transition-transform group-data-[state=open]/collapsible:rotate-180"
+                  className="ml-auto text-blue-500 transition-transform group-data-[state=open]/report-cards:rotate-180"
                 />
               </CollapsibleTrigger>
             </SidebarGroupLabel>
+
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {finances.map(
-                    (finance) =>
-                      finance.visible.includes(role) && (
-                        <SidebarMenuItem key={finance.label}>
-                          <SidebarMenuButton asChild>
-                            <Link
-                              href={finance.href}
-                              className={menuLinkClass(finance.href)}
+                  {reportCards.map((item) =>
+                    item.visible.includes(role) ? (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton asChild>
+                          <Link
+                            href={item.href}
+                            className={menuLinkClass(item.href)}
+                          >
+                            <span
+                              className={`transition-all duration-300 ${
+                                routeIsActive(item.href)
+                                  ? "scale-110 drop-shadow-md"
+                                  : ""
+                              }`}
                             >
-                              {/* <img src={finance.icon} alt={finance.label} className="w-4 h-4" /> */}
-                              <span
-                                className={`transition-all duration-300 ${
-                                  path === finance.href
-                                    ? "scale-110 drop-shadow-md"
-                                    : ""
-                                }`}
-                              >
-                                {finance.icon}
-                              </span>
-                              <span>{finance.label}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ),
+                              {item.icon}
+                            </span>
+
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ) : null,
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </CollapsibleContent>
           </SidebarGroup>
         </Collapsible>
+
+        {/* FINANCE COLLAPSIBLE */}
+        {canSeeFinance ? (
+          <Collapsible defaultOpen className="group/finance">
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger>
+                  Finance
+                  <ChevronDown
+                    size={16}
+                    className="ml-auto text-green-500 transition-transform group-data-[state=open]/finance:rotate-180"
+                  />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleFinances.map((finance) => (
+                      <SidebarMenuItem key={finance.label}>
+                        <SidebarMenuButton asChild>
+                          <Link
+                            href={finance.href}
+                            className={menuLinkClass(finance.href)}
+                          >
+                            <span
+                              className={`transition-all duration-300 ${
+                                routeIsActive(finance.href)
+                                  ? "scale-110 drop-shadow-md"
+                                  : ""
+                              }`}
+                            >
+                              {finance.icon}
+                            </span>
+
+                            <span>{finance.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ) : null}
 
         {/* INFORMATION */}
         <SidebarGroup>
@@ -402,7 +593,7 @@ export default function AppSidebarClient({
                         >
                           <span
                             className={`transition-all duration-300 ${
-                              path === information.href
+                              routeIsActive(information.href)
                                 ? "scale-110 drop-shadow-md"
                                 : ""
                             }`}

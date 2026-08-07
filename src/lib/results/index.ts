@@ -37,3 +37,12 @@ export type {
   StudentResultProfileRecord,
   StudentSubjectPerformance,
 } from "./student-profile-types";
+
+export {
+  syncAssignmentResult,
+} from "./assignment-result-sync";
+
+export type {
+  AssignmentResultSyncInput,
+  AssignmentResultSyncResult,
+} from "./assignment-result-sync";

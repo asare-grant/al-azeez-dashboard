@@ -435,6 +435,8 @@
 }
 
 
+
+/* 
 @media print {
   @page {
     size: A4;
@@ -530,5 +532,158 @@
   * {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+}
+
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #report-card-document {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+} */
+
+
+
+/* ========================================================= */
+/*              OFFICIAL REPORT CARD PRINTING                */
+/* ========================================================= */
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 210mm !important;
+    min-height: 297mm !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    background: #ffffff !important;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /*
+   * Ask Chromium/WebKit to preserve the
+   * document's original colours.
+   */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /*
+   * Dashboard chrome must never enter
+   * the official document.
+   */
+  nav,
+  aside[data-dashboard-sidebar],
+  header[data-dashboard-navbar],
+  [data-hide-on-print="true"],
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  /*
+   * Main document.
+   */
+  #report-card-document {
+    width: 210mm !important;
+    max-width: 210mm !important;
+
+    min-height: 297mm !important;
+
+    margin: 0 !important;
+
+    background: #ffffff !important;
+
+    box-shadow: none !important;
+
+    overflow: visible !important;
+  }
+
+  /*
+   * Preserve tables cleanly.
+   */
+  table {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /*
+   * Important document blocks should
+   * remain together when possible.
+   */
+  .break-inside-avoid,
+  .print\:break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  /*
+   * No browser-generated link URLs.
+   */
+  a[href]::after {
+    content: none !important;
   }
 }

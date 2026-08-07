@@ -26,11 +26,23 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
   const selectedType = watch("type"); // For conditional fields
   // const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<number>(
-    data?.classId || 0
+    data?.classId || 0,
   );
   const [students, setStudents] = useState<any[]>([]);
 
-  const { classes, exams, assignments } = relatedData;
+  const classes = relatedData?.classes ?? [];
+
+  const exams = relatedData?.exams ?? [];
+
+  const assignments = relatedData?.assignments ?? [];
+
+  const classExams = exams.filter(
+    (exam: any) => exam.lesson?.classId === selectedClass,
+  );
+
+  const classAssignments = assignments.filter(
+    (assignment: any) => assignment.lesson?.classId === selectedClass,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,57 +50,148 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
   useEffect(() => {
     if (selectedClass) {
       fetch(`/api/students/${selectedClass}`)
-        .then((res) => res.json())
-        .then((data) => setStudents(data))
-        .catch(() => setStudents([]));
-      setValue("studentId", "");
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Students could not be loaded.");
+          }
+
+          return response.json();
+        })
+        .then((responseData) => setStudents(responseData))
+        .catch((error) => {
+          console.error("LOAD STUDENTS ERROR:", error);
+
+          setStudents([]);
+        });
     } else {
       setStudents([]);
-      setValue("studentId", "");
     }
-    // setValue("classId", selectedClass); // Save classId in form
+
+    /*
+     * Do not preserve a student, exam or assignment
+     * belonging to the previously selected class.
+     */
+    setValue("studentId", "");
+
+    setValue("examId", null);
+
+    setValue("assignmentId", null);
   }, [selectedClass, setValue]);
 
   const onSubmit = handleSubmit(async (formData) => {
     const preparedData: ResultSchema = {
       ...formData,
+
+      id: formData.id ? Number(formData.id) : undefined,
+
       score: Number(formData.score),
-      // classId: Number(formData.classId),
+
+      totalMarks: Number(formData.totalMarks),
+
       examId: formData.type === "EXAM" ? Number(formData.examId) || null : null,
-      assignmentId: formData.type === "ASSIGNMENT" ? Number(formData.assignmentId) || null : null,
+
+      assignmentId:
+        formData.type === "ASSIGNMENT"
+          ? Number(formData.assignmentId) || null
+          : null,
     };
 
     setLoading(true);
     setError(null);
 
     try {
-      if (type === "create") {
-        await createResult(null, preparedData);
-        toast.success("Result created successfully!");
-      } else {
-        await updateResult(null, preparedData);
-        toast.success("Result updated successfully!");
+      const result =
+        type === "create"
+          ? await createResult(null, preparedData)
+          : await updateResult(null, preparedData);
+
+      /*
+       * Server actions return controlled failures.
+       * They do not always throw JavaScript errors.
+       */
+      if (!result.success) {
+        const message =
+          result.message ||
+          `The result could not be ${
+            type === "create" ? "created" : "updated"
+          }.`;
+
+        setError(message);
+        toast.error(message);
+
+        return;
       }
+
+      toast.success(
+        result.message ||
+          `Result ${type === "create" ? "created" : "updated"} successfully!`,
+      );
 
       setOpen(false);
       router.refresh();
-    } catch (err: any) {
-      console.error("Error creating/updating result:", err);
-      setError("Something went wrong!");
+    } catch (error) {
+      console.error("RESULT FORM ERROR:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while saving the result.";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   });
 
+  // const isSubmitDisabled = () => {
+  //   if (!selectedClass || !watch("studentId") || !selectedType) return true;
+  //   if (selectedType === "EXAM" && !watch("examId")) return true;
+  //   if (selectedType === "ASSIGNMENT" && !watch("assignmentId")) return true;
+  //   if (!watch("score") || Number(watch("score")) < 0) return true;
+  //   if (loading) return true;
+  //   return false;
+  // };
+
+  const watchedScore = watch("score");
+
+  const watchedTotalMarks = watch("totalMarks");
+
   const isSubmitDisabled = () => {
-    if (!selectedClass || !watch("studentId") || !selectedType) return true;
-    if (selectedType === "EXAM" && !watch("examId")) return true;
-    if (selectedType === "ASSIGNMENT" && !watch("assignmentId")) return true;
-    if (!watch("score") || Number(watch("score")) < 0) return true;
-    if (loading) return true;
+    const score = Number(watchedScore);
+
+    const totalMarks = Number(watchedTotalMarks);
+
+    if (!selectedClass || !watch("studentId") || !selectedType) {
+      return true;
+    }
+
+    if (selectedType === "EXAM" && !watch("examId")) {
+      return true;
+    }
+
+    if (selectedType === "ASSIGNMENT" && !watch("assignmentId")) {
+      return true;
+    }
+
+    if (watchedScore === undefined || !Number.isFinite(score) || score < 0) {
+      return true;
+    }
+
+    if (
+      watchedTotalMarks === undefined ||
+      !Number.isFinite(totalMarks) ||
+      totalMarks <= 0
+    ) {
+      return true;
+    }
+
+    if (score > totalMarks) {
+      return true;
+    }
+
     return false;
   };
-
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -137,7 +240,9 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
                 </select>
               )}
             />
-            {errors.studentId && <p className="text-xs text-red-400">{errors.studentId.message}</p>}
+            {errors.studentId && (
+              <p className="text-xs text-red-400">{errors.studentId.message}</p>
+            )}
           </div>
 
           {/* Result Type */}
@@ -151,17 +256,27 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
               <option value="EXAM">Exam</option>
               <option value="ASSIGNMENT">Assignment</option>
             </select>
-            {errors.type && <p className="text-xs text-red-400">{errors.type.message}</p>}
+            {errors.type && (
+              <p className="text-xs text-red-400">{errors.type.message}</p>
+            )}
           </div>
 
           {/* Conditional Exam */}
           {selectedType === "EXAM" && (
             <div className="flex flex-col gap-2 w-full md:w-1/4">
               <label className="text-xs text-gray-500">Exam</label>
-              <select {...register("examId")} className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm">
+              <select
+                {...register("examId")}
+                className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
+              >
                 <option value="">Select exam</option>
-                {exams.map((exam: any) => (
-                  <option key={exam.id} value={exam.id}>{exam.title}</option>
+                {classExams.map((exam: any) => (
+                  <option key={exam.id} value={exam.id}>
+                    {exam.lesson?.subject?.name}
+                    {" — "}
+                    {exam.title}
+                    {exam.academicYear ? ` — ${exam.academicYear}` : ""}
+                  </option>
                 ))}
               </select>
             </div>
@@ -171,10 +286,20 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
           {selectedType === "ASSIGNMENT" && (
             <div className="flex flex-col gap-2 w-full md:w-1/4">
               <label className="text-xs text-gray-500">Assignment</label>
-              <select {...register("assignmentId")} className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm">
+              <select
+                {...register("assignmentId")}
+                className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
+              >
                 <option value="">Select assignment</option>
-                {assignments.map((assignment: any) => (
-                  <option key={assignment.id} value={assignment.id}>{assignment.title}</option>
+                {classAssignments.map((assignment: any) => (
+                  <option key={assignment.id} value={assignment.id}>
+                    {assignment.lesson?.subject?.name}
+                    {" — "}
+                    {assignment.title}
+                    {assignment.academicYear
+                      ? ` — ${assignment.academicYear}`
+                      : ""}
+                  </option>
                 ))}
               </select>
             </div>
@@ -188,6 +313,15 @@ const ResultForm = ({ type, data, setOpen, relatedData }: any) => {
             register={register}
             defaultValue={data?.score}
             error={errors.score}
+          />
+
+          {/* Total Marks */}
+          <InputField
+            label="Total Marks"
+            name="totalMarks"
+            type="number"
+            register={register}
+            error={errors.totalMarks}
           />
         </div>
 

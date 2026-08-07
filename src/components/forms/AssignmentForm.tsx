@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { type FieldError, useForm } from "react-hook-form";
 import InputField from "../InputField";
 import {
   assignmentSchema,
@@ -17,6 +17,25 @@ import {
 } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import type { z } from "zod";
+
+type AssignmentFormInput = z.input<typeof assignmentSchema>;
+
+type AssignmentTermOption = {
+  id: number;
+  name: string;
+  isActive: boolean;
+};
+
+type AcademicPeriodOptions = {
+  academicYears: string[];
+
+  terms: AssignmentTermOption[];
+
+  defaultAcademicYear: string;
+
+  defaultTermId: number | null;
+};
 
 const AssignmentForm = ({
   type,
@@ -32,14 +51,51 @@ const AssignmentForm = ({
   const {
     register,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors },
-  } = useForm<AssignmentSchema>({
+  } = useForm<AssignmentFormInput, unknown, AssignmentSchema>({
     resolver: zodResolver(assignmentSchema) as any,
-    defaultValues: data || {},
+    defaultValues: {
+      id: data?.id,
+
+      title: data?.title ?? "",
+
+      startDate: data?.startDate
+        ? new Date(data.startDate).toISOString().slice(0, 10)
+        : "",
+
+      dueDate: data?.dueDate
+        ? new Date(data.dueDate).toISOString().slice(0, 10)
+        : "",
+
+      lessonId: data?.lessonId ?? "",
+
+      academicYear:
+        data?.academicYear ?? relatedData?.defaultAcademicYear ?? "",
+
+      termId: data?.termId ?? relatedData?.defaultTermId ?? "",
+    },
   });
-  
+
   const router = useRouter();
   const [lessons, setLessons] = useState<{ id: number; name: string }[]>([]);
+
+  const [periodOptions, setPeriodOptions] = useState<AcademicPeriodOptions>({
+    academicYears: relatedData?.academicYears ?? [],
+
+    terms: relatedData?.terms ?? [],
+
+    defaultAcademicYear: relatedData?.defaultAcademicYear ?? "",
+
+    defaultTermId: relatedData?.defaultTermId ?? null,
+  });
+
+  const [loadingPeriodOptions, setLoadingPeriodOptions] = useState(false);
+
+  const [periodOptionsError, setPeriodOptionsError] = useState<string | null>(
+    null,
+  );
 
   // Fetch lessons for the current user (teacher or admin)
   useEffect(() => {
@@ -52,16 +108,27 @@ const AssignmentForm = ({
   const onSubmit = handleSubmit((formData) => {
     startTransition(async () => {
       try {
+        if (!formData.academicYear?.trim()) {
+          toast.error("Select an academic year.");
+
+          return;
+        }
+
+        const termId = Number(formData.termId);
+
+        if (!Number.isInteger(termId) || termId <= 0) {
+          toast.error("Select a valid school term.");
+
+          return;
+        }
+
         // Ensure proper types
         const payload: AssignmentSchema = {
           ...formData,
-          startDate: new Date(formData.startDate),
-          dueDate: new Date(formData.dueDate),
-          lessonId: Number(formData.lessonId),
-          academicYear:
-            data?.academicYear ?? relatedData?.defaultAcademicYear ?? "",
 
-          termId: data?.termId ?? relatedData?.defaultTermId ?? "",
+          title: formData.title.trim(),
+
+          academicYear: formData.academicYear.trim(),
         };
 
         const result =
@@ -84,6 +151,90 @@ const AssignmentForm = ({
       }
     });
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAcademicPeriodOptions() {
+      setLoadingPeriodOptions(true);
+
+      setPeriodOptionsError(null);
+
+      try {
+        const response = await fetch("/api/academic-period-options", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            payload.message || "Academic-period options could not be loaded.",
+          );
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setPeriodOptions({
+          academicYears: payload.academicYears ?? [],
+
+          terms: payload.terms ?? [],
+
+          defaultAcademicYear: payload.defaultAcademicYear ?? "",
+
+          defaultTermId: payload.defaultTermId ?? null,
+        });
+
+        /*
+         * Apply defaults only during creation.
+         * Existing assignment values must remain unchanged.
+         */
+        if (type === "create") {
+          const currentAcademicYear = getValues("academicYear");
+
+          const currentTermId = getValues("termId");
+
+          if (!currentAcademicYear && payload.defaultAcademicYear) {
+            setValue("academicYear", String(payload.defaultAcademicYear), {
+              shouldValidate: true,
+            });
+          }
+
+          if (!currentTermId && payload.defaultTermId) {
+            setValue("termId", Number(payload.defaultTermId), {
+              shouldValidate: true,
+            });
+          }
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Academic-period options could not be loaded.";
+
+        setPeriodOptionsError(message);
+
+        console.error("ASSIGNMENT PERIOD OPTIONS ERROR:", error);
+      } finally {
+        if (!cancelled) {
+          setLoadingPeriodOptions(false);
+        }
+      }
+    }
+
+    loadAcademicPeriodOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [type, getValues, setValue]);
 
   const formatDate = (dateString?: string | Date) => {
     if (!dateString) return "";
@@ -120,7 +271,7 @@ const AssignmentForm = ({
             type="date"
             register={register}
             defaultValue={formatDate(data?.startDate)}
-            error={errors?.startDate}
+            error={errors.startDate as FieldError | undefined}
           />
 
           {/* Due Date */}
@@ -130,7 +281,7 @@ const AssignmentForm = ({
             type="date"
             register={register}
             defaultValue={formatDate(data?.dueDate)}
-            error={errors?.dueDate}
+            error={errors.dueDate as FieldError | undefined}
           />
 
           {/* Hidden ID for edit mode */}
@@ -169,11 +320,19 @@ const AssignmentForm = ({
 
             <select
               {...register("academicYear")}
+              disabled={loadingPeriodOptions}
+              defaultValue={
+                data?.academicYear ?? periodOptions.defaultAcademicYear ?? ""
+              }
               className="rounded-md p-2 ring-1 ring-gray-300"
             >
-              <option value="">Select academic year</option>
+              <option value="">
+                {loadingPeriodOptions
+                  ? "Loading academic years..."
+                  : "Select academic year"}
+              </option>
 
-              {relatedData?.academicYears?.map((academicYear: string) => (
+              {periodOptions.academicYears.map((academicYear) => (
                 <option key={academicYear} value={academicYear}>
                   {academicYear}
                 </option>
@@ -192,24 +351,20 @@ const AssignmentForm = ({
 
             <select
               {...register("termId")}
+              disabled={loadingPeriodOptions}
+              defaultValue={data?.termId ?? periodOptions.defaultTermId ?? ""}
               className="rounded-md p-2 ring-1 ring-gray-300"
             >
-              <option value="">Select term</option>
+              <option value="">
+                {loadingPeriodOptions ? "Loading terms..." : "Select term"}
+              </option>
 
-              {relatedData?.terms?.map(
-                (term: {
-                  id: number;
-
-                  name: string;
-
-                  isActive: boolean;
-                }) => (
-                  <option key={term.id} value={term.id}>
-                    {term.name.replace(/_/g, " ")}
-                    {term.isActive ? " — Active" : ""}
-                  </option>
-                ),
-              )}
+              {periodOptions.terms.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {term.name.replace(/_/g, " ")}
+                  {term.isActive ? " — Active" : ""}
+                </option>
+              ))}
             </select>
 
             {errors.termId?.message ? (
@@ -217,6 +372,12 @@ const AssignmentForm = ({
             ) : null}
           </div>
         </div>
+
+        {periodOptionsError ? (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+            {periodOptionsError}
+          </div>
+        ) : null}
 
         {/* Submit Button */}
         <button

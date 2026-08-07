@@ -113,9 +113,16 @@ export default async function ResultListPage(props: {
             </p>
           </div>
         ) : (
-          <p className="text-base font-black text-blue-700">
-            {item.score}%
-          </p>
+          <div>
+            <p className="text-base font-black text-blue-700">
+              {formatPercentage(item.percentage, item.score, item.totalMarks)}
+            </p>
+
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              {item.score}
+              {item.totalMarks !== null ? `/${item.totalMarks}` : ""} marks
+            </p>
+          </div>
         )}
       </td>
       <td className="hidden md:table-cell">{`${item.teacherName} ${item.teacherSurname}`}</td>

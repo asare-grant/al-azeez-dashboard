@@ -27,12 +27,15 @@ import {
 } from "./formValidationSchemas";
 import prisma from "./prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { syncAssignmentResult } from "@/lib/results";
+import { Prisma } from "@prisma/client";
+import { invalidateStudentReportCardWithTransaction } from "@/lib/report-cards/invalidation-service";
 
 type CurrentState = { success: boolean; error: boolean };
 
 export const createSubject = async (
   currentState: CurrentState,
-  data: SubjectSchema
+  data: SubjectSchema,
 ) => {
   try {
     await prisma.subject.create({
@@ -54,7 +57,7 @@ export const createSubject = async (
 
 export const updateSubject = async (
   currentState: CurrentState,
-  data: SubjectSchema
+  data: SubjectSchema,
 ) => {
   try {
     await prisma.subject.update({
@@ -79,7 +82,7 @@ export const updateSubject = async (
 
 export const deleteSubject = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   try {
@@ -99,7 +102,7 @@ export const deleteSubject = async (
 
 export const createClass = async (
   currentState: CurrentState,
-  data: ClassSchema
+  data: ClassSchema,
 ) => {
   try {
     await prisma.class.create({
@@ -116,7 +119,7 @@ export const createClass = async (
 
 export const updateClass = async (
   currentState: CurrentState,
-  data: ClassSchema
+  data: ClassSchema,
 ) => {
   if (!data.id) {
     return { success: false, error: true };
@@ -139,7 +142,7 @@ export const updateClass = async (
 
 export const deleteClass = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   try {
@@ -159,7 +162,7 @@ export const deleteClass = async (
 
 export const createTeacher = async (
   currentState: CurrentState,
-  data: TeacherSchema
+  data: TeacherSchema,
 ) => {
   try {
     const client = await clerkClient();
@@ -203,7 +206,7 @@ export const createTeacher = async (
 
 export const updateTeacher = async (
   currentState: CurrentState,
-  data: TeacherSchema
+  data: TeacherSchema,
 ) => {
   if (!data.id) {
     return { success: false, error: true };
@@ -251,7 +254,7 @@ export const updateTeacher = async (
 
 export const deleteTeacher = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   try {
@@ -275,7 +278,7 @@ export const deleteTeacher = async (
 
 export const createStudent = async (
   currentState: CurrentState,
-  data: StudentSchema
+  data: StudentSchema,
 ) => {
   console.log(data);
   try {
@@ -329,7 +332,7 @@ export const createStudent = async (
 
 export const updateStudent = async (
   currentState: CurrentState,
-  data: StudentSchema
+  data: StudentSchema,
 ) => {
   if (!data.id) {
     return { success: false, error: true };
@@ -377,7 +380,7 @@ export const updateStudent = async (
 
 export const deleteStudent = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   try {
@@ -402,7 +405,7 @@ export const deleteStudent = async (
 /* ------------------------- CREATE PARENT ------------------------- */
 export const createParent = async (
   currentState: CurrentState,
-  data: ParentSchema
+  data: ParentSchema,
 ) => {
   try {
     const client = await clerkClient();
@@ -444,7 +447,7 @@ export const createParent = async (
 /* ------------------------- UPDATE PARENT ------------------------- */
 export const updateParent = async (
   currentState: CurrentState,
-  data: ParentSchema
+  data: ParentSchema,
 ) => {
   if (!data.id) return { success: false, error: true };
 
@@ -487,7 +490,7 @@ export const updateParent = async (
 /* ------------------------- DELETE PARENT ------------------------- */
 export const deleteParent = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
 
@@ -520,7 +523,7 @@ export const deleteParent = async (
     // Optional: handle Clerk-specific 404 (user already deleted)
     if (err.code === "api_response_error" && err.status === 404) {
       console.warn(
-        "⚠️ Parent not found in Clerk. Continuing with Prisma deletion."
+        "⚠️ Parent not found in Clerk. Continuing with Prisma deletion.",
       );
       try {
         await prisma.parent.delete({ where: { id } });
@@ -534,272 +537,191 @@ export const deleteParent = async (
   }
 };
 
-export const createExam =
-  async (
-    currentState:
-      CurrentState,
+export const createExam = async (
+  currentState: CurrentState,
 
-    data:
-      ExamSchema,
-  ) => {
-    const {
-      userId,
-      sessionClaims,
-    } = await auth();
+  data: ExamSchema,
+) => {
+  const { userId, sessionClaims } = await auth();
 
-    const role = (
-      sessionClaims
-        ?.metadata as {
-        role?: string;
-      }
-    )?.role;
-
-    try {
-      const academicYear =
-        data.academicYear
-          .trim();
-
-      if (
-        role ===
-        "teacher"
-      ) {
-        const teacherLesson =
-          await prisma.lesson.findFirst({
-            where: {
-              teacherId:
-                userId!,
-
-              id:
-                data.lessonId,
-            },
-
-            select: {
-              id: true,
-            },
-          });
-
-        if (
-          !teacherLesson
-        ) {
-          return {
-            success:
-              false,
-
-            error:
-              true,
-          };
-        }
-      }
-
-      const term =
-        await prisma.schoolTerm.findUnique({
-          where: {
-            id:
-              data.termId,
-          },
-
-          select: {
-            id: true,
-          },
-        });
-
-      if (!term) {
-        return {
-          success:
-            false,
-
-          error:
-            true,
-        };
-      }
-
-      await prisma.exam.create({
-        data: {
-          title:
-            data.title,
-
-          startTime:
-            data.startTime,
-
-          endTime:
-            data.endTime,
-
-          lessonId:
-            data.lessonId,
-
-          academicYear,
-
-          termId:
-            data.termId,
-        },
-      });
-
-      revalidatePath(
-        "/list/exams",
-      );
-
-      revalidatePath(
-        "/list/results",
-      );
-
-      revalidatePath(
-        "/list/report-cards/generate",
-      );
-
-      return {
-        success:
-          true,
-
-        error:
-          false,
-      };
-    } catch (error) {
-      console.error(
-        "CREATE EXAM ERROR:",
-        error,
-      );
-
-      return {
-        success:
-          false,
-
-        error:
-          true,
-      };
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
     }
-  };
+  )?.role;
 
-export const updateExam =
-  async (
-    currentState:
-      CurrentState,
+  try {
+    const academicYear = data.academicYear.trim();
 
-    data:
-      ExamSchema,
-  ) => {
-    const {
-      userId,
-      sessionClaims,
-    } = await auth();
-
-    const role = (
-      sessionClaims
-        ?.metadata as {
-        role?: string;
-      }
-    )?.role;
-
-    try {
-      if (!data.id) {
-        return {
-          success:
-            false,
-
-          error:
-            true,
-        };
-      }
-
-      if (
-        role ===
-        "teacher"
-      ) {
-        const teacherLesson =
-          await prisma.lesson.findFirst({
-            where: {
-              teacherId:
-                userId!,
-
-              id:
-                data.lessonId,
-            },
-
-            select: {
-              id: true,
-            },
-          });
-
-        if (
-          !teacherLesson
-        ) {
-          return {
-            success:
-              false,
-
-            error:
-              true,
-          };
-        }
-      }
-
-      const academicYear =
-        data.academicYear
-          .trim();
-
-      await prisma.exam.update({
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
         where: {
-          id:
-            data.id,
+          teacherId: userId!,
+
+          id: data.lessonId,
         },
 
-        data: {
-          title:
-            data.title,
-
-          startTime:
-            data.startTime,
-
-          endTime:
-            data.endTime,
-
-          lessonId:
-            data.lessonId,
-
-          academicYear,
-
-          termId:
-            data.termId,
+        select: {
+          id: true,
         },
       });
 
-      revalidatePath(
-        "/list/exams",
-      );
+      if (!teacherLesson) {
+        return {
+          success: false,
 
-      revalidatePath(
-        "/list/results",
-      );
+          error: true,
+        };
+      }
+    }
 
-      revalidatePath(
-        "/list/report-cards/generate",
-      );
+    const term = await prisma.schoolTerm.findUnique({
+      where: {
+        id: data.termId,
+      },
 
+      select: {
+        id: true,
+      },
+    });
+
+    if (!term) {
       return {
-        success:
-          true,
+        success: false,
 
-        error:
-          false,
-      };
-    } catch (error) {
-      console.error(
-        "UPDATE EXAM ERROR:",
-        error,
-      );
-
-      return {
-        success:
-          false,
-
-        error:
-          true,
+        error: true,
       };
     }
-  };
+
+    await prisma.exam.create({
+      data: {
+        title: data.title,
+
+        startTime: data.startTime,
+
+        endTime: data.endTime,
+
+        lessonId: data.lessonId,
+
+        academicYear,
+
+        termId: data.termId,
+      },
+    });
+
+    revalidatePath("/list/exams");
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE EXAM ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+};
+
+export const updateExam = async (
+  currentState: CurrentState,
+
+  data: ExamSchema,
+) => {
+  const { userId, sessionClaims } = await auth();
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  try {
+    if (!data.id) {
+      return {
+        success: false,
+
+        error: true,
+      };
+    }
+
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId!,
+
+          id: data.lessonId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!teacherLesson) {
+        return {
+          success: false,
+
+          error: true,
+        };
+      }
+    }
+
+    const academicYear = data.academicYear.trim();
+
+    await prisma.exam.update({
+      where: {
+        id: data.id,
+      },
+
+      data: {
+        title: data.title,
+
+        startTime: data.startTime,
+
+        endTime: data.endTime,
+
+        lessonId: data.lessonId,
+
+        academicYear,
+
+        termId: data.termId,
+      },
+    });
+
+    revalidatePath("/list/exams");
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("UPDATE EXAM ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+};
 
 export const deleteExam = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
 
@@ -824,7 +746,7 @@ export const deleteExam = async (
 
 export const createLesson = async (
   currentState: CurrentState,
-  data: LessonSchema
+  data: LessonSchema,
 ) => {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
@@ -859,7 +781,7 @@ export const createLesson = async (
 
 export const updateLesson = async (
   currentState: CurrentState,
-   data: LessonSchema
+  data: LessonSchema,
 ) => {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
@@ -902,10 +824,9 @@ export const updateLesson = async (
   }
 };
 
-
 export const deleteLesson = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   const { userId, sessionClaims } = await auth();
@@ -957,248 +878,209 @@ export const getLessonsForUser = async () => {
 };
 
 /* ------------------------- CREATE ASSIGNMENT ------------------------- */
-export const createAssignment =
-  async (
-    data:
-      AssignmentSchema,
-  ) => {
-    const {
-      userId,
-      sessionClaims,
-    } = await auth();
+export const createAssignment = async (data: AssignmentSchema) => {
+  const { userId, sessionClaims } = await auth();
 
-    const role = (
-      sessionClaims
-        ?.metadata as {
-        role?: string;
-      }
-    )?.role;
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
 
+  const academicYear = data.academicYear.trim();
 
-    const academicYear =
-        data.academicYear
-          .trim();
-          
-    try {
-      if (
-        role ===
-        "teacher"
-      ) {
-        const teacherLesson =
-          await prisma.lesson.findFirst({
-            where: {
-              teacherId:
-                userId!,
+  try {
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId!,
 
-              id:
-                data.lessonId,
-            },
+          id: data.lessonId,
+        },
 
-            select: {
-              id: true,
-            },
-          });
-
-        if (
-          !teacherLesson
-        ) {
-          return {
-            success:
-              false,
-
-            error:
-              true,
-          };
-        }
-      }
-
-      await prisma.assignment.create({
-        data: {
-          title:
-            data.title,
-
-          startDate:
-            data.startDate,
-
-          dueDate:
-            data.dueDate,
-
-          lessonId:
-            data.lessonId,
-
-          academicYear,
-
-          termId:
-            data.termId,
+        select: {
+          id: true,
         },
       });
 
-      revalidatePath(
-        "/list/assignments",
-      );
-
-      revalidatePath(
-        "/list/results",
-      );
-
-      revalidatePath(
-        "/list/report-cards/generate",
-      );
-
-      return {
-        success:
-          true,
-
-        error:
-          false,
-      };
-    } catch (error) {
-      console.error(
-        "CREATE ASSIGNMENT ERROR:",
-        error,
-      );
-
-      return {
-        success:
-          false,
-
-        error:
-          true,
-      };
-    }
-  };
-
-/* ------------------------- UPDATE ASSIGNMENT ------------------------- */
-export const updateAssignment =
-  async (
-    data:
-      AssignmentSchema,
-  ) => {
-    const {
-      userId,
-      sessionClaims,
-    } = await auth();
-
-    const role = (
-      sessionClaims
-        ?.metadata as {
-        role?: string;
-      }
-    )?.role;
-
-    try {
-      if (!data.id) {
+      if (!teacherLesson) {
         return {
-          success:
-            false,
+          success: false,
 
-          error:
-            true,
+          error: true,
         };
       }
+    }
 
-      if (
-        role ===
-        "teacher"
-      ) {
-        const teacherLesson =
-          await prisma.lesson.findFirst({
-            where: {
-              teacherId:
-                userId!,
+    const termId = Number(data.termId);
 
-              id:
-                data.lessonId,
-            },
+    if (!academicYear) {
+      return {
+        success: false,
+        error: true,
 
-            select: {
-              id: true,
-            },
-          });
+        message: "Select an academic year before creating the assignment.",
+      };
+    }
 
-        if (
-          !teacherLesson
-        ) {
-          return {
-            success:
-              false,
+    if (!Number.isInteger(termId) || termId <= 0) {
+      return {
+        success: false,
+        error: true,
 
-            error:
-              true,
-          };
-        }
-      }
+        message: "Select a valid school term before creating the assignment.",
+      };
+    }
 
-      const academicYear =
-        data.academicYear
-          .trim();
+    await prisma.assignment.create({
+      data: {
+        title: data.title,
 
-      await prisma.assignment.update({
+        startDate: data.startDate,
+
+        dueDate: data.dueDate,
+
+        lessonId: data.lessonId,
+
+        academicYear,
+
+        termId,
+      },
+    });
+
+    revalidatePath("/list/assignments");
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE ASSIGNMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+};
+
+/* ------------------------- UPDATE ASSIGNMENT ------------------------- */
+export const updateAssignment = async (data: AssignmentSchema) => {
+  const { userId, sessionClaims } = await auth();
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  try {
+    if (!data.id) {
+      return {
+        success: false,
+
+        error: true,
+      };
+    }
+
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
         where: {
-          id:
-            data.id,
+          teacherId: userId!,
+
+          id: data.lessonId,
         },
 
-        data: {
-          title:
-            data.title,
-
-          startDate:
-            data.startDate,
-
-          dueDate:
-            data.dueDate,
-
-          lessonId:
-            data.lessonId,
-
-          academicYear,
-
-          termId:
-            data.termId,
+        select: {
+          id: true,
         },
       });
 
-      revalidatePath(
-        "/list/assignments",
-      );
+      if (!teacherLesson) {
+        return {
+          success: false,
 
-      revalidatePath(
-        "/list/results",
-      );
+          error: true,
+        };
+      }
+    }
 
-      revalidatePath(
-        "/list/report-cards/generate",
-      );
 
+    const academicYear = data.academicYear?.trim();
+
+    const termId = Number(data.termId);
+
+    if (!academicYear) {
       return {
-        success:
-          true,
+        success: false,
+        error: true,
 
-        error:
-          false,
-      };
-    } catch (error) {
-      console.error(
-        "UPDATE ASSIGNMENT ERROR:",
-        error,
-      );
-
-      return {
-        success:
-          false,
-
-        error:
-          true,
+        message: "Select an academic year before creating the assignment.",
       };
     }
-  };
+
+    if (!Number.isInteger(termId) || termId <= 0) {
+      return {
+        success: false,
+        error: true,
+
+        message: "Select a valid school term before creating the assignment.",
+      };
+    }
+
+    await prisma.assignment.update({
+      where: {
+        id: data.id,
+      },
+
+      data: {
+        title: data.title,
+
+        startDate: data.startDate,
+
+        dueDate: data.dueDate,
+
+        lessonId: data.lessonId,
+
+        academicYear,
+
+        termId,
+      },
+    });
+
+    revalidatePath("/list/assignments");
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("UPDATE ASSIGNMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+};
 /* -------------------------------------------------------------------------- */
 /*                             DELETE ASSIGNMENT                              */
 /* -------------------------------------------------------------------------- */
 export const deleteAssignment = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
 
@@ -1232,251 +1114,499 @@ export const deleteAssignment = async (
   }
 };
 
-
+/* ----------DELETE RESULT    ------------------------------------------------------ */
 export const deleteResult = async (
-  currentState: CurrentState,
-  data: FormData
+  _currentState: unknown,
+
+  formData: FormData,
 ) => {
-  const id = data.get("id") as string;
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const id = Number(formData.get("id"));
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return {
+      success: false,
+      error: true,
+      message: "Select a valid result.",
+    };
+  }
 
   try {
-    if (role === "teacher") {
-      // Verify that teacher owns the lesson related to this result
-      const result = await prisma.result.findUnique({
-        where: { id: parseInt(id) },
-        include: {
-          exam: { include: { lesson: true } },
-          assignment: { include: { lesson: true } },
-        },
-      });
+    const deletion = await prisma.$transaction(
+      async (tx) => {
+        const result = await tx.result.findUnique({
+          where: {
+            id,
+          },
 
-      const teacherId =
-        result?.exam?.lesson.teacherId || result?.assignment?.lesson.teacherId;
+          select: {
+            id: true,
+            type: true,
+            studentId: true,
 
-      if (teacherId !== userId) return { success: false, error: true };
-    }
+            assignment: {
+              select: {
+                id: true,
+                title: true,
 
-    await prisma.result.delete({ where: { id: parseInt(id) } });
+                academicYear: true,
+                termId: true,
 
-    // revalidatePath("/list/results");
-    return { success: true, error: false };
-  } catch (err) {
-    console.error(err);
-    return { success: false, error: true };
+                lesson: {
+                  select: {
+                    classId: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!result) {
+          throw new Error("The result could not be found.");
+        }
+
+        await tx.result.delete({
+          where: {
+            id: result.id,
+          },
+        });
+
+        if (result.type === "ASSIGNMENT" && result.assignment) {
+          const academicYear = result.assignment.academicYear?.trim();
+
+          const termId = result.assignment.termId;
+
+          if (academicYear && termId) {
+            const invalidation =
+              await invalidateStudentReportCardWithTransaction({
+                tx,
+
+                studentId: result.studentId,
+
+                classId: result.assignment.lesson.classId,
+
+                academicYear,
+                termId,
+
+                reason: `The assignment result for "${result.assignment.title}" was deleted.`,
+              });
+
+            return {
+              invalidatedReportCardCount: invalidation.invalidatedCount,
+            };
+          }
+        }
+
+        return {
+          invalidatedReportCardCount: 0,
+        };
+      },
+
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
+      },
+    );
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+      error: false,
+
+      message:
+        deletion.invalidatedReportCardCount > 0
+          ? "Result deleted. The affected report card must be regenerated."
+          : "Result deleted successfully.",
+    };
+  } catch (error) {
+    console.error("DELETE RESULT ERROR:", error);
+
+    return {
+      success: false,
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The result could not be deleted.",
+    };
   }
 };
 
 /* ------------------------- CREATE RESULT ------------------------- */
 
-export const createResult =
-  async (
-    _:
-      unknown,
+export const createResult = async (
+  _currentState: unknown,
 
-    data:
-      ResultSchema,
-  ) => {
-    try {
-      if (
-        data.type ===
-          "EXAM" &&
-        !data.examId
-      ) {
-        throw new Error(
-          "Exam must be selected for an examination result.",
-        );
-      }
-
-      if (
-        data.type ===
-          "ASSIGNMENT" &&
-        !data.assignmentId
-      ) {
-        throw new Error(
-          "Assignment must be selected for an assignment result.",
-        );
-      }
-
-      const score =
-        Number(
-          data.score,
-        );
-
-      const percentage =
-        Math.min(
-          100,
-          Math.max(
-            0,
-            score,
-          ),
-        );
-
-      const result =
-        await prisma.result.create({
-          data: {
-            studentId:
-              data.studentId,
-
-            type:
-              data.type,
-
-            score,
-
-            /*
-             * Legacy manual result entry is currently
-             * percentage-based: 95 means 95 out of 100.
-             */
-            totalMarks:
-              100,
-
-            percentage,
-
-            examId:
-              data.type ===
-              "EXAM"
-                ? Number(
-                    data.examId,
-                  )
-                : null,
-
-            assignmentId:
-              data.type ===
-              "ASSIGNMENT"
-                ? Number(
-                    data.assignmentId,
-                  )
-                : null,
-          },
-        });
-
-      revalidatePath(
-        "/list/results",
-      );
-
-      revalidatePath(
-        "/list/report-cards/generate",
-      );
-
-      return result;
-    } catch (error) {
-      console.error(
-        "CREATE RESULT ERROR:",
-        error,
-      );
-
-      throw error;
-    }
-  };
-
-  /* ------------------------- UPDATE RESULT ------------------------- */
-
-
-export const updateResult =
-  async (
-    _:
-      unknown,
-
-    data:
-      ResultSchema,
-  ) => {
-    try {
-      if (!data.id) {
+  data: ResultSchema,
+) => {
+  try {
+    if (data.type === "ASSIGNMENT") {
+      if (!data.assignmentId) {
         return {
-          success:
-            false,
-
-          error:
-            true,
+          success: false,
+          error: true,
+          message: "Select an assignment.",
         };
       }
 
-      const score =
-        Number(
-          data.score,
-        );
+      const synced = await prisma.$transaction(
+        async (tx) =>
+          syncAssignmentResult({
+            tx,
+
+            studentId: data.studentId,
+
+            assignmentId: data.assignmentId!,
+
+            score: data.score,
+
+            totalMarks: data.totalMarks,
+          }),
+
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+          maxWait: 10_000,
+
+          timeout: 30_000,
+        },
+      );
+
+      revalidatePath("/list/results");
+
+      revalidatePath("/list/results/legacy");
+
+      revalidatePath("/list/report-cards");
+
+      revalidatePath("/list/report-cards/generate");
+
+      return {
+        success: true,
+        error: false,
+
+        data: synced,
+
+        message:
+          synced.invalidatedReportCardCount > 0
+            ? "Assignment result saved. The affected draft report card now requires regeneration."
+            : "Assignment result saved successfully.",
+      };
+    }
+
+    /*
+     * Keep your existing examination branch temporarily.
+     * We will connect it in the next implementation step.
+     */
+    if (data.type === "EXAM") {
+      if (!data.examId) {
+        return {
+          success: false,
+          error: true,
+          message: "Select an examination.",
+        };
+      }
 
       const percentage =
-        Math.min(
-          100,
-          Math.max(
-            0,
-            score,
-          ),
-        );
+        Math.round((data.score / data.totalMarks) * 10_000) / 100;
 
-      await prisma.result.update({
+      const existingExamResult = await prisma.result.findFirst({
         where: {
-          id:
-            data.id,
+          studentId: data.studentId,
+
+          examId: data.examId,
+
+          type: "EXAM",
         },
 
-        data: {
-          studentId:
-            data.studentId,
-
-          type:
-            data.type,
-
-          score,
-
-          totalMarks:
-            100,
-
-          percentage,
-
-          examId:
-            data.type ===
-            "EXAM"
-              ? data.examId ??
-                null
-              : null,
-
-          assignmentId:
-            data.type ===
-            "ASSIGNMENT"
-              ? data.assignmentId ??
-                null
-              : null,
+        select: {
+          id: true,
         },
       });
 
-      revalidatePath(
-        "/list/results",
-      );
+      if (existingExamResult) {
+        return {
+          success: false,
+          error: true,
 
-      revalidatePath(
-        "/list/report-cards/generate",
-      );
+          message:
+            "This student already has a result for the selected examination. Edit the existing result instead.",
+        };
+      }
+
+      await prisma.result.create({
+        data: {
+          studentId: data.studentId,
+
+          type: "EXAM",
+
+          examId: data.examId,
+
+          assignmentId: null,
+
+          score: data.score,
+
+          totalMarks: data.totalMarks,
+
+          percentage,
+        },
+      });
+
+      revalidatePath("/list/results");
+
+      revalidatePath("/list/report-cards/generate");
 
       return {
-        success:
-          true,
-
-        error:
-          false,
-      };
-    } catch (error) {
-      console.error(
-        "UPDATE RESULT ERROR:",
-        error,
-      );
-
-      return {
-        success:
-          false,
-
-        error:
-          true,
+        success: true,
+        error: false,
+        message: "Examination result saved successfully.",
       };
     }
-  };
+
+    return {
+      success: false,
+      error: true,
+      message: "The selected result type is not supported.",
+    };
+  } catch (error) {
+    console.error("CREATE RESULT ERROR:", error);
+
+    return {
+      success: false,
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The result could not be saved.",
+    };
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                              UPDATE RESULT                                 */
+/* -------------------------------------------------------------------------- */
+
+export const updateResult = async (
+  _currentState: unknown,
+
+  data: ResultSchema,
+) => {
+  try {
+    if (!data.id) {
+      return {
+        success: false,
+        error: true,
+
+        message: "The result could not be resolved.",
+      };
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*                       ASSIGNMENT RESULT                               */
+    /* -------------------------------------------------------------------- */
+
+    if (data.type === "ASSIGNMENT") {
+      if (!data.assignmentId) {
+        return {
+          success: false,
+          error: true,
+
+          message: "Select an assignment.",
+        };
+      }
+
+      const synced = await prisma.$transaction(
+        async (tx) =>
+          syncAssignmentResult({
+            tx,
+
+            /*
+             * Updates the exact Result row instead of
+             * searching for an arbitrary matching row.
+             */
+            resultId: data.id,
+
+            studentId: data.studentId,
+
+            assignmentId: data.assignmentId!,
+
+            score: data.score,
+
+            totalMarks: data.totalMarks,
+          }),
+
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+          maxWait: 10_000,
+
+          timeout: 30_000,
+        },
+      );
+
+      revalidatePath("/list/results");
+
+      revalidatePath("/list/results/legacy");
+
+      revalidatePath("/list/report-cards");
+
+      revalidatePath("/list/report-cards/generate");
+
+      return {
+        success: true,
+        error: false,
+
+        data: synced,
+
+        message: synced.resultChanged
+          ? "Assignment result updated. The affected draft report card requires regeneration."
+          : "No score changes were detected.",
+      };
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*                       EXAMINATION RESULT                              */
+    /* -------------------------------------------------------------------- */
+
+    /*
+     * The assignment branch returned above, so TypeScript
+     * now correctly knows that data.type is EXAM.
+     */
+    if (data.type !== "EXAM") {
+      return {
+        success: false,
+        error: true,
+
+        message: "The selected result type is not supported.",
+      };
+    }
+
+    if (!data.examId) {
+      return {
+        success: false,
+        error: true,
+
+        message: "Select an examination.",
+      };
+    }
+
+    const existing = await prisma.result.findUnique({
+      where: {
+        id: data.id,
+      },
+
+      select: {
+        id: true,
+        type: true,
+        studentId: true,
+        examId: true,
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: true,
+
+        message: "The result could not be found.",
+      };
+    }
+
+    if (existing.type !== "EXAM") {
+      return {
+        success: false,
+        error: true,
+
+        message: "The selected result is not an examination result.",
+      };
+    }
+
+    /*
+     * Do not silently move an existing examination result
+     * to another student or examination.
+     */
+    if (
+      existing.studentId !== data.studentId ||
+      existing.examId !== data.examId
+    ) {
+      return {
+        success: false,
+        error: true,
+
+        message:
+          "The examination result does not match the selected student and examination.",
+      };
+    }
+
+    const percentage =
+      Math.round((data.score / data.totalMarks) * 10_000) / 100;
+
+    await prisma.result.update({
+      where: {
+        id: data.id,
+      },
+
+      data: {
+        /*
+         * The identity fields are preserved.
+         * Only academic score values are edited.
+         */
+        type: "EXAM",
+
+        score: data.score,
+
+        totalMarks: data.totalMarks,
+
+        percentage,
+
+        examId: data.examId,
+
+        assignmentId: null,
+      },
+    });
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/results/legacy");
+
+    revalidatePath("/list/report-cards");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+      error: false,
+
+      message: "Examination result updated successfully.",
+    };
+  } catch (error) {
+    console.error("UPDATE RESULT ERROR:", error);
+
+    return {
+      success: false,
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The result could not be updated.",
+    };
+  }
+};
 
 /* ------------------------- CREATE EVENT ------------------------- */
 export const createEvent = async (
   currentState: CurrentState,
-  data: EventSchema
+  data: EventSchema,
 ) => {
   try {
     await prisma.event.create({
@@ -1500,7 +1630,7 @@ export const createEvent = async (
 
 export const updateEvent = async (
   currentState: CurrentState,
-  data: EventSchema
+  data: EventSchema,
 ) => {
   if (!data.id) {
     return { success: false, error: true };
@@ -1529,7 +1659,7 @@ export const updateEvent = async (
 
 export const deleteEvent = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   if (!id) {
@@ -1550,7 +1680,7 @@ export const deleteEvent = async (
 
 export const createAnnouncement = async (
   currentState: CurrentState,
-  data: AnnouncementSchema
+  data: AnnouncementSchema,
 ) => {
   try {
     await prisma.announcement.create({
@@ -1572,7 +1702,7 @@ export const createAnnouncement = async (
 
 export const updateAnnouncement = async (
   currentState: CurrentState,
-  data: AnnouncementSchema
+  data: AnnouncementSchema,
 ) => {
   if (!data.id) {
     return { success: false, error: true };
@@ -1598,7 +1728,7 @@ export const updateAnnouncement = async (
 
 export const deleteAnnouncement = async (
   currentState: CurrentState,
-  data: FormData
+  data: FormData,
 ) => {
   const id = data.get("id") as string;
   if (!id) {
@@ -1623,7 +1753,7 @@ export const deleteAnnouncement = async (
 
 export const createFeeCategory = async (
   currentState: any,
-  data: FeeCategorySchema
+  data: FeeCategorySchema,
 ) => {
   try {
     await prisma.feeCategory.create({
@@ -1639,7 +1769,7 @@ export const createFeeCategory = async (
 
 export const updateFeeCategory = async (
   currentState: any,
-  data: FeeCategorySchema
+  data: FeeCategorySchema,
 ) => {
   if (!data.id) return { success: false, error: true };
 
@@ -1656,10 +1786,7 @@ export const updateFeeCategory = async (
   }
 };
 
-export const deleteFeeCategory = async (
-  currentState: any, 
-  data: FormData
-) => {
+export const deleteFeeCategory = async (currentState: any, data: FormData) => {
   const id = data.get("id") as string;
   if (!id) return { success: false, error: true };
 
@@ -1672,10 +1799,7 @@ export const deleteFeeCategory = async (
   }
 };
 
-export const createFeeType = async (
-  currentState: any, 
-  data: FeeTypeSchema
-) => {
+export const createFeeType = async (currentState: any, data: FeeTypeSchema) => {
   try {
     await prisma.feeType.create({
       data: {
@@ -1691,10 +1815,7 @@ export const createFeeType = async (
   }
 };
 
-export const updateFeeType = async (
-  currentState: any, 
-  data: FeeTypeSchema
-) => {
+export const updateFeeType = async (currentState: any, data: FeeTypeSchema) => {
   if (!data.id) return { success: false, error: true };
 
   try {
@@ -1713,10 +1834,7 @@ export const updateFeeType = async (
   }
 };
 
-export const deleteFeeType = async (
-  currentState: any, 
-  data: FormData
-) => {
+export const deleteFeeType = async (currentState: any, data: FormData) => {
   const id = data.get("id") as string;
   if (!id) return { success: false, error: true };
 
@@ -1731,7 +1849,7 @@ export const deleteFeeType = async (
 
 export const createFeeStructure = async (
   currentState: any,
-  data: FeeStructureSchema
+  data: FeeStructureSchema,
 ) => {
   try {
     await prisma.feeStructure.create({
@@ -1754,7 +1872,7 @@ export const createFeeStructure = async (
 
 export const updateFeeStructure = async (
   currentState: any,
-  data: FeeStructureSchema
+  data: FeeStructureSchema,
 ) => {
   if (!data.id) return { success: false, error: true };
 
@@ -1778,9 +1896,7 @@ export const updateFeeStructure = async (
   }
 };
 
-export const deleteFeeStructure = async (
-  currentState: any, 
-  data: FormData) => {
+export const deleteFeeStructure = async (currentState: any, data: FormData) => {
   const id = data.get("id") as string;
   if (!id) return { success: false, error: true };
 
@@ -1795,7 +1911,7 @@ export const deleteFeeStructure = async (
 
 export const createFeeMaster = async (
   currentState: any,
-  data: FeeMasterSchema
+  data: FeeMasterSchema,
 ) => {
   try {
     await prisma.feeMaster.create({
@@ -1817,7 +1933,7 @@ export const createFeeMaster = async (
 
 export const updateFeeMaster = async (
   currentState: any,
-  data: FeeMasterSchema
+  data: FeeMasterSchema,
 ) => {
   if (!data.id) return { success: false, error: true };
 
@@ -1840,9 +1956,7 @@ export const updateFeeMaster = async (
   }
 };
 
-export const deleteFeeMaster = async (
-  currentState: any, 
-  data: FormData) => {
+export const deleteFeeMaster = async (currentState: any, data: FormData) => {
   const id = data.get("id") as string;
   if (!id) return { success: false, error: true };
 
@@ -1855,9 +1969,7 @@ export const deleteFeeMaster = async (
   }
 };
 
-export const createFee = async (
-  currentState: any, 
-  data: FeeSchema) => {
+export const createFee = async (currentState: any, data: FeeSchema) => {
   try {
     await prisma.fee.create({
       data: {
@@ -1874,9 +1986,7 @@ export const createFee = async (
   }
 };
 
-export const updateFee = async (
-  currentState: any, 
-  data: FeeSchema) => {
+export const updateFee = async (currentState: any, data: FeeSchema) => {
   if (!data.id) return { success: false, error: true };
 
   try {
@@ -1896,9 +2006,7 @@ export const updateFee = async (
   }
 };
 
-export const deleteFee = async (
-  currentState: any, 
-  data: FormData) => {
+export const deleteFee = async (currentState: any, data: FormData) => {
   const id = data.get("id") as string;
   if (!id) return { success: false, error: true };
 
@@ -1911,10 +2019,10 @@ export const deleteFee = async (
   }
 };
 
-
 export const createFeePayment = async (
-  currentState: any, 
-  data: FeePaymentSchema) => {
+  currentState: any,
+  data: FeePaymentSchema,
+) => {
   try {
     await prisma.feePayment.create({
       data: {
@@ -1933,8 +2041,9 @@ export const createFeePayment = async (
 };
 
 export const updateFeePayment = async (
-  currentState: any, 
-  data: FeePaymentSchema) => {
+  currentState: any,
+  data: FeePaymentSchema,
+) => {
   if (!data.id) return { success: false, error: true };
 
   try {
@@ -1955,9 +2064,7 @@ export const updateFeePayment = async (
   }
 };
 
-export const deleteFeePayment = async (
-  currentState: any, 
-  data: FormData) => {
+export const deleteFeePayment = async (currentState: any, data: FormData) => {
   const id = data.get("id") as string;
   if (!id) return { success: false, error: true };
 
@@ -1969,9 +2076,6 @@ export const deleteFeePayment = async (
     return { success: false, error: true };
   }
 };
-
-
-
 
 export const generateFeeMaster = async ({
   studentId,
@@ -2028,12 +2132,9 @@ export const generateFeeMaster = async ({
   return feeMaster;
 };
 
-
-
-
 export const createAttendance = async (
   currentState: CurrentState,
-  data: AttendanceSchema
+  data: AttendanceSchema,
 ) => {
   try {
     await prisma.attendance.create({
@@ -2052,10 +2153,9 @@ export const createAttendance = async (
   }
 };
 
-
 export const updateAttendance = async (
   currentState: CurrentState,
-  data: AttendanceSchema
+  data: AttendanceSchema,
 ) => {
   if (!data.id) return { success: false, error: true };
 
@@ -2076,9 +2176,6 @@ export const updateAttendance = async (
     return { success: false, error: true };
   }
 };
-
-
-
 
 export const saveTermSettings = async (data: {
   id?: number;

@@ -175,23 +175,134 @@ export type ExamSchema =
   >;
 
 
-export const resultSchema = z.object({
-  id: z.coerce.number().optional(),
-  studentId: z.string().min(1, { message: "Student is required!" }),
-  // classId: z.coerce.number().min(1, { message: "Class is required!" }), // NEW
-  type: z.enum(["EXAM", "ASSIGNMENT"] as const, {
-    message: "Type is required!",
-  }),
-  score: z.coerce
-    .number()
-    .min(0, { message: "Score cannot be less than 0" })
-    .max(100, { message: "Score must be 0–100" }),
-  examId: z.union([z.coerce.number(), z.null()]).optional(),
-  assignmentId: z.union([z.coerce.number(), z.null()]).optional(),
-});
+export const resultSchema =
+  z.object({
+    id:
+      z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional(),
 
-export type ResultSchema = z.infer<typeof resultSchema>;
+    studentId:
+      z.string()
+        .trim()
+        .min(
+          1,
+          {
+            message:
+              "Student is required.",
+          },
+        ),
 
+    type:
+      z.enum([
+        "ASSIGNMENT",
+        "EXAM",
+      ]),
+
+    score:
+      z.coerce
+        .number({
+          message:
+            "Enter a valid score.",
+        })
+        .min(
+          0,
+          {
+            message:
+              "Score cannot be negative.",
+          },
+        ),
+
+    totalMarks:
+      z.coerce
+        .number({
+          message:
+            "Enter valid total marks.",
+        })
+        .positive({
+          message:
+            "Total marks must be greater than zero.",
+        }),
+
+    assignmentId:
+      z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .nullable(),
+
+    examId:
+      z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .nullable(),
+  })
+  .superRefine(
+    (
+      data,
+      context,
+    ) => {
+      if (
+        data.score >
+        data.totalMarks
+      ) {
+        context.addIssue({
+          code:
+            "custom",
+
+          path:
+            ["score"],
+
+          message:
+            "Score cannot be greater than total marks.",
+        });
+      }
+
+      if (
+        data.type ===
+          "ASSIGNMENT" &&
+        !data.assignmentId
+      ) {
+        context.addIssue({
+          code:
+            "custom",
+
+          path:
+            ["assignmentId"],
+
+          message:
+            "Select an assignment.",
+        });
+      }
+
+      if (
+        data.type ===
+          "EXAM" &&
+        !data.examId
+      ) {
+        context.addIssue({
+          code:
+            "custom",
+
+          path:
+            ["examId"],
+
+          message:
+            "Select an examination.",
+        });
+      }
+    },
+  );
+
+export type ResultSchema =
+  z.infer<
+    typeof resultSchema
+  >;
 
 export const lessonSchema = z.object({
   id: z.coerce.number().optional(),

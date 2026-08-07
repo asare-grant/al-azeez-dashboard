@@ -125,6 +125,7 @@ export async function getManagedReportCards({
           studentID: true,
           name: true,
           surname: true,
+          img: true,
         },
       },
 
@@ -189,6 +190,8 @@ export async function getManagedReportCards({
       mapStudentIdentity(
         reportCard.student,
       ),
+      img:
+        reportCard.student.img,
   }),
 );
 }
