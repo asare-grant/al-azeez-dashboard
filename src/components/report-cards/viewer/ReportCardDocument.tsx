@@ -311,7 +311,7 @@ export default function ReportCardDocument({
               subtitle="Overall terminal academic standing"
             />
 
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
+            <div className="mt-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 print:grid-cols-4">
               <PremiumSummaryBox
                 icon={BookOpenCheck}
                 label="Total Score"
@@ -348,7 +348,7 @@ export default function ReportCardDocument({
             </div>
 
             {reportCard.overallRemark ? (
-              <div className="mt-2 rounded-[10px] border border-blue-100 bg-blue-50/60 px-4 py-2.5">
+              <div className="mt-3 rounded-[10px] border border-blue-100 bg-blue-50/60 px-4 py-2.5">
                 <p className="text-[8px] font-black uppercase tracking-[0.14em] text-blue-700">
                   Overall Performance
                 </p>
@@ -583,12 +583,12 @@ function RemarkRow({
         !last ? "border-b border-slate-200" : ""
       }`}
     >
-      <div className="bg-slate-50 px-3 py-2.5 text-[8px] font-black uppercase tracking-[0.08em] text-slate-500">
+      <div className="bg-slate-50 px-3.5 py-3 text-[8px] font-black uppercase tracking-[0.08em] text-slate-500">
         {label}
       </div>
 
       <div
-        className={`px-3 py-2.5 text-[9px] leading-4 text-slate-700 ${
+        className={`px-3.5 py-3 text-[9px] leading-4 text-slate-700 ${
           strong ? "font-black" : "font-semibold"
         }`}
       >
