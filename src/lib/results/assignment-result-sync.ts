@@ -402,7 +402,7 @@ const result =
           termId,
 
           reason:
-            `The assignment result for "${assignment.title}" was created or updated.`,
+            `The assignment result for "${assignment.title}" changed after this report card was generated.`,
         })
       : {
           invalidatedCount: 0,
