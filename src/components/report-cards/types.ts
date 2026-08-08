@@ -1,3 +1,4 @@
+// src/components/report-cards/types.ts
 import type {
   ReportCardCalculationStatus,
   ReportCardReviewStatus,
@@ -74,9 +75,15 @@ export type ReportCardCommandItem = {
     | string
     | null;
 
-  // isStale: boolean;
-  // staleAt: Date | string | null;
-  // staleReason: string | null;
+  isStale: boolean;
+
+  staleAt:
+    | Date
+    | string
+    | null;
+
+  staleReason:
+    string | null;
 };
 
 export type ReportCardCommandMetrics = {

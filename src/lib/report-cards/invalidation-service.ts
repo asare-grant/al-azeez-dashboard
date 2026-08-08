@@ -185,6 +185,11 @@ export async function invalidateStudentReportCardWithTransaction({
           reason,
         ),
 
+      version: {
+        increment:
+          1,
+        },
+
       /* -------------------------------------------------------------- */
       /*                    REVIEW WORKFLOW RESET                       */
       /* -------------------------------------------------------------- */

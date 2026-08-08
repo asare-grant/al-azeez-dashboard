@@ -1,24 +1,18 @@
 "use server";
 
-import {
-  Prisma,
-} from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
-import {
-  revalidatePath,
-} from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
 
+import { requireReportCardAdmin, requireReportCardManager } from "./auth";
 
-import {
-  requireReportCardAdmin,
-  requireReportCardManager,
-} from "./auth";
+import { canPublishReportCard } from "./workflow-guards";
 
-import {
-  generateClassReportCards,
-} from "./generation-service";
+import { persistClassTermReport } from "./persistence-service";
+
+import { generateClassReportCards } from "./generation-service";
 
 import {
   REPORT_CARD_LIST_PATH,
@@ -53,10 +47,7 @@ function reportCardSuccess<T>(
 
 function reportCardFailure<T = never>(
   message: string,
-  fieldErrors?: Record<
-    string,
-    string[] | undefined
-  >,
+  fieldErrors?: Record<string, string[] | undefined>,
 ): ReportCardActionResult<T> {
   return {
     success: false,
@@ -66,13 +57,8 @@ function reportCardFailure<T = never>(
   };
 }
 
-function getReportCardErrorMessage(
-  error: unknown,
-) {
-  if (
-    error instanceof
-    Prisma.PrismaClientKnownRequestError
-  ) {
+function getReportCardErrorMessage(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
       return "A report card already exists for this student and academic period.";
     }
@@ -102,30 +88,21 @@ function getReportCardErrorMessage(
   return "The report-card operation could not be completed.";
 }
 
-
 /* -------------------------------------------------------------------------- */
 /*                      GENERATE OR REGENERATE DRAFTS                         */
 /* -------------------------------------------------------------------------- */
 
 export async function generateClassReportCardDrafts(
-  input:
-    GenerateClassReportCardsInput,
-): Promise<
-  ReportCardActionResult<ReportCardGenerationSummary>
-> {
+  input: GenerateClassReportCardsInput,
+): Promise<ReportCardActionResult<ReportCardGenerationSummary>> {
   try {
-    const {
-      userId,
-    } = await requireReportCardManager();
+    const { userId } = await requireReportCardManager();
 
-    const classId =
-      Number(input.classId);
+    const classId = Number(input.classId);
 
-    const termId =
-      Number(input.termId);
+    const termId = Number(input.termId);
 
-    const academicYear =
-      input.academicYear?.trim();
+    const academicYear = input.academicYear?.trim();
 
     if (
       !Number.isInteger(classId) ||
@@ -134,9 +111,7 @@ export async function generateClassReportCardDrafts(
       termId <= 0 ||
       !academicYear
     ) {
-      return reportCardFailure(
-        "Select a valid class, academic year and term.",
-      );
+      return reportCardFailure("Select a valid class, academic year and term.");
     }
 
     /*
@@ -144,100 +119,57 @@ export async function generateClassReportCardDrafts(
      * weighting validation and source-result validation are
      * enforced by the generation validator and service.
      */
-      const summary =
-      await generateClassReportCards(
-        {
-          classId,
-          termId,
-          academicYear,
+    const summary = await generateClassReportCards(
+      {
+        classId,
+        termId,
+        academicYear,
 
-          allowPartial:
-            input.allowPartial ??
-            false,
-        },
+        allowPartial: input.allowPartial ?? false,
+      },
 
-        userId,
-      );
-
-    revalidatePath(
-      `${REPORT_CARD_LIST_PATH}/generate`,
+      userId,
     );
 
-    revalidatePath(
-      `${REPORT_CARD_LIST_PATH}/review`,
-    );
+    revalidatePath(`${REPORT_CARD_LIST_PATH}/generate`);
 
-    revalidatePath(
-      `/teacher/classes/${classId}/report-cards`,
-    );
+    revalidatePath(`${REPORT_CARD_LIST_PATH}/review`);
+
+    revalidatePath(`/teacher/classes/${classId}/report-cards`);
 
     /*
      * Only changed drafts need individual route
      * revalidation. Published and archived snapshots
      * remain untouched.
      */
-    for (
-      const item of
-      summary.reportCards
-    ) {
-      if (
-        item.action !==
-          "CREATED" &&
-        item.action !==
-          "REGENERATED"
-      ) {
+    for (const item of summary.reportCards) {
+      if (item.action !== "CREATED" && item.action !== "REGENERATED") {
         continue;
       }
 
-      revalidatePath(
-        reportCardDetailsPath(
-          item.reportCardId,
-        ),
-      );
+      revalidatePath(reportCardDetailsPath(item.reportCardId));
 
-      revalidatePath(
-        `${reportCardDetailsPath(
-          item.reportCardId,
-        )}/review`,
-      );
+      revalidatePath(`${reportCardDetailsPath(item.reportCardId)}/review`);
 
-      revalidatePath(
-        `${reportCardDetailsPath(
-          item.reportCardId,
-        )}/print`,
-      );
+      revalidatePath(`${reportCardDetailsPath(item.reportCardId)}/print`);
     }
 
-    const changedCount =
-      summary.created +
-      summary.regenerated;
+    const changedCount = summary.created + summary.regenerated;
 
     const message =
       changedCount > 0
         ? `${changedCount} report-card draft${
-            changedCount === 1
-              ? ""
-              : "s"
+            changedCount === 1 ? "" : "s"
           } generated successfully.`
         : summary.preserved > 0
           ? "No drafts required updating. Published or archived report cards were preserved."
           : "No report-card drafts required updating.";
 
-    return reportCardSuccess(
-      message,
-      summary,
-    );
+    return reportCardSuccess(message, summary);
   } catch (error) {
-    console.error(
-      "GENERATE REPORT CARD DRAFTS ERROR:",
-      error,
-    );
+    console.error("GENERATE REPORT CARD DRAFTS ERROR:", error);
 
-    return reportCardFailure(
-      getReportCardErrorMessage(
-        error,
-      ),
-    );
+    return reportCardFailure(getReportCardErrorMessage(error));
   }
 }
 
@@ -245,164 +177,169 @@ export async function generateClassReportCardDrafts(
 /*                         PUBLISH ONE REPORT CARD                            */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/*                         PUBLISH ONE REPORT CARD                            */
+/* -------------------------------------------------------------------------- */
+
 export async function publishReportCard(
   reportCardId: number,
-): Promise<
-  ReportCardActionResult<PublishReportCardResult>
-> {
+): Promise<ReportCardActionResult<PublishReportCardResult>> {
   try {
-    const {
-      userId,
-    } = await requireReportCardAdmin();
+    const { userId } = await requireReportCardAdmin();
 
-    if (
-      !Number.isInteger(
-        reportCardId,
-      ) ||
-      reportCardId <= 0
-    ) {
+    if (!Number.isInteger(reportCardId) || reportCardId <= 0) {
+      return reportCardFailure("Select a valid report card.");
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                      LOAD CURRENT WORKFLOW STATE                   */
+    /* ------------------------------------------------------------------ */
+
+    const reportCard = await prisma.reportCard.findUnique({
+      where: {
+        id: reportCardId,
+      },
+
+      select: {
+        id: true,
+
+        studentId: true,
+
+        classId: true,
+
+        status: true,
+
+        reviewStatus: true,
+
+        calculationStatus: true,
+
+        isStale: true,
+
+        subjectCount: true,
+
+        completedSubjectCount: true,
+
+        incompleteSubjectCount: true,
+
+        version: true,
+      },
+    });
+
+    if (!reportCard) {
+      return reportCardFailure("The report card could not be found.");
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                    CENTRAL WORKFLOW ENFORCEMENT                    */
+    /* ------------------------------------------------------------------ */
+
+    const workflow = canPublishReportCard(reportCard);
+
+    if (!workflow.allowed) {
       return reportCardFailure(
-        "Select a valid report card.",
+        workflow.reason ?? "This report card cannot be published.",
       );
     }
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    const claimed =
-      await prisma.reportCard.updateMany({
-        where: {
-          id:
-            reportCardId,
+    /* ------------------------------------------------------------------ */
+    /*                       ATOMIC PUBLICATION CLAIM                     */
+    /* ------------------------------------------------------------------ */
 
-          status:
-            "DRAFT",
-          
-          reviewStatus:
-            "APPROVED",
+    const claimed = await prisma.reportCard.updateMany({
+      where: {
+        id: reportCard.id,
 
-          calculationStatus:
-            "READY",
-          
-          isStale: false,
+        status: "DRAFT",
+
+        reviewStatus: "APPROVED",
+
+        calculationStatus: "READY",
+
+        isStale: false,
+
+        /*
+         * Optimistic concurrency protection.
+         *
+         * If regeneration or another workflow mutation changed
+         * this report after we loaded it, publication must fail.
+         */
+        version: reportCard.version,
+      },
+
+      data: {
+        status: "PUBLISHED",
+
+        publishedAt: now,
+
+        lockedAt: now,
+
+        publishedById: userId,
+
+        version: {
+          increment: 1,
         },
-
-        data: {
-          status:
-            "PUBLISHED",
-
-          publishedAt:
-            now,
-
-          lockedAt:
-            now,
-
-          publishedById:
-            userId,
-        },
-      });
+      },
+    });
 
     if (claimed.count !== 1) {
-      const existing =
-        await prisma.reportCard.findUnique({
-          where: {
-            id:
-              reportCardId,
-          },
-
-          select: {
-            status: true,
-            calculationStatus:
-              true,
-          },
-        });
-
-      if (!existing) {
-        return reportCardFailure(
-          "The report card could not be found.",
-        );
-      }
-
-      if (
-        existing.status !==
-        "DRAFT"
-      ) {
-        return reportCardFailure(
-          "This report card has already been published or archived.",
-        );
-      }
-
       return reportCardFailure(
-        "Only complete report cards can be published.",
+        "The report card changed before publication could be completed. Refresh the page and try again.",
       );
     }
 
-    revalidatePath(
-      REPORT_CARD_LIST_PATH,
-    );
+    /* ------------------------------------------------------------------ */
+    /*                          REVALIDATION                              */
+    /* ------------------------------------------------------------------ */
 
-    revalidatePath(
-      reportCardDetailsPath(
-        reportCardId,
-      ),
-    );
+    revalidatePath(REPORT_CARD_LIST_PATH);
 
-    revalidatePath(
-      studentReportCardPath(
-        reportCardId,
-      ),
-    );
+    revalidatePath(reportCardDetailsPath(reportCardId));
 
-    const published =
-      await prisma.reportCard.findUniqueOrThrow({
-        where: {
-          id:
-            reportCardId,
-        },
+    revalidatePath(studentReportCardPath(reportCardId));
 
-        select: {
-          id: true,
-          status: true,
-          publishedAt: true,
-        },
-      });
+    revalidatePath("/student/report-cards");
 
-    return reportCardSuccess(
-      "Report card published and locked successfully.",
-      {
-        reportCardId:
-          published.id,
+    revalidatePath("/parent/children");
 
-        status:
-          published.status,
+    /* ------------------------------------------------------------------ */
+    /*                        RETURN FINAL STATE                          */
+    /* ------------------------------------------------------------------ */
 
-        publishedAt:
-          published.publishedAt ??
-          now,
+    const published = await prisma.reportCard.findUniqueOrThrow({
+      where: {
+        id: reportCardId,
       },
-    );
-  } catch (error) {
-    console.error(
-      "PUBLISH REPORT CARD ERROR:",
-      error,
-    );
 
-    return reportCardFailure(
-      getReportCardErrorMessage(
-        error,
-      ),
-    );
+      select: {
+        id: true,
+
+        status: true,
+
+        publishedAt: true,
+      },
+    });
+
+    return reportCardSuccess("Report card published and locked successfully.", {
+      reportCardId: published.id,
+
+      status: published.status,
+
+      publishedAt: published.publishedAt ?? now,
+    });
+  } catch (error) {
+    console.error("PUBLISH REPORT CARD ERROR:", error);
+
+    return reportCardFailure(getReportCardErrorMessage(error));
   }
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*                          ARCHIVE REPORT CARD                               */
 /* -------------------------------------------------------------------------- */
 
-export async function archiveReportCard(
-  reportCardId: number,
-): Promise<
+export async function archiveReportCard(reportCardId: number): Promise<
   ReportCardActionResult<{
     reportCardId: number;
     status: "ARCHIVED";
@@ -412,110 +349,71 @@ export async function archiveReportCard(
   try {
     await requireReportCardAdmin();
 
-    if (
-      !Number.isInteger(
-        reportCardId,
-      ) ||
-      reportCardId <= 0
-    ) {
-      return reportCardFailure(
-        "Select a valid report card.",
-      );
+    if (!Number.isInteger(reportCardId) || reportCardId <= 0) {
+      return reportCardFailure("Select a valid report card.");
     }
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    const archived =
-      await prisma.reportCard.updateMany({
+    const archived = await prisma.reportCard.updateMany({
+      where: {
+        id: reportCardId,
+
+        status: {
+          in: ["DRAFT", "PUBLISHED"],
+        },
+      },
+
+      data: {
+        status: "ARCHIVED",
+
+        archivedAt: now,
+
+        lockedAt: now,
+      },
+    });
+
+    if (archived.count !== 1) {
+      const existing = await prisma.reportCard.findUnique({
         where: {
           id: reportCardId,
-
-          status: {
-            in: [
-              "DRAFT",
-              "PUBLISHED",
-            ],
-          },
         },
 
-        data: {
-          status:
-            "ARCHIVED",
-
-          archivedAt:
-            now,
-
-          lockedAt:
-            now,
+        select: {
+          status: true,
         },
       });
 
-    if (archived.count !== 1) {
-      const existing =
-        await prisma.reportCard.findUnique({
-          where: {
-            id:
-              reportCardId,
-          },
-
-          select: {
-            status: true,
-          },
-        });
-
       if (!existing) {
-        return reportCardFailure(
-          "The report card could not be found.",
-        );
+        return reportCardFailure("The report card could not be found.");
       }
 
-      return reportCardFailure(
-        "This report card has already been archived.",
-      );
+      return reportCardFailure("This report card has already been archived.");
     }
 
-    revalidatePath(
-      REPORT_CARD_LIST_PATH,
-    );
+    revalidatePath(REPORT_CARD_LIST_PATH);
 
-    revalidatePath(
-      reportCardDetailsPath(
-        reportCardId,
-      ),
-    );
+    revalidatePath(reportCardDetailsPath(reportCardId));
 
-    revalidatePath(
-      studentReportCardPath(
-        reportCardId,
-      ),
-    );
+    revalidatePath(studentReportCardPath(reportCardId));
 
-    return reportCardSuccess(
-      "Report card archived successfully.",
-      {
-        reportCardId,
+    return reportCardSuccess("Report card archived successfully.", {
+      reportCardId,
 
-        status:
-          "ARCHIVED",
+      status: "ARCHIVED",
 
-        archivedAt:
-          now,
-      },
-    );
+      archivedAt: now,
+    });
   } catch (error) {
-    console.error(
-      "ARCHIVE REPORT CARD ERROR:",
-      error,
-    );
+    console.error("ARCHIVE REPORT CARD ERROR:", error);
 
-    return reportCardFailure(
-      getReportCardErrorMessage(
-        error,
-      ),
-    );
+    return reportCardFailure(getReportCardErrorMessage(error));
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*                         PUBLISH CLASS REPORT CARDS                         */
+/* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
 /*                         PUBLISH CLASS REPORT CARDS                         */
@@ -525,140 +423,173 @@ export async function publishClassReportCards({
   classId,
   academicYear,
   termId,
-}: ReportCardAcademicPeriodInput): Promise<
+}: GenerateClassReportCardsInput): Promise<
   ReportCardActionResult<PublishClassReportCardsResult>
 > {
   try {
-    const {
-      userId,
-    } = await requireReportCardAdmin();
+    const { userId } = await requireReportCardAdmin();
 
-    const now =
-      new Date();
+    const normalizedClassId = Number(classId);
 
-    const readyDrafts =
-      await prisma.reportCard.findMany({
-        where: {
-          classId,
-          academicYear,
-          termId,
+    const normalizedTermId = Number(termId);
 
-          status:
-            "DRAFT",
-
-          reviewStatus:
-            "APPROVED",
-          
-          calculationStatus:
-            "READY",
-
-          isStale: false,
-        },
-
-        select: {
-          id: true,
-        },
-      });
-
-    const allDraftCount =
-      await prisma.reportCard.count({
-        where: {
-          classId,
-          academicYear,
-          termId,
-
-          status:
-            "DRAFT",
-        },
-      });
+    const normalizedAcademicYear = academicYear?.trim();
 
     if (
-      readyDrafts.length === 0
+      !Number.isInteger(normalizedClassId) ||
+      normalizedClassId <= 0 ||
+      !Number.isInteger(normalizedTermId) ||
+      normalizedTermId <= 0 ||
+      !normalizedAcademicYear
     ) {
+      return reportCardFailure("Select a valid class, academic year and term.");
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*                       LOAD ALL DRAFT CANDIDATES                    */
+    /* ------------------------------------------------------------------ */
+
+    const candidates = await prisma.reportCard.findMany({
+      where: {
+        classId: normalizedClassId,
+
+        academicYear: normalizedAcademicYear,
+
+        termId: normalizedTermId,
+
+        status: "DRAFT",
+      },
+
+      select: {
+        id: true,
+
+        status: true,
+
+        reviewStatus: true,
+
+        calculationStatus: true,
+
+        isStale: true,
+
+        subjectCount: true,
+
+        completedSubjectCount: true,
+
+        incompleteSubjectCount: true,
+
+        version: true,
+      },
+    });
+
+    if (candidates.length === 0) {
       return reportCardFailure(
-        "No complete draft report cards are ready for publication.",
+        "No draft report cards were found for the selected academic period.",
       );
     }
 
-    const ids =
-      readyDrafts.map(
-        (reportCard) =>
-          reportCard.id,
+    /* ------------------------------------------------------------------ */
+    /*                    APPLY SHARED PUBLICATION GUARD                  */
+    /* ------------------------------------------------------------------ */
+
+    const eligible = candidates.filter(
+      (reportCard) => canPublishReportCard(reportCard).allowed,
+    );
+
+    if (eligible.length === 0) {
+      return reportCardFailure(
+        "No approved, complete and current report cards are ready for publication.",
       );
+    }
 
-    const published =
-      await prisma.reportCard.updateMany({
-        where: {
-          id: {
-            in: ids,
-          },
+    const eligibleIds = eligible.map((reportCard) => reportCard.id);
 
-          status:
-            "DRAFT",
+    const now = new Date();
 
-          calculationStatus:
-            "READY",
+    /* ------------------------------------------------------------------ */
+    /*                     ATOMIC BULK PUBLICATION                        */
+    /* ------------------------------------------------------------------ */
 
-          isStale: false,
+    const published = await prisma.reportCard.updateMany({
+      where: {
+        id: {
+          in: eligibleIds,
         },
 
-        data: {
-          status:
-            "PUBLISHED",
+        status: "DRAFT",
 
-          publishedAt:
-            now,
+        reviewStatus: "APPROVED",
 
-          lockedAt:
-            now,
+        calculationStatus: "READY",
 
-          publishedById:
-            userId,
+        isStale: false,
+      },
+
+      data: {
+        status: "PUBLISHED",
+
+        publishedAt: now,
+
+        lockedAt: now,
+
+        publishedById: userId,
+
+        version: {
+          increment: 1,
         },
-      });
+      },
+    });
 
-    revalidatePath(
-      REPORT_CARD_LIST_PATH,
-    );
+    const publishedCards = await prisma.reportCard.findMany({
+      where: {
+        id: {
+          in: eligibleIds,
+        },
 
-    revalidatePath(
-      "/student/report-cards",
-    );
+        status: "PUBLISHED",
 
-    revalidatePath(
-      "/parent/report-cards",
-    );
+        publishedAt: now,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+    const publishedIds = publishedCards.map((reportCard) => reportCard.id);
+
+    /* ------------------------------------------------------------------ */
+    /*                           REVALIDATION                             */
+    /* ------------------------------------------------------------------ */
+
+    revalidatePath(REPORT_CARD_LIST_PATH);
+
+    revalidatePath("/student/report-cards");
+
+    revalidatePath("/parent/children");
+
+    revalidatePath("/parent/report-cards");
+
+    /* ------------------------------------------------------------------ */
+    /*                            SUMMARY                                */
+    /* ------------------------------------------------------------------ */
+
+    const skippedCount = Math.max(0, candidates.length - publishedIds.length);
 
     return reportCardSuccess(
-      `${published.count} report cards published and locked.`,
-
+      published.count === 1
+        ? "1 report card published and locked successfully."
+        : `${published.count} report cards published and locked successfully.`,
       {
-        publishedCount:
-          published.count,
+        publishedCount: published.count,
 
-        skippedCount:
-          Math.max(
-            0,
-            allDraftCount -
-              published.count,
-          ),
+        skippedCount,
 
-        reportCardIds:
-          ids,
+        reportCardIds: publishedIds,
       },
     );
   } catch (error) {
-    console.error(
-      "PUBLISH CLASS REPORT CARDS ERROR:",
-      error,
-    );
+    console.error("PUBLISH CLASS REPORT CARDS ERROR:", error);
 
-    return reportCardFailure(
-      getReportCardErrorMessage(
-        error,
-      ),
-    );
+    return reportCardFailure(getReportCardErrorMessage(error));
   }
 }
-
-

@@ -1,14 +1,10 @@
 "use server";
 
-import {
-  revalidatePath,
-} from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
 
-import {
-  requireReportCardUser,
-} from "./auth";
+import { requireReportCardUser } from "./auth";
 
 import {
   bulkApproveReportCardsSchema,
@@ -16,37 +12,29 @@ import {
   bulkRequestReportCardChangesSchema,
 } from "./bulk-review-validation";
 
-import type {
-  BulkReportCardActionSummary,
-} from "./bulk-review-types";
+import type { BulkReportCardActionSummary } from "./bulk-review-types";
 
-import type {
-  ReportCardActionResult,
-} from "./types";
+import type { ReportCardActionResult } from "./types";
 
-import {
-  reportCardFailure,
-  reportCardSuccess,
-} from "./action-result";
+import { reportCardFailure, reportCardSuccess } from "./action-result";
+
+import { reviewReportCardReadiness } from "./review-readiness";
 
 import {
-  reviewReportCardReadiness,
-} from "./review-readiness";
+  canApproveReportCard,
+  canPublishReportCard,
+  canRequestReportCardChanges,
+} from "./workflow-guards";
 
 /* -------------------------------------------------------------------------- */
 /*                              SHARED HELPERS                                */
 /* -------------------------------------------------------------------------- */
 
 async function requireReportCardAdmin() {
-  const {
-    userId,
-    role,
-  } = await requireReportCardUser();
+  const { userId, role } = await requireReportCardUser();
 
   if (role !== "admin") {
-    throw new Error(
-      "ADMIN_REQUIRED",
-    );
+    throw new Error("ADMIN_REQUIRED");
   }
 
   return {
@@ -55,33 +43,18 @@ async function requireReportCardAdmin() {
 }
 
 function revalidateBulkReviewRoutes() {
-  revalidatePath(
-    "/list/report-cards",
-  );
+  revalidatePath("/list/report-cards");
 
-  revalidatePath(
-    "/list/report-cards/review",
-  );
+  revalidatePath("/list/report-cards/review");
 }
 
-function revalidateIndividualCards(
-  reportCardIds: number[],
-) {
-  for (
-    const reportCardId of
-    reportCardIds
-  ) {
-    revalidatePath(
-      `/list/report-cards/${reportCardId}`,
-    );
+function revalidateIndividualCards(reportCardIds: number[]) {
+  for (const reportCardId of reportCardIds) {
+    revalidatePath(`/list/report-cards/${reportCardId}`);
 
-    revalidatePath(
-      `/list/report-cards/${reportCardId}/review`,
-    );
+    revalidatePath(`/list/report-cards/${reportCardId}/review`);
 
-    revalidatePath(
-      `/list/report-cards/${reportCardId}/print`,
-    );
+    revalidatePath(`/list/report-cards/${reportCardId}/print`);
   }
 }
 
@@ -94,6 +67,10 @@ const bulkReadinessSelect = {
   status: true,
   reviewStatus: true,
   calculationStatus: true,
+
+  isStale: true,
+  staleAt: true,
+  staleReason: true,
 
   subjectCount: true,
   completedSubjectCount: true,
@@ -127,257 +104,157 @@ const bulkReadinessSelect = {
 
 export async function bulkApproveReportCards(
   rawInput: unknown,
-): Promise<
-  ReportCardActionResult<BulkReportCardActionSummary>
-> {
-  const parsed =
-    bulkApproveReportCardsSchema.safeParse(
-      rawInput,
-    );
+): Promise<ReportCardActionResult<BulkReportCardActionSummary>> {
+  const parsed = bulkApproveReportCardsSchema.safeParse(rawInput);
 
   if (!parsed.success) {
     return reportCardFailure(
       "The bulk approval request is invalid.",
-      parsed.error.flatten()
-        .fieldErrors,
+      parsed.error.flatten().fieldErrors,
     );
   }
 
   try {
-    const {
-      userId,
-    } =
-      await requireReportCardAdmin();
+    const { userId } = await requireReportCardAdmin();
 
-    const {
-      reportCardIds,
-      reviewNote,
-    } = parsed.data;
+    const { reportCardIds, reviewNote } = parsed.data;
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    const result =
-      await prisma.$transaction(
-        async (tx) => {
-          const reportCards =
-            await tx.reportCard.findMany({
-              where: {
-                id: {
-                  in:
-                    reportCardIds,
-                },
-              },
-
-              select:
-                bulkReadinessSelect,
-            });
-
-          const foundMap =
-            new Map(
-              reportCards.map(
-                (reportCard) => [
-                  reportCard.id,
-                  reportCard,
-                ],
-              ),
-            );
-
-          const completedIds:
-            number[] = [];
-
-          const skippedItems:
-            {
-              reportCardId: number;
-              reason: string;
-            }[] = [];
-
-          for (
-            const reportCardId of
-            reportCardIds
-          ) {
-            const reportCard =
-              foundMap.get(
-                reportCardId,
-              );
-
-            if (!reportCard) {
-              skippedItems.push({
-                reportCardId,
-
-                reason:
-                  "Report card not found.",
-              });
-
-              continue;
-            }
-
-            if (
-              reportCard.status !==
-              "DRAFT"
-            ) {
-              skippedItems.push({
-                reportCardId,
-
-                reason:
-                  "Only draft report cards can be approved.",
-              });
-
-              continue;
-            }
-
-            if (
-              reportCard.reviewStatus !==
-              "SUBMITTED"
-            ) {
-              skippedItems.push({
-                reportCardId,
-
-                reason:
-                  "The report card is not awaiting review.",
-              });
-
-              continue;
-            }
-
-            if (
-              reportCard.calculationStatus !==
-              "READY"
-            ) {
-              skippedItems.push({
-                reportCardId,
-
-                reason:
-                  "Academic calculations are incomplete.",
-              });
-
-              continue;
-            }
-
-            const readiness =
-              reviewReportCardReadiness(
-                reportCard,
-              );
-
-            if (
-              !readiness.readyForApproval
-            ) {
-              skippedItems.push({
-                reportCardId,
-
-                reason:
-                  readiness.errors[0]
-                    ?.description ??
-                  "The report card is not ready for approval.",
-              });
-
-              continue;
-            }
-
-            const updateResult =
-              await tx.reportCard.updateMany({
-                where: {
-                  id:
-                    reportCardId,
-
-                  status:
-                    "DRAFT",
-
-                  reviewStatus:
-                    "SUBMITTED",
-
-                  calculationStatus:
-                    "READY",
-
-                  isStale: false,
-                },
-
-                data: {
-                  reviewStatus:
-                    "APPROVED",
-
-                  approvedAt:
-                    now,
-
-                  approvedBy:
-                    userId,
-
-                  reviewNote:
-                    reviewNote?.trim() ||
-                    reportCard.reviewNote,
-
-                  changesRequestedAt:
-                    null,
-
-                  changesRequestedBy:
-                    null,
-
-                  version: {
-                    increment: 1,
-                  },
-                },
-              });
-
-            if (
-              updateResult.count === 1
-            ) {
-              completedIds.push(
-                reportCardId,
-              );
-            } else {
-              skippedItems.push({
-                reportCardId,
-
-                reason:
-                  "The report card was changed by another user.",
-              });
-            }
-          }
-
-          return {
-            requested:
-              reportCardIds.length,
-
-            completed:
-              completedIds.length,
-
-            skipped:
-              skippedItems.length,
-
-            reportCardIds:
-              completedIds,
-
-            skippedItems,
-          };
+    const result = await prisma.$transaction(async (tx) => {
+      const reportCards = await tx.reportCard.findMany({
+        where: {
+          id: {
+            in: reportCardIds,
+          },
         },
+
+        select: bulkReadinessSelect,
+      });
+
+      const foundMap = new Map(
+        reportCards.map((reportCard) => [reportCard.id, reportCard]),
       );
+
+      const completedIds: number[] = [];
+
+      const skippedItems: {
+        reportCardId: number;
+        reason: string;
+      }[] = [];
+
+      for (const reportCardId of reportCardIds) {
+        const reportCard = foundMap.get(reportCardId);
+
+        if (!reportCard) {
+          skippedItems.push({
+            reportCardId,
+
+            reason: "Report card not found.",
+          });
+
+          continue;
+        }
+
+        const workflow = canApproveReportCard(reportCard);
+
+        if (!workflow.allowed) {
+          skippedItems.push({
+            reportCardId,
+
+            reason: workflow.reason ?? "The report card cannot be approved.",
+          });
+
+          continue;
+        }
+
+        const readiness = reviewReportCardReadiness(reportCard);
+
+        if (!readiness.readyForApproval) {
+          skippedItems.push({
+            reportCardId,
+
+            reason:
+              readiness.errors[0]?.description ??
+              "The report card is not ready for approval.",
+          });
+
+          continue;
+        }
+
+        const updateResult = await tx.reportCard.updateMany({
+          where: {
+            id: reportCardId,
+
+            status: "DRAFT",
+
+            reviewStatus: "SUBMITTED",
+
+            calculationStatus: "READY",
+
+            isStale: false,
+          },
+
+          data: {
+            reviewStatus: "APPROVED",
+
+            approvedAt: now,
+
+            approvedBy: userId,
+
+            reviewNote: reviewNote?.trim() || reportCard.reviewNote,
+
+            changesRequestedAt: null,
+
+            changesRequestedBy: null,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updateResult.count === 1) {
+          completedIds.push(reportCardId);
+        } else {
+          skippedItems.push({
+            reportCardId,
+
+            reason: "The report card was changed by another user.",
+          });
+        }
+      }
+
+      return {
+        requested: reportCardIds.length,
+
+        completed: completedIds.length,
+
+        skipped: skippedItems.length,
+
+        reportCardIds: completedIds,
+
+        skippedItems,
+      };
+    });
 
     revalidateBulkReviewRoutes();
 
-    revalidateIndividualCards(
-      result.reportCardIds,
-    );
+    revalidateIndividualCards(result.reportCardIds);
 
     return reportCardSuccess(
       result.completed > 0
         ? `${result.completed} report card${
-            result.completed === 1
-              ? ""
-              : "s"
+            result.completed === 1 ? "" : "s"
           } approved successfully.`
         : "No report cards were approved.",
       result,
     );
   } catch (error) {
-    console.error(
-      "BULK APPROVE REPORT CARDS ERROR:",
-      error,
-    );
+    console.error("BULK APPROVE REPORT CARDS ERROR:", error);
 
     return reportCardFailure(
-      error instanceof Error &&
-        error.message ===
-          "ADMIN_REQUIRED"
+      error instanceof Error && error.message === "ADMIN_REQUIRED"
         ? "Only an administrator can approve report cards."
         : "The selected report cards could not be approved.",
     );
@@ -390,207 +267,141 @@ export async function bulkApproveReportCards(
 
 export async function bulkRequestReportCardChanges(
   rawInput: unknown,
-): Promise<
-  ReportCardActionResult<BulkReportCardActionSummary>
-> {
-  const parsed =
-    bulkRequestReportCardChangesSchema.safeParse(
-      rawInput,
-    );
+): Promise<ReportCardActionResult<BulkReportCardActionSummary>> {
+  const parsed = bulkRequestReportCardChangesSchema.safeParse(rawInput);
 
   if (!parsed.success) {
     return reportCardFailure(
       "The bulk correction request is invalid.",
-      parsed.error.flatten()
-        .fieldErrors,
+      parsed.error.flatten().fieldErrors,
     );
   }
 
   try {
-    const {
-      userId,
-    } =
-      await requireReportCardAdmin();
+    const { userId } = await requireReportCardAdmin();
 
-    const {
-      reportCardIds,
-      reviewNote,
-    } = parsed.data;
+    const { reportCardIds, reviewNote } = parsed.data;
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    const reportCards =
-      await prisma.reportCard.findMany({
+    const completedIds: number[] = [];
+
+    const skippedItems: {
+      reportCardId: number;
+      reason: string;
+    }[] = [];
+
+    await prisma.$transaction(async (tx) => {
+      const reportCards = await tx.reportCard.findMany({
         where: {
           id: {
-            in:
-              reportCardIds,
+            in: reportCardIds,
           },
         },
 
-        select: {
-          id: true,
-          status: true,
-          reviewStatus: true,
-        },
+        select: bulkReadinessSelect,
       });
 
-    const foundMap =
-      new Map(
-        reportCards.map(
-          (reportCard) => [
-            reportCard.id,
-            reportCard,
-          ],
-        ),
+      const foundMap = new Map(
+        reportCards.map((reportCard) => [reportCard.id, reportCard]),
       );
 
-    const completedIds:
-      number[] = [];
+      for (const reportCardId of reportCardIds) {
+        const reportCard = foundMap.get(reportCardId);
 
-    const skippedItems:
-      {
-        reportCardId: number;
-        reason: string;
-      }[] = [];
+        if (!reportCard) {
+          skippedItems.push({
+            reportCardId,
+            reason: "Report card not found.",
+          });
 
-    await prisma.$transaction(
-      async (tx) => {
-        for (
-          const reportCardId of
-          reportCardIds
-        ) {
-          const reportCard =
-            foundMap.get(
-              reportCardId,
-            );
-
-          if (!reportCard) {
-            skippedItems.push({
-              reportCardId,
-              reason:
-                "Report card not found.",
-            });
-
-            continue;
-          }
-
-          if (
-            reportCard.status !==
-              "DRAFT" ||
-            reportCard.reviewStatus !==
-              "SUBMITTED"
-          ) {
-            skippedItems.push({
-              reportCardId,
-
-              reason:
-                "The report card is not awaiting review.",
-            });
-
-            continue;
-          }
-
-          const updateResult =
-            await tx.reportCard.updateMany({
-              where: {
-                id:
-                  reportCardId,
-
-                status:
-                  "DRAFT",
-
-                reviewStatus:
-                  "SUBMITTED",
-              },
-
-              data: {
-                reviewStatus:
-                  "CHANGES_REQUESTED",
-
-                reviewNote:
-                  reviewNote.trim(),
-
-                changesRequestedAt:
-                  now,
-
-                changesRequestedBy:
-                  userId,
-
-                approvedAt:
-                  null,
-
-                approvedBy:
-                  null,
-
-                version: {
-                  increment: 1,
-                },
-              },
-            });
-
-          if (
-            updateResult.count === 1
-          ) {
-            completedIds.push(
-              reportCardId,
-            );
-          } else {
-            skippedItems.push({
-              reportCardId,
-
-              reason:
-                "The report card was changed by another user.",
-            });
-          }
+          continue;
         }
-      },
-    );
 
-    const summary:
-      BulkReportCardActionSummary = {
-      requested:
-        reportCardIds.length,
+        const workflow = canRequestReportCardChanges(reportCard);
 
-      completed:
-        completedIds.length,
+        if (!workflow.allowed) {
+          skippedItems.push({
+            reportCardId,
 
-      skipped:
-        skippedItems.length,
+            reason:
+              workflow.reason ??
+              "Changes cannot be requested for this report card.",
+          });
 
-      reportCardIds:
-        completedIds,
+          continue;
+        }
+        const updateResult = await tx.reportCard.updateMany({
+          where: {
+            id: reportCardId,
+
+            status: "DRAFT",
+
+            reviewStatus: "SUBMITTED",
+
+            isStale: false,
+          },
+
+          data: {
+            reviewStatus: "CHANGES_REQUESTED",
+
+            reviewNote: reviewNote.trim(),
+
+            changesRequestedAt: now,
+
+            changesRequestedBy: userId,
+
+            approvedAt: null,
+
+            approvedBy: null,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updateResult.count === 1) {
+          completedIds.push(reportCardId);
+        } else {
+          skippedItems.push({
+            reportCardId,
+
+            reason: "The report card was changed by another user.",
+          });
+        }
+      }
+    });
+
+    const summary: BulkReportCardActionSummary = {
+      requested: reportCardIds.length,
+
+      completed: completedIds.length,
+
+      skipped: skippedItems.length,
+
+      reportCardIds: completedIds,
 
       skippedItems,
     };
 
     revalidateBulkReviewRoutes();
 
-    revalidateIndividualCards(
-      completedIds,
-    );
+    revalidateIndividualCards(completedIds);
 
     return reportCardSuccess(
       completedIds.length > 0
         ? `${completedIds.length} report card${
-            completedIds.length === 1
-              ? ""
-              : "s"
+            completedIds.length === 1 ? "" : "s"
           } returned for corrections.`
         : "No report cards were returned for corrections.",
       summary,
     );
   } catch (error) {
-    console.error(
-      "BULK REQUEST REPORT CHANGES ERROR:",
-      error,
-    );
+    console.error("BULK REQUEST REPORT CHANGES ERROR:", error);
 
     return reportCardFailure(
-      error instanceof Error &&
-        error.message ===
-          "ADMIN_REQUIRED"
+      error instanceof Error && error.message === "ADMIN_REQUIRED"
         ? "Only an administrator can request report-card corrections."
         : "The correction request could not be completed.",
     );
@@ -603,236 +414,144 @@ export async function bulkRequestReportCardChanges(
 
 export async function bulkPublishReportCards(
   rawInput: unknown,
-): Promise<
-  ReportCardActionResult<BulkReportCardActionSummary>
-> {
-  const parsed =
-    bulkPublishReportCardsSchema.safeParse(
-      rawInput,
-    );
+): Promise<ReportCardActionResult<BulkReportCardActionSummary>> {
+  const parsed = bulkPublishReportCardsSchema.safeParse(rawInput);
 
   if (!parsed.success) {
     return reportCardFailure(
       "The bulk publication request is invalid.",
-      parsed.error.flatten()
-        .fieldErrors,
+      parsed.error.flatten().fieldErrors,
     );
   }
 
   try {
-    const {
-      userId,
-    } =
-      await requireReportCardAdmin();
+    const { userId } = await requireReportCardAdmin();
 
-    const {
-      reportCardIds,
-    } = parsed.data;
+    const { reportCardIds } = parsed.data;
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    const reportCards =
-      await prisma.reportCard.findMany({
+    const completedIds: number[] = [];
+
+    const skippedItems: {
+      reportCardId: number;
+      reason: string;
+    }[] = [];
+
+    await prisma.$transaction(async (tx) => {
+      const reportCards = await tx.reportCard.findMany({
         where: {
           id: {
-            in:
-              reportCardIds,
+            in: reportCardIds,
           },
         },
 
-        select: {
-          id: true,
-          status: true,
-          reviewStatus: true,
-          calculationStatus: true,
-        },
+        select: bulkReadinessSelect,
       });
 
-    const foundMap =
-      new Map(
-        reportCards.map(
-          (reportCard) => [
-            reportCard.id,
-            reportCard,
-          ],
-        ),
+      const foundMap = new Map(
+        reportCards.map((reportCard) => [reportCard.id, reportCard]),
       );
 
-    const completedIds:
-      number[] = [];
+      for (const reportCardId of reportCardIds) {
+        const reportCard = foundMap.get(reportCardId);
 
-    const skippedItems:
-      {
-        reportCardId: number;
-        reason: string;
-      }[] = [];
+        if (!reportCard) {
+          skippedItems.push({
+            reportCardId,
+            reason: "Report card not found.",
+          });
 
-    await prisma.$transaction(
-      async (tx) => {
-        for (
-          const reportCardId of
-          reportCardIds
-        ) {
-          const reportCard =
-            foundMap.get(
-              reportCardId,
-            );
-
-          if (!reportCard) {
-            skippedItems.push({
-              reportCardId,
-              reason:
-                "Report card not found.",
-            });
-
-            continue;
-          }
-
-          if (
-            reportCard.status !==
-            "DRAFT"
-          ) {
-            skippedItems.push({
-              reportCardId,
-
-              reason:
-                "Only draft report cards can be published.",
-            });
-
-            continue;
-          }
-
-          if (
-            reportCard.reviewStatus !==
-            "APPROVED"
-          ) {
-            skippedItems.push({
-              reportCardId,
-
-              reason:
-                "The report card has not been approved.",
-            });
-
-            continue;
-          }
-
-          if (
-            reportCard.calculationStatus !==
-            "READY"
-          ) {
-            skippedItems.push({
-              reportCardId,
-
-              reason:
-                "Academic calculations are incomplete.",
-            });
-
-            continue;
-          }
-
-          const updateResult =
-            await tx.reportCard.updateMany({
-              where: {
-                id:
-                  reportCardId,
-
-                status:
-                  "DRAFT",
-
-                reviewStatus:
-                  "APPROVED",
-
-                calculationStatus:
-                  "READY",
-                
-                isStale: false,
-              },
-
-              data: {
-                status:
-                  "PUBLISHED",
-
-                publishedAt:
-                  now,
-
-                publishedBy:
-                  userId,
-
-                lockedAt:
-                  now,
-
-                version: {
-                  increment: 1,
-                },
-              },
-            });
-
-          if (
-            updateResult.count === 1
-          ) {
-            completedIds.push(
-              reportCardId,
-            );
-          } else {
-            skippedItems.push({
-              reportCardId,
-
-              reason:
-                "The report card was changed by another user.",
-            });
-          }
+          continue;
         }
-      },
-    );
 
-    const summary:
-      BulkReportCardActionSummary = {
-      requested:
-        reportCardIds.length,
+        const workflow = canPublishReportCard(reportCard);
 
-      completed:
-        completedIds.length,
+        if (!workflow.allowed) {
+          skippedItems.push({
+            reportCardId,
 
-      skipped:
-        skippedItems.length,
+            reason: workflow.reason ?? "This report card cannot be published.",
+          });
 
-      reportCardIds:
-        completedIds,
+          continue;
+        }
+
+        const updateResult = await tx.reportCard.updateMany({
+          where: {
+            id: reportCardId,
+
+            status: "DRAFT",
+
+            reviewStatus: "APPROVED",
+
+            calculationStatus: "READY",
+
+            isStale: false,
+          },
+
+          data: {
+            status: "PUBLISHED",
+
+            publishedAt: now,
+
+            publishedBy: userId,
+
+            lockedAt: now,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updateResult.count === 1) {
+          completedIds.push(reportCardId);
+        } else {
+          skippedItems.push({
+            reportCardId,
+
+            reason: "The report card was changed by another user.",
+          });
+        }
+      }
+    });
+
+    const summary: BulkReportCardActionSummary = {
+      requested: reportCardIds.length,
+
+      completed: completedIds.length,
+
+      skipped: skippedItems.length,
+
+      reportCardIds: completedIds,
 
       skippedItems,
     };
 
     revalidateBulkReviewRoutes();
 
-    revalidateIndividualCards(
-      completedIds,
-    );
+    revalidateIndividualCards(completedIds);
 
-    revalidatePath(
-      "/student/report-cards",
-    );
+    revalidatePath("/student/report-cards");
+
+    revalidatePath("/parent/children");
+
+    revalidatePath("/parent/report-cards");
 
     return reportCardSuccess(
       completedIds.length > 0
         ? `${completedIds.length} report card${
-            completedIds.length === 1
-              ? ""
-              : "s"
+            completedIds.length === 1 ? "" : "s"
           } published successfully.`
         : "No report cards were published.",
       summary,
     );
   } catch (error) {
-    console.error(
-      "BULK PUBLISH REPORT CARDS ERROR:",
-      error,
-    );
+    console.error("BULK PUBLISH REPORT CARDS ERROR:", error);
 
     return reportCardFailure(
-      error instanceof Error &&
-        error.message ===
-          "ADMIN_REQUIRED"
+      error instanceof Error && error.message === "ADMIN_REQUIRED"
         ? "Only an administrator can publish report cards."
         : "The selected report cards could not be published.",
     );

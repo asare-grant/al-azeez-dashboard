@@ -1,3 +1,4 @@
+// src/lib/report-cards/queries.ts
 import "server-only";
 
 import prisma from "@/lib/prisma";
@@ -897,10 +898,27 @@ export async function getReportCardCommandCentre({
         id: true,
 
         status: true,
-        calculationStatus: true,
 
-        version: true,
-        academicYear: true,
+        reviewStatus:
+          true,
+
+        calculationStatus:
+          true,
+
+        isStale:
+          true,
+
+        staleAt:
+          true,
+
+        staleReason:
+          true,
+
+        version:
+          true,
+
+        academicYear:
+          true,
 
         student: {
           select: {
@@ -948,9 +966,8 @@ export async function getReportCardCommandCentre({
 
         generatedAt: true,
         regeneratedAt: true,
-        publishedAt: true,
 
-        reviewStatus: true,
+        publishedAt: true,
 
         submittedForReviewAt:
           true,
@@ -1125,13 +1142,24 @@ export async function getReportCardCommandCentre({
       where: {
         ...where,
 
-        status: "DRAFT",
+        status:
+          "DRAFT",
 
         reviewStatus:
           "APPROVED",
 
         calculationStatus:
           "READY",
+
+        isStale:
+          false,
+
+        subjectCount: {
+          gt: 0,
+        },
+
+        incompleteSubjectCount:
+          0,
       },
     });
 
@@ -1863,10 +1891,23 @@ export async function getTeacherClassReportCardCommandCentre({
         version: true,
         academicYear: true,
 
-        status: true,
-        calculationStatus: true,
+        status:
+          true,
 
-        reviewStatus: true,
+        reviewStatus:
+          true,
+
+        calculationStatus:
+          true,
+
+        isStale:
+          true,
+
+        staleAt:
+          true,
+
+        staleReason:
+          true,
 
         student: {
           select: {
@@ -2039,6 +2080,16 @@ export async function getTeacherClassReportCardCommandCentre({
 
         reviewStatus:
           "APPROVED",
+
+        isStale:
+          false,
+
+        subjectCount: {
+          gt: 0,
+        },
+
+        incompleteSubjectCount:
+          0,
       },
     }),
   ]);

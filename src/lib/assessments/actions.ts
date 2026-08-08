@@ -1,8 +1,6 @@
 "use server";
 
-import { 
-  revalidatePath 
-} from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import {
   Prisma,
@@ -30,32 +28,25 @@ import {
 
 import { createAssessmentAudit } from "@/lib/assessments/audit";
 
+import { syncAssessmentResult } from "@/lib/results/assessment-result-sync";
+
 import { withSerializableRetry } from "@/lib/assessments/transaction";
 
 import { inspectAssessmentIntegrity } from "./integrity";
 
 import { gradeAssessmentAttempt } from "./grade-attempt";
 
-import { 
-  assessmentFailure, 
-  assessmentSuccess 
-} from "./action-result";
+import { assessmentFailure, assessmentSuccess } from "./action-result";
 
 // import { requireAssessmentManager } from "./auth";
-import { 
-  requireAssessmentStudent, 
-  requireAssessmentManager 
-} from "./auth";
+import { requireAssessmentStudent, requireAssessmentManager } from "./auth";
 
 import {
   calculateAssessmentTotals,
   normalizeQuestionPositions,
 } from "./normalize";
 
-import { 
-  canManageAssessment, 
-  canUseLessonForAssessment 
-} from "./permissions";
+import { canManageAssessment, canUseLessonForAssessment } from "./permissions";
 
 import type {
   AssessmentActionResult,
@@ -1755,118 +1746,118 @@ export async function saveAssessmentAnswer(
   try {
     const parsed = saveAssessmentAnswerSchema.safeParse(input);
 
-  if (!parsed.success) {
+    if (!parsed.success) {
       return assessmentFailure(
         "The answer could not be saved.",
         parsed.error.flatten().fieldErrors,
       );
-  }
+    }
 
-  const {
-    attemptId,
-    questionId,
-    selectedOptionId,
-    flagged,
-    timeSpentSeconds,
-  } = parsed.data;
+    const {
+      attemptId,
+      questionId,
+      selectedOptionId,
+      flagged,
+      timeSpentSeconds,
+    } = parsed.data;
 
     const { userId } = await requireAssessmentStudent();
 
-          const now = new Date();
+    const now = new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-          const attempt = await tx.assessmentAttempt.findFirst({
-            where: {
-              id: attemptId,
-              studentId: userId,
+      const attempt = await tx.assessmentAttempt.findFirst({
+        where: {
+          id: attemptId,
+          studentId: userId,
           status: "IN_PROGRESS",
-            },
+        },
 
+        select: {
+          id: true,
+          assessmentId: true,
+          status: true,
+
+          expiresAt: true,
+
+          assessment: {
             select: {
-              id: true,
-              assessmentId: true,
-              status: true,
-
-              expiresAt: true,
-
-              assessment: {
-                select: {
-                  dueDate: true,
-                  allowBacktrack: true,
-                },
-              },
+              dueDate: true,
+              allowBacktrack: true,
             },
-          });
+          },
+        },
+      });
 
-          if (!attempt) {
-            throw new AssessmentError(
-              "ATTEMPT_NOT_FOUND",
-              "This assessment attempt could not be found.",
-            );
-          }
+      if (!attempt) {
+        throw new AssessmentError(
+          "ATTEMPT_NOT_FOUND",
+          "This assessment attempt could not be found.",
+        );
+      }
 
-          if (attempt.status !== "IN_PROGRESS") {
-            throw new AssessmentError(
-              "ATTEMPT_NOT_ACTIVE",
-              "This assessment attempt is no longer active.",
-            );
-          }
+      if (attempt.status !== "IN_PROGRESS") {
+        throw new AssessmentError(
+          "ATTEMPT_NOT_ACTIVE",
+          "This assessment attempt is no longer active.",
+        );
+      }
 
-          if (
-            hasAttemptExpired({
-              expiresAt: attempt.expiresAt,
-              now,
-            }) ||
-            attempt.assessment.dueDate <= now
-          ) {
+      if (
+        hasAttemptExpired({
+          expiresAt: attempt.expiresAt,
+          now,
+        }) ||
+        attempt.assessment.dueDate <= now
+      ) {
         throw new Error("ATTEMPT_EXPIRED");
-          }
+      }
 
-          const question = await tx.assessmentQuestion.findFirst({
-            where: {
-              id: questionId,
-              assessmentId: attempt.assessmentId,
-            },
+      const question = await tx.assessmentQuestion.findFirst({
+        where: {
+          id: questionId,
+          assessmentId: attempt.assessmentId,
+        },
 
-            select: {
-              id: true,
-            },
-          });
+        select: {
+          id: true,
+        },
+      });
 
-          if (!question) {
-            throw new AssessmentError(
-              "INVALID_QUESTION",
-              "The selected question is invalid.",
-            );
-          }
+      if (!question) {
+        throw new AssessmentError(
+          "INVALID_QUESTION",
+          "The selected question is invalid.",
+        );
+      }
 
-          if (selectedOptionId !== undefined && selectedOptionId !== null) {
-            const option = await tx.assessmentOption.findFirst({
-              where: {
-                id: selectedOptionId,
-                questionId,
-              },
+      if (selectedOptionId !== undefined && selectedOptionId !== null) {
+        const option = await tx.assessmentOption.findFirst({
+          where: {
+            id: selectedOptionId,
+            questionId,
+          },
 
-              select: {
-                id: true,
-              },
-            });
+          select: {
+            id: true,
+          },
+        });
 
-            if (!option) {
-              throw new AssessmentError(
-                "INVALID_OPTION",
-                "The selected answer option is invalid.",
-              );
-            }
-          }
+        if (!option) {
+          throw new AssessmentError(
+            "INVALID_OPTION",
+            "The selected answer option is invalid.",
+          );
+        }
+      }
 
       const answer = await tx.assessmentAnswer.upsert({
-            where: {
-              attemptId_questionId: {
-                attemptId,
-                questionId,
-              },
-            },
+        where: {
+          attemptId_questionId: {
+            attemptId,
+            questionId,
+          },
+        },
 
         create: {
           attemptId,
@@ -1879,45 +1870,45 @@ export async function saveAssessmentAnswer(
           answeredAt: selectedOptionId ? now : null,
 
           timeSpentSeconds: timeSpentSeconds ?? 0,
-                },
+        },
 
         update: {
-                  ...(selectedOptionId !== undefined
-                    ? {
+          ...(selectedOptionId !== undefined
+            ? {
                 selectedOptionId: selectedOptionId ?? null,
 
-                        answeredAt: selectedOptionId ? now : null,
-                      }
-                    : {}),
+                answeredAt: selectedOptionId ? now : null,
+              }
+            : {}),
 
-                  ...(flagged !== undefined
-                    ? {
-                        flagged,
-                      }
-                    : {}),
+          ...(flagged !== undefined
+            ? {
+                flagged,
+              }
+            : {}),
 
-                  ...(timeSpentSeconds !== undefined
-                    ? {
-                        timeSpentSeconds,
-                      }
-                    : {}),
-                },
+          ...(timeSpentSeconds !== undefined
+            ? {
+                timeSpentSeconds,
+              }
+            : {}),
+        },
 
-                select: {
-                  id: true,
-                  updatedAt: true,
-                },
-              });
+        select: {
+          id: true,
+          updatedAt: true,
+        },
+      });
 
-          await tx.assessmentAttempt.update({
-            where: {
-              id: attemptId,
-            },
+      await tx.assessmentAttempt.update({
+        where: {
+          id: attemptId,
+        },
 
-            data: {
-              lastActivityAt: now,
-            },
-          });
+        data: {
+          lastActivityAt: now,
+        },
+      });
 
       return answer;
     });
@@ -2393,42 +2384,24 @@ export async function submitAssessmentAttempt(
           },
         });
 
-        await tx.result.upsert({
-          where: {
-            assessmentAttemptId: attemptId,
-          },
+        await syncAssessmentResult({
+          tx,
 
-          create: {
-            score: grading.score,
-            totalMarks: grading.totalMarks,
+          assessmentId: attempt.assessment.id,
 
-            percentage: grading.percentage,
+          assessmentAttemptId: attemptId,
 
-            grade: grading.grade,
-            remarks: grading.remarks,
+          studentId: userId,
 
-            type: "ASSESSMENT",
+          score: grading.score,
 
-            assessmentId: attempt.assessment.id,
+          totalMarks: grading.totalMarks,
 
-            assessmentAttemptId: attemptId,
+          percentage: grading.percentage,
 
-            studentId: userId,
-          },
+          grade: grading.grade,
 
-          update: {
-            score: grading.score,
-            totalMarks: grading.totalMarks,
-
-            percentage: grading.percentage,
-
-            grade: grading.grade,
-            remarks: grading.remarks,
-
-            assessmentId: attempt.assessment.id,
-
-            studentId: userId,
-          },
+          remarks: grading.remarks,
         });
 
         return {
@@ -2479,6 +2452,10 @@ export async function submitAssessmentAttempt(
     revalidatePath(`/student/assessments/${assessmentId}/result`);
 
     revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards");
+
+    revalidatePath("/list/report-cards/generate");
 
     return assessmentSuccess(
       "Assessment submitted and marked successfully.",
@@ -2534,14 +2511,12 @@ export async function submitAssessmentAttempt(
   }
 }
 
-
-
 /* -------------------------------------------------------------------------- */
 /*                         SAVE TEACHER FEEDBACK                               */
 /* -------------------------------------------------------------------------- */
 
 export async function saveAssessmentTeacherFeedback(
-  input: AssessmentTeacherFeedbackInput
+  input: AssessmentTeacherFeedbackInput,
 ): Promise<
   AssessmentActionResult<{
     attemptId: number;
@@ -2550,16 +2525,12 @@ export async function saveAssessmentTeacherFeedback(
   }>
 > {
   try {
-    const parsed =
-      assessmentTeacherFeedbackSchema.safeParse(
-        input
-      );
+    const parsed = assessmentTeacherFeedbackSchema.safeParse(input);
 
     if (!parsed.success) {
       return assessmentFailure(
         "Teacher feedback is invalid.",
-        parsed.error.flatten()
-          .fieldErrors
+        parsed.error.flatten().fieldErrors,
       );
     }
 
@@ -2567,8 +2538,7 @@ export async function saveAssessmentTeacherFeedback(
 
     const normalizedFeedback = feedback.trim();
 
-    const { userId, role } =
-      await requireAssessmentManager();
+    const { userId, role } = await requireAssessmentManager();
 
     const result = await prisma.$transaction(
       async (tx) => {
@@ -2610,10 +2580,8 @@ export async function saveAssessmentTeacherFeedback(
         }
 
         if (
-      attempt.status !==
-        "SUBMITTED" &&
-      attempt.status !==
-        "AUTO_SUBMITTED"
+          attempt.status !== "SUBMITTED" &&
+          attempt.status !== "AUTO_SUBMITTED"
         ) {
           throw new AssessmentError(
             "ATTEMPT_NOT_COMPLETED",
@@ -2629,20 +2597,15 @@ export async function saveAssessmentTeacherFeedback(
           },
 
           data: {
-          teacherFeedback:
-            normalizedFeedback ||
-            null,
+            teacherFeedback: normalizedFeedback || null,
 
             reviewedAt,
 
             /*
-           * Administrators may not have a Teacher row
-           * matching their Clerk ID.
+             * Administrators may not have a Teacher row
+             * matching their Clerk ID.
              */
-          reviewedById:
-            role === "teacher"
-              ? userId
-              : null,
+            reviewedById: role === "teacher" ? userId : null,
           },
 
           select: {

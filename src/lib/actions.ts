@@ -31,6 +31,10 @@ import { syncAssignmentResult } from "@/lib/results";
 import { Prisma } from "@prisma/client";
 import { invalidateStudentReportCardWithTransaction } from "@/lib/report-cards/invalidation-service";
 
+import { syncExamResult } from "@/lib/results/exam-result-sync";
+
+import { deleteAcademicResultWithTransaction } from "@/lib/results/delete-result-service";
+
 type CurrentState = { success: boolean; error: boolean };
 
 export const createSubject = async (
@@ -1011,7 +1015,6 @@ export const updateAssignment = async (data: AssignmentSchema) => {
       }
     }
 
-
     const academicYear = data.academicYear?.trim();
 
     const termId = Number(data.termId);
@@ -1115,6 +1118,10 @@ export const deleteAssignment = async (
 };
 
 /* ----------DELETE RESULT    ------------------------------------------------------ */
+/* -------------------------------------------------------------------------- */
+/*                              DELETE RESULT                                 */
+/* -------------------------------------------------------------------------- */
+
 export const deleteResult = async (
   _currentState: unknown,
 
@@ -1126,81 +1133,19 @@ export const deleteResult = async (
     return {
       success: false,
       error: true,
+
       message: "Select a valid result.",
     };
   }
 
   try {
     const deletion = await prisma.$transaction(
-      async (tx) => {
-        const result = await tx.result.findUnique({
-          where: {
-            id,
-          },
+      async (tx) =>
+        deleteAcademicResultWithTransaction({
+          tx,
 
-          select: {
-            id: true,
-            type: true,
-            studentId: true,
-
-            assignment: {
-              select: {
-                id: true,
-                title: true,
-
-                academicYear: true,
-                termId: true,
-
-                lesson: {
-                  select: {
-                    classId: true,
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        if (!result) {
-          throw new Error("The result could not be found.");
-        }
-
-        await tx.result.delete({
-          where: {
-            id: result.id,
-          },
-        });
-
-        if (result.type === "ASSIGNMENT" && result.assignment) {
-          const academicYear = result.assignment.academicYear?.trim();
-
-          const termId = result.assignment.termId;
-
-          if (academicYear && termId) {
-            const invalidation =
-              await invalidateStudentReportCardWithTransaction({
-                tx,
-
-                studentId: result.studentId,
-
-                classId: result.assignment.lesson.classId,
-
-                academicYear,
-                termId,
-
-                reason: `The assignment result for "${result.assignment.title}" was deleted.`,
-              });
-
-            return {
-              invalidatedReportCardCount: invalidation.invalidatedCount,
-            };
-          }
-        }
-
-        return {
-          invalidatedReportCardCount: 0,
-        };
-      },
+          resultId: id,
+        }),
 
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -1211,20 +1156,39 @@ export const deleteResult = async (
       },
     );
 
+    const resultLabel =
+      deletion.resultType === "EXAM"
+        ? "Examination"
+        : deletion.resultType === 
+            "ASSIGNMENT"
+          ? "Assignment"
+          : "Assessment";
+    /* ------------------------------------------------------------------ */
+    /*                          REVALIDATION                              */
+    /* ------------------------------------------------------------------ */
+
     revalidatePath("/list/results");
+
+    revalidatePath("/list/results/legacy");
 
     revalidatePath("/list/report-cards");
 
     revalidatePath("/list/report-cards/generate");
 
+    /* ------------------------------------------------------------------ */
+    /*                             RESULT                                */
+    /* ------------------------------------------------------------------ */
+
     return {
       success: true,
       error: false,
 
+      data: deletion,
+
       message:
         deletion.invalidatedReportCardCount > 0
-          ? "Result deleted. The affected report card must be regenerated."
-          : "Result deleted successfully.",
+          ? `${resultLabel} result deleted. The affected draft report card now requires regeneration.`
+          : `${resultLabel} result deleted successfully.`,
     };
   } catch (error) {
     console.error("DELETE RESULT ERROR:", error);
@@ -1243,138 +1207,98 @@ export const deleteResult = async (
 
 /* ------------------------- CREATE RESULT ------------------------- */
 
+/* ------------------------- CREATE RESULT ------------------------- */
+
 export const createResult = async (
   _currentState: unknown,
 
   data: ResultSchema,
 ) => {
   try {
-    if (data.type === "ASSIGNMENT") {
-      if (!data.assignmentId) {
-        return {
-          success: false,
-          error: true,
-          message: "Select an assignment.",
-        };
-      }
+    const synced = await prisma.$transaction(
+      async (tx) => {
+        /* ------------------------------------------------------------ */
+        /*                    EXAMINATION RESULT                        */
+        /* ------------------------------------------------------------ */
 
-      const synced = await prisma.$transaction(
-        async (tx) =>
-          syncAssignmentResult({
+        if (data.type === "EXAM") {
+          if (!data.examId) {
+            throw new Error("Select an examination.");
+          }
+
+          return syncExamResult({
             tx,
 
             studentId: data.studentId,
 
-            assignmentId: data.assignmentId!,
+            examId: Number(data.examId),
 
-            score: data.score,
+            score: Number(data.score),
 
-            totalMarks: data.totalMarks,
-          }),
+            totalMarks: Number(data.totalMarks),
+          });
+        }
 
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        /* ------------------------------------------------------------ */
+        /*                      ASSIGNMENT RESULT                       */
+        /* ------------------------------------------------------------ */
 
-          maxWait: 10_000,
+        if (data.type === "ASSIGNMENT") {
+          if (!data.assignmentId) {
+            throw new Error("Select an assignment.");
+          }
 
-          timeout: 30_000,
-        },
-      );
+          return syncAssignmentResult({
+            tx,
 
-      revalidatePath("/list/results");
+            studentId: data.studentId,
 
-      revalidatePath("/list/results/legacy");
+            assignmentId: Number(data.assignmentId),
 
-      revalidatePath("/list/report-cards");
+            score: Number(data.score),
 
-      revalidatePath("/list/report-cards/generate");
+            totalMarks: Number(data.totalMarks),
+          });
+        }
 
-      return {
-        success: true,
-        error: false,
+        throw new Error("The selected result type is not supported.");
+      },
 
-        data: synced,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-        message:
-          synced.invalidatedReportCardCount > 0
-            ? "Assignment result saved. The affected draft report card now requires regeneration."
-            : "Assignment result saved successfully.",
-      };
-    }
+        maxWait: 10_000,
 
-    /*
-     * Keep your existing examination branch temporarily.
-     * We will connect it in the next implementation step.
-     */
-    if (data.type === "EXAM") {
-      if (!data.examId) {
-        return {
-          success: false,
-          error: true,
-          message: "Select an examination.",
-        };
-      }
+        timeout: 30_000,
+      },
+    );
 
-      const percentage =
-        Math.round((data.score / data.totalMarks) * 10_000) / 100;
+    /* ------------------------------------------------------------------ */
+    /*                          REVALIDATION                              */
+    /* ------------------------------------------------------------------ */
 
-      const existingExamResult = await prisma.result.findFirst({
-        where: {
-          studentId: data.studentId,
+    revalidatePath("/list/results");
 
-          examId: data.examId,
+    revalidatePath("/list/results/legacy");
 
-          type: "EXAM",
-        },
+    revalidatePath("/list/report-cards");
 
-        select: {
-          id: true,
-        },
-      });
+    revalidatePath("/list/report-cards/generate");
 
-      if (existingExamResult) {
-        return {
-          success: false,
-          error: true,
-
-          message:
-            "This student already has a result for the selected examination. Edit the existing result instead.",
-        };
-      }
-
-      await prisma.result.create({
-        data: {
-          studentId: data.studentId,
-
-          type: "EXAM",
-
-          examId: data.examId,
-
-          assignmentId: null,
-
-          score: data.score,
-
-          totalMarks: data.totalMarks,
-
-          percentage,
-        },
-      });
-
-      revalidatePath("/list/results");
-
-      revalidatePath("/list/report-cards/generate");
-
-      return {
-        success: true,
-        error: false,
-        message: "Examination result saved successfully.",
-      };
-    }
+    /* ------------------------------------------------------------------ */
+    /*                             RESULT                                */
+    /* ------------------------------------------------------------------ */
 
     return {
-      success: false,
-      error: true,
-      message: "The selected result type is not supported.",
+      success: true,
+      error: false,
+
+      data: synced,
+
+      message:
+        synced.invalidatedReportCardCount > 0
+          ? "Result saved successfully. The affected draft report card now requires regeneration."
+          : "Result saved successfully.",
     };
   } catch (error) {
     console.error("CREATE RESULT ERROR:", error);
@@ -1395,12 +1319,18 @@ export const createResult = async (
 /*                              UPDATE RESULT                                 */
 /* -------------------------------------------------------------------------- */
 
+/* ------------------------- UPDATE RESULT ------------------------- */
+
 export const updateResult = async (
   _currentState: unknown,
 
   data: ResultSchema,
 ) => {
   try {
+    /* ------------------------------------------------------------------ */
+    /*                         VALIDATE RESULT ID                         */
+    /* ------------------------------------------------------------------ */
+
     if (!data.id) {
       return {
         success: false,
@@ -1410,169 +1340,86 @@ export const updateResult = async (
       };
     }
 
-    /* -------------------------------------------------------------------- */
-    /*                       ASSIGNMENT RESULT                               */
-    /* -------------------------------------------------------------------- */
+    const resultId = Number(data.id);
 
-    if (data.type === "ASSIGNMENT") {
-      if (!data.assignmentId) {
-        return {
-          success: false,
-          error: true,
+    if (!Number.isInteger(resultId) || resultId <= 0) {
+      return {
+        success: false,
+        error: true,
 
-          message: "Select an assignment.",
-        };
-      }
+        message: "The result ID is invalid.",
+      };
+    }
 
-      const synced = await prisma.$transaction(
-        async (tx) =>
-          syncAssignmentResult({
+    /* ------------------------------------------------------------------ */
+    /*                     SYNCHRONISE RESULT UPDATE                      */
+    /* ------------------------------------------------------------------ */
+
+    const synced = await prisma.$transaction(
+      async (tx) => {
+        /* ------------------------------------------------------------ */
+        /*                    EXAMINATION RESULT                        */
+        /* ------------------------------------------------------------ */
+
+        if (data.type === "EXAM") {
+          if (!data.examId) {
+            throw new Error("Select an examination.");
+          }
+
+          return syncExamResult({
             tx,
 
-            /*
-             * Updates the exact Result row instead of
-             * searching for an arbitrary matching row.
-             */
-            resultId: data.id,
+            resultId,
 
             studentId: data.studentId,
 
-            assignmentId: data.assignmentId!,
+            examId: Number(data.examId),
 
-            score: data.score,
+            score: Number(data.score),
 
-            totalMarks: data.totalMarks,
-          }),
+            totalMarks: Number(data.totalMarks),
+          });
+        }
 
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        /* ------------------------------------------------------------ */
+        /*                      ASSIGNMENT RESULT                       */
+        /* ------------------------------------------------------------ */
 
-          maxWait: 10_000,
+        if (data.type === "ASSIGNMENT") {
+          if (!data.assignmentId) {
+            throw new Error("Select an assignment.");
+          }
 
-          timeout: 30_000,
-        },
-      );
+          return syncAssignmentResult({
+            tx,
 
-      revalidatePath("/list/results");
+            resultId,
 
-      revalidatePath("/list/results/legacy");
+            studentId: data.studentId,
 
-      revalidatePath("/list/report-cards");
+            assignmentId: Number(data.assignmentId),
 
-      revalidatePath("/list/report-cards/generate");
+            score: Number(data.score),
 
-      return {
-        success: true,
-        error: false,
+            totalMarks: Number(data.totalMarks),
+          });
+        }
 
-        data: synced,
-
-        message: synced.resultChanged
-          ? "Assignment result updated. The affected draft report card requires regeneration."
-          : "No score changes were detected.",
-      };
-    }
-
-    /* -------------------------------------------------------------------- */
-    /*                       EXAMINATION RESULT                              */
-    /* -------------------------------------------------------------------- */
-
-    /*
-     * The assignment branch returned above, so TypeScript
-     * now correctly knows that data.type is EXAM.
-     */
-    if (data.type !== "EXAM") {
-      return {
-        success: false,
-        error: true,
-
-        message: "The selected result type is not supported.",
-      };
-    }
-
-    if (!data.examId) {
-      return {
-        success: false,
-        error: true,
-
-        message: "Select an examination.",
-      };
-    }
-
-    const existing = await prisma.result.findUnique({
-      where: {
-        id: data.id,
+        throw new Error("The selected result type is not supported.");
       },
 
-      select: {
-        id: true,
-        type: true,
-        studentId: true,
-        examId: true,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
       },
-    });
+    );
 
-    if (!existing) {
-      return {
-        success: false,
-        error: true,
-
-        message: "The result could not be found.",
-      };
-    }
-
-    if (existing.type !== "EXAM") {
-      return {
-        success: false,
-        error: true,
-
-        message: "The selected result is not an examination result.",
-      };
-    }
-
-    /*
-     * Do not silently move an existing examination result
-     * to another student or examination.
-     */
-    if (
-      existing.studentId !== data.studentId ||
-      existing.examId !== data.examId
-    ) {
-      return {
-        success: false,
-        error: true,
-
-        message:
-          "The examination result does not match the selected student and examination.",
-      };
-    }
-
-    const percentage =
-      Math.round((data.score / data.totalMarks) * 10_000) / 100;
-
-    await prisma.result.update({
-      where: {
-        id: data.id,
-      },
-
-      data: {
-        /*
-         * The identity fields are preserved.
-         * Only academic score values are edited.
-         */
-        type: "EXAM",
-
-        score: data.score,
-
-        totalMarks: data.totalMarks,
-
-        percentage,
-
-        examId: data.examId,
-
-        assignmentId: null,
-      },
-    });
+    /* ------------------------------------------------------------------ */
+    /*                          REVALIDATION                              */
+    /* ------------------------------------------------------------------ */
 
     revalidatePath("/list/results");
 
@@ -1582,11 +1429,21 @@ export const updateResult = async (
 
     revalidatePath("/list/report-cards/generate");
 
+    /* ------------------------------------------------------------------ */
+    /*                             RESULT                                */
+    /* ------------------------------------------------------------------ */
+
     return {
       success: true,
       error: false,
 
-      message: "Examination result updated successfully.",
+      data: synced,
+
+      message: synced.resultChanged
+        ? synced.invalidatedReportCardCount > 0
+          ? "Result updated successfully. The affected draft report card now requires regeneration."
+          : "Result updated successfully."
+        : "No score changes were detected.",
     };
   } catch (error) {
     console.error("UPDATE RESULT ERROR:", error);
