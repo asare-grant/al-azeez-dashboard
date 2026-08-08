@@ -639,7 +639,7 @@ export default function AppSidebarClient({
 
                 {role === "admin" && (
                   <DropdownMenuItem asChild>
-                    <Link href="/list/settings/term">
+                    <Link href="/list/settings">
                       <Settings /> Settings
                     </Link>
                   </DropdownMenuItem>

@@ -35,6 +35,8 @@ import type {
 import type { ReportCardActionResult } from "./types";
 import { reportCardFailure, reportCardSuccess } from "./action-result";
 
+import { createReportCardActivity } from "./activity-service";
+
 /* -------------------------------------------------------------------------- */
 /*                            SHARED CONSTANTS                                */
 /* -------------------------------------------------------------------------- */
@@ -334,6 +336,25 @@ export async function saveReportCardDetails(
         },
       });
 
+      await createReportCardActivity({
+        tx,
+
+        reportCardId: reportCard.id,
+
+        type: "DETAILS_UPDATED",
+
+        actorId: userId,
+
+        actorRole: role,
+
+        actorName: null,
+
+        title: "Report details updated",
+
+        description:
+          "Attendance, remarks or student development details were updated.",
+      });
+
       return updated;
     });
 
@@ -478,6 +499,26 @@ export async function submitReportCardForReview(
         throw new Error("CONCURRENT_REVIEW_UPDATE");
       }
 
+      await createReportCardActivity({
+        tx,
+
+        reportCardId: reportCard.id,
+
+        type: "SUBMITTED_FOR_REVIEW",
+
+        actorId: userId,
+
+        actorRole: role,
+
+        actorName: null,
+
+        title: "Submitted for review",
+
+        description: "The report card was submitted for administrative review.",
+
+        note: note?.trim() || null,
+      });
+
       return {
         reportCardId: reportCard.id,
 
@@ -589,6 +630,26 @@ export async function requestReportCardChanges(
       if (updated.count !== 1) {
         throw new Error("CONCURRENT_REVIEW_UPDATE");
       }
+
+      await createReportCardActivity({
+        tx,
+
+        reportCardId: reportCard.id,
+
+        type: "CHANGES_REQUESTED",
+
+        actorId: userId,
+
+        actorRole: "admin",
+
+        actorName: null,
+
+        title: "Changes requested",
+
+        description: "The report card was returned for correction.",
+
+        note: reviewNote.trim(),
+      });
 
       return {
         ...reportCard,
@@ -714,6 +775,26 @@ export async function approveReportCard(
         throw new Error("CONCURRENT_REVIEW_UPDATE");
       }
 
+      await createReportCardActivity({
+        tx,
+
+        reportCardId: reportCard.id,
+
+        type: "APPROVED",
+
+        actorId: userId,
+
+        actorRole: "admin",
+
+        actorName: null,
+
+        title: "Report approved",
+
+        description: "The report card passed administrative review.",
+
+        note: reviewNote?.trim() || null,
+      });
+
       return {
         reportCardId: reportCard.id,
 
@@ -828,6 +909,27 @@ export async function reopenReportCardReview(
       if (updated.count !== 1) {
         throw new Error("CONCURRENT_REVIEW_UPDATE");
       }
+
+      await createReportCardActivity({
+        tx,
+
+        reportCardId: reportCard.id,
+
+        type: "REOPENED",
+
+        actorId: userId,
+
+        actorRole: "admin",
+
+        actorName: null,
+
+        title: "Review reopened",
+
+        description:
+          "The approved report card was reopened for further editing.",
+
+        note: reviewNote.trim(),
+      });
 
       return {
         ...reportCard,

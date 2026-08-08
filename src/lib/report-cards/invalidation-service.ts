@@ -4,6 +4,10 @@ import type {
   Prisma,
 } from "@prisma/client";
 
+import {
+  createReportCardActivity,
+} from "./activity-service";
+
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
@@ -154,84 +158,163 @@ export async function invalidateStudentReportCardWithTransaction({
   const now =
     new Date();
 
+  const normalisedReason =
+  normaliseReason(
+    reason,
+  );
+
+const updateResult =
   await tx.reportCard.updateMany({
     where: {
       id: {
         in:
           reportCardIds,
-      },
-
-      /*
-       * Double protection against another request
-       * publishing the card between the find and update.
-       */
-      status:
-        "DRAFT",
-    },
-
-    data: {
-      /* -------------------------------------------------------------- */
-      /*                    ACADEMIC SNAPSHOT STATE                     */
-      /* -------------------------------------------------------------- */
-
-      isStale:
-        true,
-
-      staleAt:
-        now,
-
-      staleReason:
-        normaliseReason(
-          reason,
-        ),
-
-      version: {
-        increment:
-          1,
         },
 
-      /* -------------------------------------------------------------- */
-      /*                    REVIEW WORKFLOW RESET                       */
-      /* -------------------------------------------------------------- */
+        /*
+        * Protect against another workflow
+        * changing the report between lookup
+        * and invalidation.
+        */
+        status:
+          "DRAFT",
+      },
 
-      /*
-       * A report that was approved before its academic
-       * source results changed is no longer approved.
-       */
-      reviewStatus:
-        "DRAFT",
+      data: {
+        /* -------------------------------------------------------------- */
+        /*                    ACADEMIC SNAPSHOT STATE                     */
+        /* -------------------------------------------------------------- */
 
-      submittedForReviewAt:
+        isStale:
+          true,
+
+        staleAt:
+          now,
+
+        staleReason:
+          normalisedReason,
+
+        version: {
+          increment:
+            1,
+        },
+
+        /* -------------------------------------------------------------- */
+        /*                    REVIEW WORKFLOW RESET                       */
+        /* -------------------------------------------------------------- */
+
+        reviewStatus:
+          "DRAFT",
+
+        submittedForReviewAt:
+          null,
+
+        submittedForReviewBy:
+          null,
+
+        approvedAt:
+          null,
+
+        approvedBy:
+          null,
+
+        changesRequestedAt:
+          null,
+
+        changesRequestedBy:
+          null,
+
+        reviewNote:
+          null,
+      },
+    });
+
+  /*
+  * Resolve the exact records that received
+  * this invalidation before writing audit
+  * activity.
+  */
+  const invalidatedCards =
+    updateResult.count > 0
+      ? await tx.reportCard.findMany({
+          where: {
+            id: {
+              in:
+                reportCardIds,
+            },
+
+            status:
+              "DRAFT",
+
+            isStale:
+              true,
+
+            staleAt:
+              now,
+          },
+
+          select: {
+            id: true,
+          },
+        })
+      : [];
+
+  const invalidatedReportCardIds =
+    invalidatedCards.map(
+      (reportCard) =>
+        reportCard.id,
+    );
+
+  /* ------------------------------------------------------------------ */
+  /*                   RECORD STALE ACTIVITIES                          */
+  /* ------------------------------------------------------------------ */
+
+  for (
+    const reportCardId of
+    invalidatedReportCardIds
+  ) {
+    await createReportCardActivity({
+      tx,
+
+      reportCardId,
+
+      type:
+        "MARKED_STALE",
+
+      actorId:
         null,
 
-      submittedForReviewBy:
-        null,
+      actorRole:
+        "system",
 
-      approvedAt:
-        null,
+      actorName: null,
 
-      approvedBy:
-        null,
+      title:
+        "Academic snapshot outdated",
 
-      changesRequestedAt:
-        null,
+      description:
+        normalisedReason,
 
-      changesRequestedBy:
-        null,
+      metadata: {
+        studentId:
+          normalisedStudentId,
 
-      /*
-       * The previous review note belonged to the old
-       * academic snapshot.
-       */
-      reviewNote:
-        null,
-    },
-  });
+        classId,
+
+        academicYear:
+          normalisedAcademicYear,
+
+        termId,
+      },
+    });
+  }
 
   return {
     invalidatedCount:
-      reportCardIds.length,
+      invalidatedReportCardIds.length,
 
-    reportCardIds,
+    reportCardIds:
+      invalidatedReportCardIds,
   };
+    
 }

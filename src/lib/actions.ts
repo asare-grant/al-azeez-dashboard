@@ -2034,43 +2034,671 @@ export const updateAttendance = async (
   }
 };
 
-export const saveTermSettings = async (data: {
-  id?: number;
-  name: "FIRST" | "SECOND" | "THIRD";
-  startDate: string;
-  endDate: string;
-}) => {
-  try {
-    if (data.id) {
-      // UPDATE existing term
-      await prisma.schoolTerm.update({
-        where: { id: data.id },
-        data: {
-          name: data.name,
-          startDate: new Date(data.startDate),
-          endDate: new Date(data.endDate),
-        },
-      });
-    } else {
-      // CREATE new term (deactivate old ones)
-      await prisma.schoolTerm.updateMany({
-        where: { isActive: true },
-        data: { isActive: false },
-      });
+export const saveTermSettings =
+  async (data: {
+    id?: number;
 
-      await prisma.schoolTerm.create({
-        data: {
-          name: data.name,
-          startDate: new Date(data.startDate),
-          endDate: new Date(data.endDate),
-          isActive: true,
-        },
-      });
+    academicYearId:
+      number;
+
+    name:
+      | "FIRST"
+      | "SECOND"
+      | "THIRD";
+
+    startDate:
+      string;
+
+    endDate:
+      string;
+
+    isActive:
+      boolean;
+  }) => {
+    try {
+      if (
+        !Number.isInteger(
+          data.academicYearId,
+        ) ||
+        data.academicYearId <= 0
+      ) {
+        return {
+          success: false,
+          error: true,
+
+          message:
+            "Select a valid academic year.",
+        };
+      }
+
+      const startDate =
+        new Date(
+          data.startDate,
+        );
+
+      const endDate =
+        new Date(
+          data.endDate,
+        );
+
+      if (
+        Number.isNaN(
+          startDate.getTime(),
+        ) ||
+        Number.isNaN(
+          endDate.getTime(),
+        )
+      ) {
+        return {
+          success: false,
+          error: true,
+
+          message:
+            "Enter valid term dates.",
+        };
+      }
+
+      if (
+        endDate <= startDate
+      ) {
+        return {
+          success: false,
+          error: true,
+
+          message:
+            "The term end date must be after the start date.",
+        };
+      }
+
+      const result =
+        await prisma.$transaction(
+          async (tx) => {
+            const academicYear =
+              await tx.schoolAcademicYear.findUnique({
+                where: {
+                  id:
+                    data.academicYearId,
+                },
+
+                select: {
+                  id: true,
+                  name: true,
+                  startDate: true,
+                  endDate: true,
+                },
+              });
+
+            if (
+              !academicYear
+            ) {
+              throw new Error(
+                "The selected academic year could not be found.",
+              );
+            }
+
+            /*
+             * A term should normally fall inside
+             * its parent academic-year boundaries.
+             */
+            if (
+              startDate <
+                academicYear.startDate ||
+              endDate >
+                academicYear.endDate
+            ) {
+              throw new Error(
+                `The term dates must fall within the ${academicYear.name} academic year.`,
+              );
+            }
+
+            /*
+             * Prevent duplicate First/Second/Third
+             * Term records inside the same year.
+             */
+            const duplicate =
+              await tx.schoolTerm.findFirst({
+                where: {
+                  academicYearId:
+                    data.academicYearId,
+
+                  name:
+                    data.name,
+
+                  ...(data.id
+                    ? {
+                        NOT: {
+                          id:
+                            data.id,
+                        },
+                      }
+                    : {}),
+                },
+
+                select: {
+                  id:
+                    true,
+                },
+              });
+
+            if (
+              duplicate
+            ) {
+              throw new Error(
+                `${data.name
+                  .toLowerCase()
+                  .replace(
+                    /\b\w/g,
+                    (character) =>
+                      character.toUpperCase(),
+                  )} Term already exists for ${academicYear.name}.`,
+              );
+            }
+
+            /*
+             * The school has one current active term
+             * across the management system.
+             */
+            if (
+              data.isActive
+            ) {
+              await tx.schoolTerm.updateMany({
+                where: {
+                  isActive:
+                    true,
+
+                  ...(data.id
+                    ? {
+                        NOT: {
+                          id:
+                            data.id,
+                        },
+                      }
+                    : {}),
+                },
+
+                data: {
+                  isActive:
+                    false,
+                },
+              });
+            }
+
+            if (
+              data.id
+            ) {
+              const existing =
+                await tx.schoolTerm.findUnique({
+                  where: {
+                    id:
+                      data.id,
+                  },
+
+                  select: {
+                    id:
+                      true,
+                  },
+                });
+
+              if (
+                !existing
+              ) {
+                throw new Error(
+                  "The selected school term could not be found.",
+                );
+              }
+
+              return tx.schoolTerm.update({
+                where: {
+                  id:
+                    data.id,
+                },
+
+                data: {
+                  academicYearId:
+                    data.academicYearId,
+
+                  name:
+                    data.name,
+
+                  startDate,
+
+                  endDate,
+
+                  isActive:
+                    data.isActive,
+                },
+              });
+            }
+
+            return tx.schoolTerm.create({
+              data: {
+                academicYearId:
+                  data.academicYearId,
+
+                name:
+                  data.name,
+
+                startDate,
+
+                endDate,
+
+                isActive:
+                  data.isActive,
+              },
+            });
+          },
+        );
+
+      revalidatePath(
+        "/list/settings/term",
+      );
+
+      revalidatePath(
+        "/list/settings",
+      );
+
+      revalidatePath(
+        "/list/report-cards",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success: true,
+        error: false,
+
+        data:
+          result,
+
+        message:
+          data.id
+            ? "Term updated successfully."
+            : "Term created successfully.",
+      };
+    } catch (error) {
+      console.error(
+        "TERM SAVE ERROR:",
+        error,
+      );
+
+      return {
+        success: false,
+        error: true,
+
+        message:
+          error instanceof Error
+            ? error.message
+            : "The term could not be saved.",
+      };
     }
+  };
 
-    return { success: true };
-  } catch (error) {
-    console.error("TERM SAVE ERROR:", error);
-    return { success: false };
-  }
-};
+// export const saveTermSettings = async (data: {
+//   id?: number;
+//   name: "FIRST" | "SECOND" | "THIRD";
+//   startDate: string;
+//   endDate: string;
+// }) => {
+//   try {
+//     if (data.id) {
+//       // UPDATE existing term
+//       await prisma.schoolTerm.update({
+//         where: { id: data.id },
+//         data: {
+//           name: data.name,
+//           startDate: new Date(data.startDate),
+//           endDate: new Date(data.endDate),
+//         },
+//       });
+//     } else {
+//       // CREATE new term (deactivate old ones)
+//       await prisma.schoolTerm.updateMany({
+//         where: { isActive: true },
+//         data: { isActive: false },
+//       });
+
+//       await prisma.schoolTerm.create({
+//         data: {
+//           name: data.name,
+//           startDate: new Date(data.startDate),
+//           endDate: new Date(data.endDate),
+//           isActive: true,
+//         },
+//       });
+//     }
+
+//     return { success: true };
+//   } catch (error) {
+//     console.error("TERM SAVE ERROR:", error);
+//     return { success: false };
+//   }
+// };
+
+
+/* -------------------------------------------------------------------------- */
+/*                        CREATE ACADEMIC YEAR                                */
+/* -------------------------------------------------------------------------- */
+
+export const createSchoolAcademicYear =
+  async (data: {
+    name: string;
+
+    startDate:
+      Date;
+
+    endDate:
+      Date;
+
+    isActive:
+      boolean;
+  }) => {
+    try {
+      const name =
+        data.name.trim();
+
+      if (!name) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+
+          message:
+            "Enter an academic year.",
+        };
+      }
+
+      if (
+        data.endDate <=
+        data.startDate
+      ) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+
+          message:
+            "The academic year end date must be after the start date.",
+        };
+      }
+
+      const result =
+        await prisma.$transaction(
+          async (tx) => {
+            /*
+             * Only one academic year should
+             * be active at a time.
+             */
+            if (
+              data.isActive
+            ) {
+              await tx.schoolAcademicYear.updateMany({
+                where: {
+                  isActive:
+                    true,
+                },
+
+                data: {
+                  isActive:
+                    false,
+                },
+              });
+            }
+
+            return tx.schoolAcademicYear.create({
+              data: {
+                name,
+
+                startDate:
+                  data.startDate,
+
+                endDate:
+                  data.endDate,
+
+                isActive:
+                  data.isActive,
+              },
+            });
+          },
+        );
+
+      revalidatePath(
+        "/list/settings/term",
+      );
+
+      revalidatePath(
+        "/list/settings",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+
+        data:
+          result,
+
+        message:
+          "Academic year created successfully.",
+      };
+    } catch (error) {
+      console.error(
+        "CREATE ACADEMIC YEAR ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+
+        message:
+          error instanceof
+          Error
+            ? error.message
+            : "The academic year could not be created.",
+      };
+    }
+  };
+
+
+
+  /* -------------------------------------------------------------------------- */
+/*                        UPDATE ACADEMIC YEAR                                */
+/* -------------------------------------------------------------------------- */
+
+export const updateSchoolAcademicYear =
+  async (data: {
+    id?:
+      number;
+
+    name:
+      string;
+
+    startDate:
+      Date;
+
+    endDate:
+      Date;
+
+    isActive:
+      boolean;
+  }) => {
+    try {
+      if (
+        !data.id ||
+        !Number.isInteger(
+          data.id,
+        ) ||
+        data.id <= 0
+      ) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+
+          message:
+            "The academic year could not be resolved.",
+        };
+      }
+
+      const name =
+        data.name.trim();
+
+      if (!name) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+
+          message:
+            "Enter an academic year.",
+        };
+      }
+
+      if (
+        data.endDate <=
+        data.startDate
+      ) {
+        return {
+          success:
+            false,
+
+          error:
+            true,
+
+          message:
+            "The academic year end date must be after the start date.",
+        };
+      }
+
+      const result =
+        await prisma.$transaction(
+          async (tx) => {
+            const existing =
+              await tx.schoolAcademicYear.findUnique({
+                where: {
+                  id:
+                    data.id,
+                },
+
+                select: {
+                  id:
+                    true,
+                },
+              });
+
+            if (
+              !existing
+            ) {
+              throw new Error(
+                "The academic year could not be found.",
+              );
+            }
+
+            if (
+              data.isActive
+            ) {
+              await tx.schoolAcademicYear.updateMany({
+                where: {
+                  isActive:
+                    true,
+
+                  NOT: {
+                    id:
+                      data.id,
+                  },
+                },
+
+                data: {
+                  isActive:
+                    false,
+                },
+              });
+            }
+
+            return tx.schoolAcademicYear.update({
+              where: {
+                id:
+                  data.id,
+              },
+
+              data: {
+                name,
+
+                startDate:
+                  data.startDate,
+
+                endDate:
+                  data.endDate,
+
+                isActive:
+                  data.isActive,
+              },
+            });
+          },
+        );
+
+      revalidatePath(
+        "/list/settings/academic-calender",
+      );
+
+      revalidatePath(
+        "/list/settings",
+      );
+
+      revalidatePath(
+        "/list/report-cards",
+      );
+
+      revalidatePath(
+        "/list/report-cards/generate",
+      );
+
+      return {
+        success:
+          true,
+
+        error:
+          false,
+
+        data:
+          result,
+
+        message:
+          "Academic year updated successfully.",
+      };
+    } catch (error) {
+      console.error(
+        "UPDATE ACADEMIC YEAR ERROR:",
+        error,
+      );
+
+      return {
+        success:
+          false,
+
+        error:
+          true,
+
+        message:
+          error instanceof
+          Error
+            ? error.message
+            : "The academic year could not be updated.",
+      };
+    }
+  };

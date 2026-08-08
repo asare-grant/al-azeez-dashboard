@@ -26,6 +26,8 @@ import {
   canRequestReportCardChanges,
 } from "./workflow-guards";
 
+import { createReportCardActivity } from "./activity-service";
+
 /* -------------------------------------------------------------------------- */
 /*                              SHARED HELPERS                                */
 /* -------------------------------------------------------------------------- */
@@ -63,6 +65,8 @@ const bulkReadinessSelect = {
 
   studentId: true,
   classId: true,
+
+  version: true,
 
   status: true,
   reviewStatus: true,
@@ -193,6 +197,8 @@ export async function bulkApproveReportCards(
             calculationStatus: "READY",
 
             isStale: false,
+
+            version: reportCard.version,
           },
 
           data: {
@@ -215,6 +221,32 @@ export async function bulkApproveReportCards(
         });
 
         if (updateResult.count === 1) {
+          await createReportCardActivity({
+            tx,
+
+            reportCardId,
+
+            type: "APPROVED",
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
+
+            title: "Report approved",
+
+            description: "The report card was approved through bulk review.",
+
+            note: reviewNote?.trim() || null,
+
+            metadata: {
+              source: "bulk-review",
+
+              version: reportCard.version + 1,
+            },
+          });
+
           completedIds.push(reportCardId);
         } else {
           skippedItems.push({
@@ -340,6 +372,8 @@ export async function bulkRequestReportCardChanges(
             reviewStatus: "SUBMITTED",
 
             isStale: false,
+
+            version: reportCard.version,
           },
 
           data: {
@@ -362,6 +396,33 @@ export async function bulkRequestReportCardChanges(
         });
 
         if (updateResult.count === 1) {
+          await createReportCardActivity({
+            tx,
+
+            reportCardId,
+
+            type: "CHANGES_REQUESTED",
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
+
+            title: "Changes requested",
+
+            description:
+              "The report card was returned for correction through bulk review.",
+
+            note: reviewNote.trim(),
+
+            metadata: {
+              source: "bulk-review",
+
+              version: reportCard.version + 1,
+            },
+          });
+
           completedIds.push(reportCardId);
         } else {
           skippedItems.push({
@@ -488,6 +549,8 @@ export async function bulkPublishReportCards(
             calculationStatus: "READY",
 
             isStale: false,
+
+            version: reportCard.version,
           },
 
           data: {
@@ -506,6 +569,31 @@ export async function bulkPublishReportCards(
         });
 
         if (updateResult.count === 1) {
+          await createReportCardActivity({
+            tx,
+
+            reportCardId,
+
+            type: "PUBLISHED",
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
+
+            title: "Report published",
+
+            description:
+              "The final report card was published and locked through bulk review.",
+
+            metadata: {
+              source: "bulk-review",
+
+              version: reportCard.version + 1,
+            },
+          });
+
           completedIds.push(reportCardId);
         } else {
           skippedItems.push({

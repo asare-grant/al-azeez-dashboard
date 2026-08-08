@@ -2336,6 +2336,7 @@ export async function getReportCardReviewWorkspace(
       },
 
       subjectCount: true,
+
       completedSubjectCount: true,
       incompleteSubjectCount: true,
 
@@ -2422,6 +2423,42 @@ export async function getReportCardReviewWorkspace(
 
         orderBy: {
           subjectName: "asc",
+        },
+      },
+
+      activities: {
+        orderBy: [
+          {
+            createdAt: "desc",
+          },
+
+          {
+            id: "desc",
+          },
+        ],
+
+        take: 50,
+
+        select: {
+          id: true,
+
+          type: true,
+
+          actorId: true,
+
+          actorRole: true,
+
+          actorName: true,
+
+          title: true,
+
+          description: true,
+
+          note: true,
+
+          metadata: true,
+
+          createdAt: true,
         },
       },
     },
@@ -2537,6 +2574,8 @@ export async function getReportCardReviewWorkspace(
     updatedAt: reportCard.updatedAt,
 
     subjects: reportCard.subjects,
+
+    activities: reportCard.activities,
 
     readiness,
 

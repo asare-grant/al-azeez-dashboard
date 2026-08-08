@@ -182,6 +182,42 @@ export type ReportCardReviewReadiness = {
     ReportCardReviewCheck[];
 };
 
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                         REPORT ACTIVITY HISTORY                            */
+/* -------------------------------------------------------------------------- */
+
+export type ReportCardActivityItem = {
+  id: number;
+
+  type: string;
+
+  actorId:
+    string | null;
+
+  actorRole:
+    string | null;
+
+  actorName:
+    string | null;
+
+  title:
+    string;
+
+  description:
+    string | null;
+
+  note:
+    string | null;
+
+  metadata:
+    unknown;
+
+  createdAt:
+    Date | string;
+};
 /* -------------------------------------------------------------------------- */
 /*                         REVIEW WORKSPACE DATA                              */
 /* -------------------------------------------------------------------------- */
@@ -327,6 +363,9 @@ export type ReportCardReviewWorkspaceData = {
     calculationStatus:
         ReportCardCalculationStatus;
   }[];
+
+  activities:
+    ReportCardActivityItem[];
 
   readiness:
     ReportCardReviewReadiness;

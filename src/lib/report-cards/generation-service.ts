@@ -22,6 +22,8 @@ import type {
   ReportCardGenerationSummary,
 } from "./generation-types";
 
+import { createReportCardActivity } from "./activity-service";
+
 /* -------------------------------------------------------------------------- */
 /*                              ENGINE TYPES                                  */
 /* -------------------------------------------------------------------------- */
@@ -932,55 +934,41 @@ export async function generateClassReportCards(
               version: existing.version,
             },
 
-            data: 
-              buildReportCardScalarData({
-                report: 
-                  studentReport,
+            data: buildReportCardScalarData({
+              report: studentReport,
 
-                configuration,
+              configuration,
 
-                now,
+              now,
 
-                generatedById,
+              generatedById,
 
-                preservedManualFields: {
-                  daysSchoolOpened: 
-                    existing.daysSchoolOpened,
+              preservedManualFields: {
+                daysSchoolOpened: existing.daysSchoolOpened,
 
-                  daysPresent: 
-                    existing.daysPresent,
+                daysPresent: existing.daysPresent,
 
-                  daysAbsent: 
-                    existing.daysAbsent,
+                daysAbsent: existing.daysAbsent,
 
-                  attendancePercentage: 
-                    existing.attendancePercentage,
+                attendancePercentage: existing.attendancePercentage,
 
-                  conduct: 
-                    existing.conduct,
+                conduct: existing.conduct,
 
-                  attitude: 
-                    existing.attitude,
+                attitude: existing.attitude,
 
-                  interest: 
-                    existing.interest,
+                interest: existing.interest,
 
-                  classTeacherRemark: 
-                    existing.classTeacherRemark,
+                classTeacherRemark: existing.classTeacherRemark,
 
-                  headTeacherRemark: 
-                    existing.headTeacherRemark,
+                headTeacherRemark: existing.headTeacherRemark,
 
-                  promotionStatus: 
-                    existing.promotionStatus,
+                promotionStatus: existing.promotionStatus,
 
-                  termClosedOn: 
-                    existing.termClosedOn,
+                termClosedOn: existing.termClosedOn,
 
-                  nextTermBegins: 
-                    existing.nextTermBegins,
-                },
-              }),
+                nextTermBegins: existing.nextTermBegins,
+              },
+            }),
           });
 
           if (updateResult.count !== 1) {
@@ -1035,6 +1023,39 @@ export async function generateClassReportCards(
               ),
             });
           }
+
+          /* ---------------------------------------------------------------- */
+          /*                    RECORD REGENERATION ACTIVITY                   */
+          /* ---------------------------------------------------------------- */
+
+          await createReportCardActivity({
+            tx,
+
+            reportCardId: existing.id,
+
+            type: "REGENERATED",
+
+            actorId: generatedById,
+
+            actorRole: "admin",
+
+            actorName: null,
+
+            title: "Report regenerated",
+
+            description:
+              "The academic snapshot was recalculated from the latest source results.",
+
+            metadata: {
+              version: existing.version + 1,
+
+              academicYear,
+
+              termId: validatedTerm.id,
+
+              classId: validatedClass.id,
+            },
+          });
 
           regenerated++;
 
@@ -1200,6 +1221,39 @@ export async function generateClassReportCards(
 
           select: {
             id: true,
+          },
+        });
+
+        /* ---------------------------------------------------------------- */
+        /*                     RECORD GENERATION ACTIVITY                   */
+        /* ---------------------------------------------------------------- */
+
+        await createReportCardActivity({
+          tx,
+
+          reportCardId: createdCard.id,
+
+          type: "GENERATED",
+
+          actorId: generatedById,
+
+          actorRole: "admin",
+
+          actorName: null,
+
+          title: "Report generated",
+
+          description:
+            "The initial report-card draft was generated from academic results.",
+
+          metadata: {
+            version: 1,
+
+            academicYear,
+
+            termId: validatedTerm.id,
+
+            classId: validatedClass.id,
           },
         });
 
