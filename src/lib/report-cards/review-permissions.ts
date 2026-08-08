@@ -1,7 +1,4 @@
-import type {
-  ReportCardReviewStatus,
-  ReportCardStatus,
-} from "@prisma/client";
+import type { ReportCardCalculationStatus, ReportCardReviewStatus, ReportCardStatus } from "@prisma/client";
 
 import type {
   ReportCardReviewActorRole,
@@ -13,73 +10,63 @@ export function resolveReportCardReviewPermissions({
   status,
   reviewStatus,
   calculationStatus,
+  isStale,
 }: {
   role: ReportCardReviewActorRole;
 
-  status:
-    ReportCardStatus;
+  status: ReportCardStatus;
 
-  reviewStatus:
-    ReportCardReviewStatus;
+  reviewStatus: ReportCardReviewStatus;
 
   calculationStatus:
-    "READY" | "PARTIAL" | "BLOCKED";
+    ReportCardCalculationStatus;
+
+  isStale: boolean;
 }): ReportCardReviewPermissions {
-  const isDraft =
-    status === "DRAFT";
+  const isDraft = status === "DRAFT";
 
   const isEditableReviewState =
-    reviewStatus === "DRAFT" ||
-    reviewStatus ===
-      "CHANGES_REQUESTED";
+    reviewStatus === "DRAFT" || reviewStatus === "CHANGES_REQUESTED";
 
-  const canEditDetails =
-    isDraft &&
-    isEditableReviewState;
+  const canEditDetails = isDraft && isEditableReviewState;
 
-  const canSubmitForReview =
-    canEditDetails &&
-    calculationStatus ===
-      "READY";
-
+  const canSubmitForReview = 
+    !isStale &&
+    canEditDetails && 
+    calculationStatus === "READY";
+    
   const canRequestChanges =
-    role === "admin" &&
-    isDraft &&
-    reviewStatus ===
-      "SUBMITTED";
-
+    role === "admin" && 
+    !isStale &&
+    isDraft && 
+    reviewStatus === "SUBMITTED";
+    
   const canApprove =
+    !isStale &&
     role === "admin" &&
     isDraft &&
-    reviewStatus ===
-      "SUBMITTED" &&
-    calculationStatus ===
-      "READY";
-
-  const canReopen =
-    role === "admin" &&
-    isDraft &&
-    reviewStatus ===
-      "APPROVED";
-
+    reviewStatus === "SUBMITTED" &&
+    calculationStatus === "READY";
+    
+  const canReopen = 
+    !isStale &&
+    role === "admin" && 
+    isDraft && 
+    reviewStatus === "APPROVED";
+    
   const canPublish =
     role === "admin" &&
+    !isStale &&
     isDraft &&
-    reviewStatus ===
-      "APPROVED" &&
-    calculationStatus ===
-      "READY";
+    reviewStatus === "APPROVED" &&
+    calculationStatus === "READY";
 
-  const canArchive =
-    role === "admin" &&
-    status !== "ARCHIVED";
+  const canArchive = role === "admin" && status !== "ARCHIVED";
 
   return {
     canEditDetails,
 
-    canEditHeadTeacherRemark:
-      role === "admin" &&
-      canEditDetails,
+    canEditHeadTeacherRemark: role === "admin" && canEditDetails,
 
     canSubmitForReview,
 

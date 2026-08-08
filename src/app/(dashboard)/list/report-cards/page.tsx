@@ -76,6 +76,9 @@ export default async function ReportCardsPage({
           
           reviewStatus:
             params.reviewStatus,
+
+          freshness:
+            params.freshness,
         },
       },
     );

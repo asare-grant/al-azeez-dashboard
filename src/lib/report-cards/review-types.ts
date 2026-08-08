@@ -196,8 +196,20 @@ export type ReportCardReviewWorkspaceData = {
   calculationStatus:
     ReportCardCalculationStatus;
 
-  version: number;
-  academicYear: string;
+  isStale:
+  boolean;
+
+  staleAt:
+    Date | string | null;
+
+  staleReason:
+    string | null;
+
+  version:
+    number;
+
+  academicYear:
+    string;
 
   student: {
     id: string;

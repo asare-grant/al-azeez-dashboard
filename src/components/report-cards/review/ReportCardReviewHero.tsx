@@ -235,10 +235,6 @@
 //   );
 // }
 
-
-
-
-
 import Link from "next/link";
 
 import {
@@ -250,6 +246,7 @@ import {
   ClipboardCheck,
   FileDown,
   FileText,
+  RefreshCcw,
   GraduationCap,
   Layers3,
   School,
@@ -259,9 +256,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import type {
-  ReportCardReviewWorkspaceData,
-} from "@/lib/report-cards/review-types";
+import type { ReportCardReviewWorkspaceData } from "@/lib/report-cards/review-types";
 
 import {
   ReportCardCalculationBadge,
@@ -270,20 +265,14 @@ import {
 } from "./ReportCardReviewStatusBadge";
 
 type ReportCardReviewHeroProps = {
-  reportCard:
-    ReportCardReviewWorkspaceData;
+  reportCard: ReportCardReviewWorkspaceData;
 
   backHref: string;
   printHref: string;
 };
 
-function formatTermName(
-  value: string,
-) {
-  return value.replace(
-    /_/g,
-    " ",
-  );
+function formatTermName(value: string) {
+  return value.replace(/_/g, " ");
 }
 
 export default function ReportCardReviewHero({
@@ -291,27 +280,19 @@ export default function ReportCardReviewHero({
   backHref,
   printHref,
 }: ReportCardReviewHeroProps) {
-  const studentName =
-    `${reportCard.student.name} ${reportCard.student.surname}`;
+  const studentName = `${reportCard.student.name} ${reportCard.student.surname}`;
 
   const completionPercentage =
-    reportCard.subjectCount >
-    0
+    reportCard.subjectCount > 0
       ? Math.min(
           100,
           Math.round(
-            (
-              reportCard.completedSubjectCount /
-              reportCard.subjectCount
-            ) *
-              100,
+            (reportCard.completedSubjectCount / reportCard.subjectCount) * 100,
           ),
         )
       : 0;
 
-  const readinessPercentage =
-    reportCard.readiness
-      .completionPercentage;
+  const readinessPercentage = reportCard.readiness.completionPercentage;
 
   return (
     <>
@@ -325,7 +306,6 @@ export default function ReportCardReviewHero({
           className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
         >
           <ArrowLeft className="h-4 w-4" />
-
           Back to Report
         </Link>
 
@@ -335,7 +315,6 @@ export default function ReportCardReviewHero({
           className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
         >
           <FileDown className="h-4 w-4" />
-
           Print Preview
         </Link>
       </div>
@@ -361,8 +340,7 @@ export default function ReportCardReviewHero({
             backgroundImage:
               "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
 
-            backgroundSize:
-              "44px 44px",
+            backgroundSize: "44px 44px",
           }}
         />
 
@@ -381,35 +359,26 @@ export default function ReportCardReviewHero({
                 </span>
               </div>
 
-              <ReportCardLifecycleStatusBadge
-                status={
-                  reportCard.status
-                }
-              />
+              <ReportCardLifecycleStatusBadge status={reportCard.status} />
 
-              <ReportCardReviewStatusBadge
-                status={
-                  reportCard.reviewStatus
-                }
-              />
+              <ReportCardReviewStatusBadge status={reportCard.reviewStatus} />
 
               <ReportCardCalculationBadge
-                status={
-                  reportCard.calculationStatus
-                }
+                status={reportCard.calculationStatus}
               />
+
+              {reportCard.isStale ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 backdrop-blur">
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                  Needs Regeneration
+                </span>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">
               <ClipboardCheck className="h-3.5 w-3.5" />
-
               Review Record
-
-              <span className="text-slate-600">
-                /
-              </span>
-
-              #{reportCard.id}
+              <span className="text-slate-600">/</span>#{reportCard.id}
             </div>
           </div>
 
@@ -434,12 +403,8 @@ export default function ReportCardReviewHero({
                     {reportCard.student.img ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={
-                          reportCard.student.img
-                        }
-                        alt={
-                          studentName
-                        }
+                        src={reportCard.student.img}
+                        alt={studentName}
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -451,53 +416,29 @@ export default function ReportCardReviewHero({
 
                   <div className="min-w-0">
                     <h1 className="break-words text-3xl font-black tracking-[-0.045em] text-white sm:text-4xl lg:text-[2.9rem] lg:leading-[1.02]">
-                      {
-                        reportCard.student
-                          .name
-                      }{" "}
-                      {
-                        reportCard.student
-                          .surname
-                      }
+                      {reportCard.student.name} {reportCard.student.surname}
                     </h1>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       <ReviewHeroChip>
-                        {
-                          reportCard
-                            .student
-                            .studentId
-                        }
+                        {reportCard.student.studentId}
                       </ReviewHeroChip>
 
-                      <ReviewHeroChip>
-                        {
-                          reportCard.class
-                            .name
-                        }
-                      </ReviewHeroChip>
+                      <ReviewHeroChip>{reportCard.class.name}</ReviewHeroChip>
 
                       <ReviewHeroChip accent>
-                        {formatTermName(
-                          reportCard.term
-                            .name,
-                        )}
+                        {formatTermName(reportCard.term.name)}
                       </ReviewHeroChip>
 
-                      <ReviewHeroChip>
-                        {
-                          reportCard.academicYear
-                        }
-                      </ReviewHeroChip>
+                      <ReviewHeroChip>{reportCard.academicYear}</ReviewHeroChip>
                     </div>
                   </div>
                 </div>
 
                 <p className="mt-6 max-w-3xl text-sm font-medium leading-7 text-slate-300 sm:text-[15px]">
-                  Verify academic calculations, attendance,
-                  development records, teacher remarks and workflow
-                  readiness before approving this report for official
-                  publication.
+                  Verify academic calculations, attendance, development records,
+                  teacher remarks and workflow readiness before approving this
+                  report for official publication.
                 </p>
               </div>
 
@@ -507,32 +448,19 @@ export default function ReportCardReviewHero({
                 <ReviewRecordDetail
                   icon={School}
                   label="Class"
-                  value={
-                    reportCard.class
-                      .name
-                  }
+                  value={reportCard.class.name}
                 />
 
                 <ReviewRecordDetail
-                  icon={
-                    GraduationCap
-                  }
+                  icon={GraduationCap}
                   label="Grade Level"
-                  value={
-                    reportCard.grade
-                      .level
-                  }
+                  value={reportCard.grade.level}
                 />
 
                 <ReviewRecordDetail
-                  icon={
-                    CalendarDays
-                  }
+                  icon={CalendarDays}
                   label="Academic Period"
-                  value={`${formatTermName(
-                    reportCard.term
-                      .name,
-                  )} • ${
+                  value={`${formatTermName(reportCard.term.name)} • ${
                     reportCard.academicYear
                   }`}
                 />
@@ -581,10 +509,7 @@ export default function ReportCardReviewHero({
                       </p>
 
                       <p className="mt-2 text-4xl font-black tracking-[-0.05em] text-white">
-                        {
-                          readinessPercentage
-                        }
-                        %
+                        {readinessPercentage}%
                       </p>
                     </div>
 
@@ -594,32 +519,18 @@ export default function ReportCardReviewHero({
                       </p>
 
                       <p className="mt-1 text-2xl font-black text-blue-200">
-                        {
-                          reportCard
-                            .readiness
-                            .completedChecks
-                        }
-                        /
-                        {
-                          reportCard
-                            .readiness
-                            .totalChecks
-                        }
+                        {reportCard.readiness.completedChecks}/
+                        {reportCard.readiness.totalChecks}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-4">
                     <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.11em]">
-                      <span className="text-slate-400">
-                        Approval readiness
-                      </span>
+                      <span className="text-slate-400">Approval readiness</span>
 
                       <span className="text-blue-200">
-                        {
-                          readinessPercentage
-                        }
-                        %
+                        {readinessPercentage}%
                       </span>
                     </div>
 
@@ -627,10 +538,7 @@ export default function ReportCardReviewHero({
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300 transition-all"
                         style={{
-                          width: `${Math.min(
-                            100,
-                            readinessPercentage,
-                          )}%`,
+                          width: `${Math.min(100, readinessPercentage)}%`,
                         }}
                       />
                     </div>
@@ -643,10 +551,7 @@ export default function ReportCardReviewHero({
                   <ReviewMetric
                     icon={Award}
                     label="Overall Grade"
-                    value={
-                      reportCard.overallGrade ??
-                      "—"
-                    }
+                    value={reportCard.overallGrade ?? "—"}
                   />
 
                   <ReviewMetric
@@ -655,17 +560,14 @@ export default function ReportCardReviewHero({
                     value={
                       reportCard.overallPosition
                         ? `${reportCard.overallPosition} of ${
-                            reportCard.classStudentCount ??
-                            "—"
+                            reportCard.classStudentCount ?? "—"
                           }`
                         : "—"
                     }
                   />
 
                   <ReviewMetric
-                    icon={
-                      BookOpenCheck
-                    }
+                    icon={BookOpenCheck}
                     label="Subjects"
                     value={`${reportCard.completedSubjectCount}/${reportCard.subjectCount}`}
                   />
@@ -689,27 +591,19 @@ export default function ReportCardReviewHero({
               icon={CheckCircle2}
               label="Review Submission"
               title={
-                reportCard.readiness
-                  .readyForReview
+                reportCard.readiness.readyForReview
                   ? "Ready for review"
                   : "Preparation incomplete"
               }
               description={
-                reportCard.readiness
-                  .readyForReview
+                reportCard.readiness.readyForReview
                   ? "The report has satisfied the minimum requirements for formal review."
                   : `${reportCard.readiness.errors.length} blocking issue${
-                      reportCard.readiness.errors
-                        .length === 1
-                        ? ""
-                        : "s"
+                      reportCard.readiness.errors.length === 1 ? "" : "s"
                     } currently require attention.`
               }
               state={
-                reportCard.readiness
-                  .readyForReview
-                  ? "success"
-                  : "warning"
+                reportCard.readiness.readyForReview ? "success" : "warning"
               }
             />
 
@@ -717,22 +611,17 @@ export default function ReportCardReviewHero({
               icon={ShieldCheck}
               label="Approval Gate"
               title={
-                reportCard.readiness
-                  .readyForApproval
+                reportCard.readiness.readyForApproval
                   ? "Approval ready"
                   : "Approval restricted"
               }
               description={
-                reportCard.readiness
-                  .readyForApproval
+                reportCard.readiness.readyForApproval
                   ? "This report has satisfied the checks required for approval."
                   : "The report must complete the review requirements before approval."
               }
               state={
-                reportCard.readiness
-                  .readyForApproval
-                  ? "success"
-                  : "warning"
+                reportCard.readiness.readyForApproval ? "success" : "warning"
               }
             />
 
@@ -740,22 +629,17 @@ export default function ReportCardReviewHero({
               icon={FileText}
               label="Publication Gate"
               title={
-                reportCard.readiness
-                  .readyForPublication
+                reportCard.readiness.readyForPublication
                   ? "Publication ready"
                   : "Publication protected"
               }
               description={
-                reportCard.readiness
-                  .readyForPublication
+                reportCard.readiness.readyForPublication
                   ? "The report is ready to enter the official publication workflow."
                   : "Publication remains locked until all required review controls are satisfied."
               }
               state={
-                reportCard.readiness
-                  .readyForPublication
-                  ? "success"
-                  : "neutral"
+                reportCard.readiness.readyForPublication ? "success" : "neutral"
               }
             />
           </div>
@@ -879,24 +763,16 @@ function ReviewIndicator({
 
   description: string;
 
-  state:
-    | "success"
-    | "warning"
-    | "error"
-    | "neutral";
+  state: "success" | "warning" | "error" | "neutral";
 }) {
   const iconClass = {
-    success:
-      "border-emerald-400/10 bg-emerald-400/10 text-emerald-300",
+    success: "border-emerald-400/10 bg-emerald-400/10 text-emerald-300",
 
-    warning:
-      "border-amber-400/10 bg-amber-400/10 text-amber-300",
+    warning: "border-amber-400/10 bg-amber-400/10 text-amber-300",
 
-    error:
-      "border-red-400/10 bg-red-400/10 text-red-300",
+    error: "border-red-400/10 bg-red-400/10 text-red-300",
 
-    neutral:
-      "border-slate-400/10 bg-slate-400/10 text-slate-300",
+    neutral: "border-slate-400/10 bg-slate-400/10 text-slate-300",
   }[state];
 
   return (
@@ -912,9 +788,7 @@ function ReviewIndicator({
           {label}
         </p>
 
-        <p className="mt-1 text-xs font-black text-white">
-          {title}
-        </p>
+        <p className="mt-1 text-xs font-black text-white">{title}</p>
 
         <p className="mt-1 text-[10px] font-medium leading-4 text-slate-400">
           {description}

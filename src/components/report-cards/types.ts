@@ -12,14 +12,11 @@ export type ReportCardCommandItem = {
   version: number;
   academicYear: string;
 
-  status:
-    ReportCardStatus;
+  status: ReportCardStatus;
 
-  reviewStatus:
-    ReportCardReviewStatus;
+  reviewStatus: ReportCardReviewStatus;
 
-  calculationStatus:
-    ReportCardCalculationStatus;
+  calculationStatus: ReportCardCalculationStatus;
 
   student: {
     id: string;
@@ -60,30 +57,17 @@ export type ReportCardCommandItem = {
   regeneratedAt: Date | string | null;
   publishedAt: Date | string | null;
 
-  submittedForReviewAt:
-    | Date
-    | string
-    | null;
+  submittedForReviewAt: Date | string | null;
 
-  approvedAt:
-    | Date
-    | string
-    | null;
+  approvedAt: Date | string | null;
 
-  changesRequestedAt:
-    | Date
-    | string
-    | null;
+  changesRequestedAt: Date | string | null;
 
   isStale: boolean;
 
-  staleAt:
-    | Date
-    | string
-    | null;
+  staleAt: Date | string | null;
 
-  staleReason:
-    string | null;
+  staleReason: string | null;
 };
 
 export type ReportCardCommandMetrics = {
@@ -102,21 +86,34 @@ export type ReportCardCommandMetrics = {
   changesRequested: number;
   approved: number;
 
-  averageScore:
-    number | null;
+  averageScore: number | null;
 
+  needsRegeneration: number;
+  
   publishable: number;
+
 };
 
 export type ReportCardCommandFilters = {
   search?: string;
+
   classId?: string;
+
   termId?: string;
+
   academicYear?: string;
+
   status?: string;
+
   calculationStatus?: string;
 
   reviewStatus?: string;
+
+  /*
+   * FRESH
+   * STALE
+   */
+  freshness?: string;
 };
 
 export type ReportCardFilterOptions = {

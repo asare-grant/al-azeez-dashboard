@@ -7,6 +7,10 @@ type ReviewableReportCard = {
   status: string;
   reviewStatus: string;
 
+  isStale: boolean;
+
+  staleReason: string | null;
+
   subjectCount: number;
   completedSubjectCount: number;
   incompleteSubjectCount: number;
@@ -22,119 +26,80 @@ type ReviewableReportCard = {
   attitude: string | null;
   interest: string | null;
 
-  classTeacherRemark:
-    string | null;
+  classTeacherRemark: string | null;
 
-  headTeacherRemark:
-    string | null;
+  headTeacherRemark: string | null;
 
-  promotionStatus:
-    string | null;
+  promotionStatus: string | null;
 
-  termClosedOn:
-    Date | string | null;
+  termClosedOn: Date | string | null;
 
-  nextTermBegins:
-    Date | string | null;
+  nextTermBegins: Date | string | null;
 };
 
 export function reviewReportCardReadiness(
   reportCard: ReviewableReportCard,
 ): ReportCardReviewReadiness {
-  const checks:
-    ReportCardReviewCheck[] = [];
+  const checks: ReportCardReviewCheck[] = [];
 
-  function addCheck(
-    check:
-      ReportCardReviewCheck,
-  ) {
+  function addCheck(check: ReportCardReviewCheck) {
     checks.push(check);
   }
 
   const allSubjectsComplete =
-    reportCard.subjectCount >
-      0 &&
-    reportCard.completedSubjectCount ===
-      reportCard.subjectCount &&
-    reportCard.incompleteSubjectCount ===
-      0;
+    reportCard.subjectCount > 0 &&
+    reportCard.completedSubjectCount === reportCard.subjectCount &&
+    reportCard.incompleteSubjectCount === 0;
 
   addCheck({
-    id:
-      "subjects",
+    id: "subjects",
 
-    title:
-      "Subject calculations",
+    title: "Subject calculations",
 
-    description:
-      allSubjectsComplete
-        ? `All ${reportCard.subjectCount} subjects have complete calculated results.`
-        : `${reportCard.completedSubjectCount} of ${reportCard.subjectCount} subjects are complete.`,
+    description: allSubjectsComplete
+      ? `All ${reportCard.subjectCount} subjects have complete calculated results.`
+      : `${reportCard.completedSubjectCount} of ${reportCard.subjectCount} subjects are complete.`,
 
-    severity:
-      allSubjectsComplete
-        ? "success"
-        : "error",
+    severity: allSubjectsComplete ? "success" : "error",
 
-    section:
-      "academic",
+    section: "academic",
   });
 
   const hasOverallResult =
-    reportCard.averageScore !==
-      null &&
-    Boolean(
-      reportCard.overallGrade?.trim(),
-    );
+    reportCard.averageScore !== null &&
+    Boolean(reportCard.overallGrade?.trim());
 
   addCheck({
-    id:
-      "overall-result",
+    id: "overall-result",
 
-    title:
-      "Overall academic result",
+    title: "Overall academic result",
 
-    description:
-      hasOverallResult
-        ? "The overall average and grade have been calculated."
-        : "The report is missing an overall average or grade.",
+    description: hasOverallResult
+      ? "The overall average and grade have been calculated."
+      : "The report is missing an overall average or grade.",
 
-    severity:
-      hasOverallResult
-        ? "success"
-        : "error",
+    severity: hasOverallResult ? "success" : "error",
 
-    section:
-      "academic",
+    section: "academic",
   });
 
   const attendanceComplete =
-    reportCard.daysSchoolOpened !==
-      null &&
-    reportCard.daysPresent !==
-      null &&
-    reportCard.daysAbsent !==
-      null;
+    reportCard.daysSchoolOpened !== null &&
+    reportCard.daysPresent !== null &&
+    reportCard.daysAbsent !== null;
 
   addCheck({
-    id:
-      "attendance",
+    id: "attendance",
 
-    title:
-      "Attendance",
+    title: "Attendance",
 
-    description:
-      attendanceComplete
-        ? `${reportCard.daysPresent} of ${reportCard.daysSchoolOpened} school days attended.`
-        : "Enter the total school days and days attended.",
+    description: attendanceComplete
+      ? `${reportCard.daysPresent} of ${reportCard.daysSchoolOpened} school days attended.`
+      : "Enter the total school days and days attended.",
 
-    severity:
-      attendanceComplete
-        ? "success"
-        : "error",
+    severity: attendanceComplete ? "success" : "error",
 
-    section:
-      "attendance",
+    section: "attendance",
   });
 
   const developmentFields = [
@@ -143,200 +108,131 @@ export function reviewReportCardReadiness(
     reportCard.interest,
   ];
 
-  const completedDevelopmentFields =
-    developmentFields.filter(
-      (value) =>
-        Boolean(
-          value?.trim(),
-        ),
-    ).length;
+  const completedDevelopmentFields = developmentFields.filter((value) =>
+    Boolean(value?.trim()),
+  ).length;
 
   addCheck({
-    id:
-      "development",
+    id: "development",
 
-    title:
-      "Conduct, attitude and interest",
+    title: "Conduct, attitude and interest",
 
     description:
-      completedDevelopmentFields ===
-      developmentFields.length
+      completedDevelopmentFields === developmentFields.length
         ? "Student development information is complete."
         : `${completedDevelopmentFields} of ${developmentFields.length} development fields have been completed.`,
 
     severity:
-      completedDevelopmentFields ===
-      developmentFields.length
+      completedDevelopmentFields === developmentFields.length
         ? "success"
         : "warning",
 
-    section:
-      "development",
+    section: "development",
   });
 
-  const hasClassTeacherRemark =
-    Boolean(
-      reportCard
-        .classTeacherRemark
-        ?.trim(),
-    );
+  const hasClassTeacherRemark = Boolean(reportCard.classTeacherRemark?.trim());
 
   addCheck({
-    id:
-      "class-teacher-remark",
+    id: "class-teacher-remark",
 
-    title:
-      "Class-teacher remark",
+    title: "Class-teacher remark",
 
-    description:
-      hasClassTeacherRemark
-        ? "A class-teacher remark has been entered."
-        : "Enter a class-teacher remark before submitting the card.",
+    description: hasClassTeacherRemark
+      ? "A class-teacher remark has been entered."
+      : "Enter a class-teacher remark before submitting the card.",
 
-    severity:
-      hasClassTeacherRemark
-        ? "success"
-        : "error",
+    severity: hasClassTeacherRemark ? "success" : "error",
 
-    section:
-      "remarks",
+    section: "remarks",
   });
 
-  const hasHeadTeacherRemark =
-    Boolean(
-      reportCard
-        .headTeacherRemark
-        ?.trim(),
-    );
+  const hasHeadTeacherRemark = Boolean(reportCard.headTeacherRemark?.trim());
 
   addCheck({
-    id:
-      "head-teacher-remark",
+    id: "head-teacher-remark",
 
-    title:
-      "Head-teacher remark",
+    title: "Head-teacher remark",
 
-    description:
-      hasHeadTeacherRemark
-        ? "A head-teacher remark has been entered."
-        : "The head-teacher remark is still missing.",
+    description: hasHeadTeacherRemark
+      ? "A head-teacher remark has been entered."
+      : "The head-teacher remark is still missing.",
 
-    severity:
-      hasHeadTeacherRemark
-        ? "success"
-        : "warning",
+    severity: hasHeadTeacherRemark ? "success" : "warning",
 
-    section:
-      "remarks",
+    section: "remarks",
   });
 
-  const hasPromotionStatus =
-    Boolean(
-      reportCard
-        .promotionStatus
-        ?.trim(),
-    );
+  const hasPromotionStatus = Boolean(reportCard.promotionStatus?.trim());
 
   addCheck({
-    id:
-      "promotion",
+    id: "promotion",
 
-    title:
-      "Promotion decision",
+    title: "Promotion decision",
 
-    description:
-      hasPromotionStatus
-        ? `Promotion status: ${reportCard.promotionStatus}.`
-        : "Select or enter the student's promotion status.",
+    description: hasPromotionStatus
+      ? `Promotion status: ${reportCard.promotionStatus}.`
+      : "Select or enter the student's promotion status.",
 
-    severity:
-      hasPromotionStatus
-        ? "success"
-        : "error",
+    severity: hasPromotionStatus ? "success" : "error",
 
-    section:
-      "promotion",
+    section: "promotion",
   });
 
   const termDatesComplete =
-    Boolean(
-      reportCard.termClosedOn,
-    ) &&
-    Boolean(
-      reportCard.nextTermBegins,
-    );
+    Boolean(reportCard.termClosedOn) && Boolean(reportCard.nextTermBegins);
 
   addCheck({
-    id:
-      "term-dates",
+    id: "term-dates",
 
-    title:
-      "Term dates",
+    title: "Term dates",
 
-    description:
-      termDatesComplete
-        ? "The closing and reopening dates are configured."
-        : "Enter the term closing date and next-term reopening date.",
+    description: termDatesComplete
+      ? "The closing and reopening dates are configured."
+      : "Enter the term closing date and next-term reopening date.",
 
-    severity:
-      termDatesComplete
-        ? "success"
-        : "warning",
+    severity: termDatesComplete ? "success" : "warning",
 
-    section:
-      "promotion",
+    section: "promotion",
   });
 
-  const errors =
-    checks.filter(
-      (check) =>
-        check.severity ===
-        "error",
-    );
+  if (reportCard.isStale) {
+    addCheck({
+      id: "stale-academic-snapshot",
 
-  const warnings =
-    checks.filter(
-      (check) =>
-        check.severity ===
-        "warning",
-    );
+      title: "Academic results changed",
 
-  const successes =
-    checks.filter(
-      (check) =>
-        check.severity ===
-        "success",
-    );
+      description:
+        reportCard.staleReason ||
+        "One or more source results changed after this report card was generated. Regenerate the report card before continuing.",
 
-  const completedChecks =
-    successes.length;
+      severity: "error",
 
-  const totalChecks =
-    checks.length;
+      section: "academic",
+    });
+  }
+
+  const errors = checks.filter((check) => check.severity === "error");
+
+  const warnings = checks.filter((check) => check.severity === "warning");
+
+  const successes = checks.filter((check) => check.severity === "success");
+
+  const completedChecks = successes.length;
+
+  const totalChecks = checks.length;
 
   const completionPercentage =
-    totalChecks === 0
-      ? 0
-      : Math.round(
-          (completedChecks /
-            totalChecks) *
-            100,
-        );
+    totalChecks === 0 ? 0 : Math.round((completedChecks / totalChecks) * 100);
 
-  const readyForReview =
-    errors.length === 0;
+  const readyForReview = !reportCard.isStale && errors.length === 0;
 
   const readyForApproval =
-    readyForReview &&
-    reportCard.reviewStatus ===
-      "SUBMITTED";
+    readyForReview && reportCard.reviewStatus === "SUBMITTED";
 
   const readyForPublication =
     readyForReview &&
-    reportCard.reviewStatus ===
-      "APPROVED" &&
-    reportCard.status ===
-      "DRAFT";
+    reportCard.reviewStatus === "APPROVED" &&
+    reportCard.status === "DRAFT";
 
   return {
     readyForReview,

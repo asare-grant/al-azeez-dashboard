@@ -1,340 +1,3 @@
-// "use client";
-
-// import {
-//   RotateCcw,
-//   Search,
-//   SlidersHorizontal,
-// } from "lucide-react";
-
-// import {
-//   usePathname,
-//   useRouter,
-//   useSearchParams,
-// } from "next/navigation";
-
-// import {
-//   FormEvent,
-//   useEffect,
-//   useState,
-// } from "react";
-
-// import type {
-//   ReportCardCommandFilters,
-//   ReportCardFilterOptions,
-// } from "../types";
-
-// type ReportCardFiltersProps = {
-//   options:
-//     ReportCardFilterOptions;
-
-//   currentFilters:
-//     ReportCardCommandFilters;
-// };
-
-// export default function ReportCardFilters({
-//   options,
-//   currentFilters,
-// }: ReportCardFiltersProps) {
-//   const router =
-//     useRouter();
-
-//   const pathname =
-//     usePathname();
-
-//   const searchParams =
-//     useSearchParams();
-
-//   const [
-//     search,
-//     setSearch,
-//   ] = useState(
-//     currentFilters.search ?? "",
-//   );
-
-//   useEffect(() => {
-//     setSearch(
-//       currentFilters.search ?? "",
-//     );
-//   }, [currentFilters.search]);
-
-//   function updateFilter(
-//     key: string,
-//     value: string,
-//   ) {
-//     const params =
-//       new URLSearchParams(
-//         searchParams.toString(),
-//       );
-
-//     if (value) {
-//       params.set(
-//         key,
-//         value,
-//       );
-//     } else {
-//       params.delete(key);
-//     }
-
-//     params.delete("page");
-
-//     router.push(
-//       `${pathname}?${params.toString()}`,
-//     );
-//   }
-
-//   function handleSearch(
-//     event: FormEvent,
-//   ) {
-//     event.preventDefault();
-
-//     updateFilter(
-//       "search",
-//       search.trim(),
-//     );
-//   }
-
-//   function resetFilters() {
-//     setSearch("");
-
-//     router.push(pathname);
-//   }
-
-//   return (
-//     <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.05)] sm:p-5">
-//       <div className="flex items-center gap-2">
-//         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-//           <SlidersHorizontal className="h-5 w-5" />
-//         </div>
-
-//         <div>
-//           <h2 className="font-black text-slate-950">
-//             Report filters
-//           </h2>
-
-//           <p className="text-xs text-slate-400">
-//             Refine the command-centre data and generation period.
-//           </p>
-//         </div>
-//       </div>
-
-//       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(250px,1.4fr)_repeat(5,minmax(150px,1fr))_auto]">
-//         <form
-//           onSubmit={handleSearch}
-//           className="relative"
-//         >
-//           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-//           <input
-//             type="search"
-//             value={search}
-//             onChange={(event) =>
-//               setSearch(
-//                 event.target.value,
-//               )
-//             }
-//             placeholder="Search student, ID or class..."
-//             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-//           />
-//         </form>
-
-//         <FilterSelect
-//           value={
-//             currentFilters.classId ??
-//             ""
-//           }
-//           onChange={(value) =>
-//             updateFilter(
-//               "classId",
-//               value,
-//             )
-//           }
-//           placeholder="All classes"
-//           options={options.classes.map(
-//             (item) => ({
-//               value:
-//                 String(item.id),
-
-//               label:
-//                 item.name,
-//             }),
-//           )}
-//         />
-
-//         <FilterSelect
-//           value={
-//             currentFilters
-//               .academicYear ?? ""
-//           }
-//           onChange={(value) =>
-//             updateFilter(
-//               "academicYear",
-//               value,
-//             )
-//           }
-//           placeholder="All academic years"
-//           options={options.academicYears.map(
-//             (item) => ({
-//               value:
-//                 item,
-
-//               label:
-//                 item,
-//             }),
-//           )}
-//         />
-
-//         <FilterSelect
-//           value={
-//             currentFilters.termId ??
-//             ""
-//           }
-//           onChange={(value) =>
-//             updateFilter(
-//               "termId",
-//               value,
-//             )
-//           }
-//           placeholder="All terms"
-//           options={options.terms.map(
-//             (term) => ({
-//               value:
-//                 String(term.id),
-
-//               label:
-//                 `${term.name.replace(
-//                   /_/g,
-//                   " ",
-//                 )}${
-//                   term.isActive
-//                     ? " — Active"
-//                     : ""
-//                 }`,
-//             }),
-//           )}
-//         />
-
-//         <FilterSelect
-//           value={
-//             currentFilters.status ??
-//             ""
-//           }
-//           onChange={(value) =>
-//             updateFilter(
-//               "status",
-//               value,
-//             )
-//           }
-//           placeholder="All statuses"
-//           options={[
-//             {
-//               value: "DRAFT",
-//               label: "Draft",
-//             },
-//             {
-//               value:
-//                 "PUBLISHED",
-//               label:
-//                 "Published",
-//             },
-//             {
-//               value:
-//                 "ARCHIVED",
-//               label:
-//                 "Archived",
-//             },
-//           ]}
-//         />
-
-//         <FilterSelect
-//           value={
-//             currentFilters
-//               .calculationStatus ??
-//             ""
-//           }
-//           onChange={(value) =>
-//             updateFilter(
-//               "calculationStatus",
-//               value,
-//             )
-//           }
-//           placeholder="All readiness"
-//           options={[
-//             {
-//               value: "READY",
-//               label: "Ready",
-//             },
-//             {
-//               value: "PARTIAL",
-//               label: "Partial",
-//             },
-//             {
-//               value: "BLOCKED",
-//               label: "Blocked",
-//             },
-//           ]}
-//         />
-
-//         <button
-//           type="button"
-//           onClick={resetFilters}
-//           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50"
-//         >
-//           <RotateCcw className="h-4 w-4" />
-//           Reset
-//         </button>
-//       </div>
-//     </section>
-//   );
-// }
-
-// function FilterSelect({
-//   value,
-//   onChange,
-//   placeholder,
-//   options,
-// }: {
-//   value: string;
-
-//   onChange: (
-//     value: string,
-//   ) => void;
-
-//   placeholder: string;
-
-//   options: {
-//     value: string;
-//     label: string;
-//   }[];
-// }) {
-//   return (
-//     <select
-//       value={value}
-//       onChange={(event) =>
-//         onChange(
-//           event.target.value,
-//         )
-//       }
-//       className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-//     >
-//       <option value="">
-//         {placeholder}
-//       </option>
-
-//       {options.map((option) => (
-//         <option
-//           key={option.value}
-//           value={option.value}
-//         >
-//           {option.label}
-//         </option>
-//       ))}
-//     </select>
-//   );
-// }
-
-
-
-
 "use client";
 
 import {
@@ -349,19 +12,9 @@ import {
   FileDown,
 } from "lucide-react";
 
-import {
-  usePathname,
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import {
-  FormEvent,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import type {
   ReportCardCommandFilters,
@@ -373,7 +26,6 @@ type ReportCardFiltersProps = {
   currentFilters: ReportCardCommandFilters;
 };
 
-
 export default function ReportCardFilters({
   options,
   currentFilters,
@@ -382,15 +34,11 @@ export default function ReportCardFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [search, setSearch] = useState(
-    currentFilters.search ?? "",
-  );
+  const [search, setSearch] = useState(currentFilters.search ?? "");
 
-  const [showMobileFilters, setShowMobileFilters] =
-    useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  const [isPending, startTransition] =
-    useTransition();
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setSearch(currentFilters.search ?? "");
@@ -404,31 +52,21 @@ export default function ReportCardFilters({
       currentFilters.termId,
       currentFilters.status,
       currentFilters.calculationStatus,
+      currentFilters.freshness,
       currentFilters.reviewStatus,
     ].filter(Boolean).length;
   }, [currentFilters]);
 
-  function navigateWithParams(
-    params: URLSearchParams,
-  ) {
+  function navigateWithParams(params: URLSearchParams) {
     const query = params.toString();
 
     startTransition(() => {
-      router.push(
-        query
-          ? `${pathname}?${query}`
-          : pathname,
-      );
+      router.push(query ? `${pathname}?${query}` : pathname);
     });
   }
 
-  function updateFilter(
-    key: keyof ReportCardCommandFilters,
-    value: string,
-  ) {
-    const params = new URLSearchParams(
-      searchParams.toString(),
-    );
+  function updateFilter(key: keyof ReportCardCommandFilters, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
 
     if (value) {
       params.set(key, value);
@@ -441,24 +79,16 @@ export default function ReportCardFilters({
     navigateWithParams(params);
   }
 
-  function handleSearch(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    updateFilter(
-      "search",
-      search.trim(),
-    );
+    updateFilter("search", search.trim());
   }
 
   function clearSearch() {
     setSearch("");
 
-    updateFilter(
-      "search",
-      "",
-    );
+    updateFilter("search", "");
   }
 
   function resetFilters() {
@@ -494,9 +124,8 @@ export default function ReportCardFilters({
               </div>
 
               <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500 sm:text-sm">
-                Search students and refine the
-                academic period, publication status,
-                class and report readiness.
+                Search students and refine the academic period, publication
+                status, class and report readiness.
               </p>
             </div>
           </div>
@@ -504,25 +133,17 @@ export default function ReportCardFilters({
           {/* MOBILE FILTER TOGGLE */}
           <button
             type="button"
-            onClick={() =>
-              setShowMobileFilters(
-                (current) => !current,
-              )
-            }
+            onClick={() => setShowMobileFilters((current) => !current)}
             aria-expanded={showMobileFilters}
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 lg:hidden"
           >
             <Filter className="h-4 w-4" />
 
-            <span className="hidden xs:inline">
-              Filters
-            </span>
+            <span className="hidden xs:inline">Filters</span>
 
             <ChevronDown
               className={`h-4 w-4 transition-transform duration-200 ${
-                showMobileFilters
-                  ? "rotate-180"
-                  : ""
+                showMobileFilters ? "rotate-180" : ""
               }`}
             />
           </button>
@@ -541,9 +162,7 @@ export default function ReportCardFilters({
             <input
               type="search"
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by student name, student ID or class..."
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
             />
@@ -572,96 +191,52 @@ export default function ReportCardFilters({
 
         {/* FILTER GRID */}
         <div
-          className={`mt-5 ${
-            showMobileFilters
-              ? "block"
-              : "hidden"
-          } lg:block`}
+          className={`mt-5 ${showMobileFilters ? "block" : "hidden"} lg:block`}
         >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             <FilterField label="Class">
               <FilterSelect
-                value={
-                  currentFilters.classId ?? ""
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "classId",
-                    value,
-                  )
-                }
+                value={currentFilters.classId ?? ""}
+                onChange={(value) => updateFilter("classId", value)}
                 placeholder="All classes"
-                options={options.classes.map(
-                  (item) => ({
-                    value: String(item.id),
-                    label: item.name,
-                  }),
-                )}
+                options={options.classes.map((item) => ({
+                  value: String(item.id),
+                  label: item.name,
+                }))}
               />
             </FilterField>
 
             <FilterField label="Academic Year">
               <FilterSelect
-                value={
-                  currentFilters.academicYear ??
-                  ""
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "academicYear",
-                    value,
-                  )
-                }
+                value={currentFilters.academicYear ?? ""}
+                onChange={(value) => updateFilter("academicYear", value)}
                 placeholder="All academic years"
-                options={options.academicYears.map(
-                  (item) => ({
-                    value: item,
-                    label: item,
-                  }),
-                )}
+                options={options.academicYears.map((item) => ({
+                  value: item,
+                  label: item,
+                }))}
               />
             </FilterField>
 
             <FilterField label="School Term">
               <FilterSelect
-                value={
-                  currentFilters.termId ?? ""
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "termId",
-                    value,
-                  )
-                }
+                value={currentFilters.termId ?? ""}
+                onChange={(value) => updateFilter("termId", value)}
                 placeholder="All terms"
-                options={options.terms.map(
-                  (term) => ({
-                    value: String(term.id),
+                options={options.terms.map((term) => ({
+                  value: String(term.id),
 
-                    label: `${term.name.replace(
-                      /_/g,
-                      " ",
-                    )}${
-                      term.isActive
-                        ? " — Active"
-                        : ""
-                    }`,
-                  }),
-                )}
+                  label: `${term.name.replace(/_/g, " ")}${
+                    term.isActive ? " — Active" : ""
+                  }`,
+                }))}
               />
             </FilterField>
 
             <FilterField label="Publication Status">
               <FilterSelect
-                value={
-                  currentFilters.status ?? ""
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "status",
-                    value,
-                  )
-                }
+                value={currentFilters.status ?? ""}
+                onChange={(value) => updateFilter("status", value)}
                 placeholder="All statuses"
                 options={[
                   {
@@ -680,55 +255,10 @@ export default function ReportCardFilters({
               />
             </FilterField>
 
-            <FilterField label="Review Workflow">
-              <FilterSelect
-                value={
-                  currentFilters
-                    .reviewStatus ?? ""
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "reviewStatus",
-                    value,
-                  )
-                }
-                placeholder="All review stages"
-                options={[
-                  {
-                    value: "DRAFT",
-                    label: "Preparing",
-                  },
-                  {
-                    value: "SUBMITTED",
-                    label: "Awaiting Review",
-                  },
-                  {
-                    value:
-                      "CHANGES_REQUESTED",
-                    label:
-                      "Changes Requested",
-                  },
-                  {
-                    value: "APPROVED",
-                    label:
-                      "Approved",
-                  },
-                ]}
-              />
-            </FilterField>
-
             <FilterField label="Report Readiness">
               <FilterSelect
-                value={
-                  currentFilters
-                    .calculationStatus ?? ""
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "calculationStatus",
-                    value,
-                  )
-                }
+                value={currentFilters.calculationStatus ?? ""}
+                onChange={(value) => updateFilter("calculationStatus", value)}
                 placeholder="All readiness levels"
                 options={[
                   {
@@ -746,22 +276,62 @@ export default function ReportCardFilters({
                 ]}
               />
             </FilterField>
+
+            <FilterField label="Freshness">
+              <FilterSelect
+                value={currentFilters.freshness ?? ""}
+                onChange={(value) => updateFilter("freshness", value)}
+                placeholder="All freshness"
+                options={[
+                  {
+                    value: "FRESH",
+                    label: "Fresh",
+                  },
+                  {
+                    value: "STALE",
+                    label: "Needs Regeneration",
+                  },
+                ]}
+              />
+            </FilterField>       
+
+            <FilterField label="Review Workflow">
+              <FilterSelect
+                value={currentFilters.reviewStatus ?? ""}
+                onChange={(value) => updateFilter("reviewStatus", value)}
+                placeholder="All review stages"
+                options={[
+                  {
+                    value: "DRAFT",
+                    label: "Preparing",
+                  },
+                  {
+                    value: "SUBMITTED",
+                    label: "Awaiting Review",
+                  },
+                  {
+                    value: "CHANGES_REQUESTED",
+                    label: "Changes Requested",
+                  },
+                  {
+                    value: "APPROVED",
+                    label: "Approved",
+                  },
+                ]}
+              />
+            </FilterField>
           </div>
 
           <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs font-medium leading-5 text-slate-400">
-              Filter changes are applied
-              automatically and reset pagination to
+              Filter changes are applied automatically and reset pagination to
               the first page.
             </p>
 
             <button
               type="button"
               onClick={resetFilters}
-              disabled={
-                isPending ||
-                activeFilterCount === 0
-              }
+              disabled={isPending || activeFilterCount === 0}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-blue-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
             >
               <RotateCcw className="h-4 w-4" />
@@ -819,20 +389,13 @@ function FilterSelect({
     <div className="relative">
       <select
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         className="h-12 w-full appearance-none truncate rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-10 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
       >
-        <option value="">
-          {placeholder}
-        </option>
+        <option value="">{placeholder}</option>
 
         {options.map((option) => (
-          <option
-            key={option.value}
-            value={option.value}
-          >
+          <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}

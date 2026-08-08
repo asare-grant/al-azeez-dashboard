@@ -33,9 +33,7 @@ type ReportCardCommandCentreProps = {
 
   printHref?: (reportCardId: number) => string;
 
-   reviewHref?: (
-    reportCardId: number,
-  ) => string;
+  reviewHref?: (reportCardId: number) => string;
 };
 
 function parsePositiveInteger(value?: string) {
@@ -75,7 +73,10 @@ export default function ReportCardCommandCentre({
         />
 
         <div className="mt-6">
-          <ReportCardMetrics metrics={metrics} />
+          <ReportCardMetrics
+            metrics={metrics}
+            currentFilters={currentFilters}
+          />
         </div>
 
         <div className="mt-6">
