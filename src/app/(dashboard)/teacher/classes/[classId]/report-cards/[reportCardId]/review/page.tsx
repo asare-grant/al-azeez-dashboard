@@ -8,6 +8,7 @@ import {
 
 import {
   getReportCardReviewWorkspace,
+  getTeacherAccessibleReportCard,
 } from "@/lib/report-cards/queries";
 
 export const dynamic =
@@ -49,16 +50,33 @@ export default async function TeacherReportCardReviewPage({
     notFound();
   }
 
+  /*
+   * First prove that the report belongs to
+   * this teacher AND to the class in the URL.
+   */
+  const accessibleReport =
+    await getTeacherAccessibleReportCard({
+      classId:
+        parsedClassId,
+
+      reportCardId:
+        parsedReportCardId,
+    });
+
+  if (!accessibleReport) {
+    notFound();
+  }
+
+  /*
+   * Only after route ownership is proven do
+   * we load the full review workspace.
+   */
   const reportCard =
     await getReportCardReviewWorkspace(
       parsedReportCardId,
     );
 
-  if (
-    !reportCard ||
-    reportCard.class.id !==
-      parsedClassId
-  ) {
+  if (!reportCard) {
     notFound();
   }
 
@@ -67,8 +85,8 @@ export default async function TeacherReportCardReviewPage({
       reportCard={
         reportCard
       }
-      backHref={`/teacher/classes/${parsedClassId}/report-cards/${reportCard.id}`}
-      printHref={`/teacher/classes/${parsedClassId}/report-cards/${reportCard.id}/print`}
+      backHref={`/teacher/classes/${parsedClassId}/report-cards/${parsedReportCardId}`}
+      printHref={`/teacher/classes/${parsedClassId}/report-cards/${parsedReportCardId}/print`}
     />
   );
 }

@@ -7,18 +7,26 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export const REPORT_CARD_REVIEW_LIMITS = {
-  MAX_SCHOOL_DAYS: 365,
+  MAX_CONDUCT_LENGTH:
+    100,
 
-  MAX_CONDUCT_LENGTH: 100,
-  MAX_ATTITUDE_LENGTH: 100,
-  MAX_INTEREST_LENGTH: 100,
+  MAX_ATTITUDE_LENGTH:
+    100,
 
-  MAX_TEACHER_REMARK_LENGTH: 500,
-  MAX_HEAD_TEACHER_REMARK_LENGTH: 500,
+  MAX_INTEREST_LENGTH:
+    100,
 
-  MAX_PROMOTION_STATUS_LENGTH: 150,
+  MAX_TEACHER_REMARK_LENGTH:
+    500,
 
-  MAX_REVIEW_NOTE_LENGTH: 1000,
+  MAX_HEAD_TEACHER_REMARK_LENGTH:
+    500,
+
+  MAX_PROMOTION_STATUS_LENGTH:
+    150,
+
+  MAX_REVIEW_NOTE_LENGTH:
+    1000,
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -38,50 +46,15 @@ const reportCardIdSchema =
       "Select a valid report card.",
     );
 
-const nullableSchoolDaySchema =
-  z
-    .union([
-      z.coerce
-        .number({
-          error:
-            "Enter a valid number of days.",
-        })
-        .int(
-          "School days must be a whole number.",
-        )
-        .min(
-          0,
-          "School days cannot be negative.",
-        )
-        .max(
-          REPORT_CARD_REVIEW_LIMITS
-            .MAX_SCHOOL_DAYS,
-
-          `School days cannot exceed ${REPORT_CARD_REVIEW_LIMITS.MAX_SCHOOL_DAYS}.`,
-        ),
-
-      z.literal(""),
-      z.null(),
-      z.undefined(),
-    ])
-    .transform((value) => {
-      if (
-        value === "" ||
-        value === null ||
-        value === undefined
-      ) {
-        return null;
-      }
-
-      return value;
-    });
-
 const optionalTrimmedText = ({
   fieldName,
   maxLength,
 }: {
-  fieldName: string;
-  maxLength: number;
+  fieldName:
+    string;
+
+  maxLength:
+    number;
 }) =>
   z
     .string()
@@ -113,21 +86,31 @@ const optionalDateSchema =
         ),
 
       z.null(),
+
       z.undefined(),
     ])
-    .transform((value) => {
-      if (
-        value === "" ||
-        value === null ||
-        value === undefined
-      ) {
-        return null;
-      }
+    .transform(
+      (
+        value,
+      ) => {
+        if (
+          value === "" ||
+          value ===
+            null ||
+          value ===
+            undefined
+        ) {
+          return null;
+        }
 
-      return value instanceof Date
-        ? value
-        : new Date(value);
-    });
+        return value instanceof
+          Date
+          ? value
+          : new Date(
+              value,
+            );
+      },
+    );
 
 /* -------------------------------------------------------------------------- */
 /*                    EDITABLE REPORT DETAILS SCHEMA                          */
@@ -138,12 +121,6 @@ export const reportCardDetailsSchema =
     .object({
       reportCardId:
         reportCardIdSchema,
-
-      daysSchoolOpened:
-        nullableSchoolDaySchema,
-
-      daysPresent:
-        nullableSchoolDaySchema,
 
       conduct:
         optionalTrimmedText({
@@ -216,27 +193,6 @@ export const reportCardDetailsSchema =
         value,
         context,
       ) => {
-        if (
-          value.daysSchoolOpened !==
-            null &&
-          value.daysPresent !==
-            null &&
-          value.daysPresent >
-            value.daysSchoolOpened
-        ) {
-          context.addIssue({
-            code:
-              "custom",
-
-            path: [
-              "daysPresent",
-            ],
-
-            message:
-              "Days present cannot exceed the total days school opened.",
-          });
-        }
-
         if (
           value.termClosedOn &&
           value.nextTermBegins &&

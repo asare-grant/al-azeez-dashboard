@@ -142,6 +142,7 @@ export default function ResultsCommandCentreTable({
                           width={42}
                           height={42}
                           className="h-11 w-11 rounded-2xl object-cover"
+                          unoptimized={Boolean(row.student.img)}
                         />
                       ) : (
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-xs font-black text-blue-700">

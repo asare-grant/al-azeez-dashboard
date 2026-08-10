@@ -56,6 +56,7 @@ export default function StudentResultsProfileHero({
                 alt={fullName}
                 width={112}
                 height={112}
+                unoptimized={Boolean(student.img)}
                 className="h-28 w-28 rounded-[28px] object-cover ring-4 ring-white/10"
               />
             ) : (

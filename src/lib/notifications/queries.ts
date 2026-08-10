@@ -1,3 +1,4 @@
+// src/lib/notifications/queries.ts
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 

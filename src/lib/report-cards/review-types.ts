@@ -25,9 +25,6 @@ export type ReportCardReviewActor = {
 export type ReportCardDetailsInput = {
   reportCardId: number;
 
-  daysSchoolOpened: number | null;
-  daysPresent: number | null;
-
   conduct: string;
   attitude: string;
   interest: string;

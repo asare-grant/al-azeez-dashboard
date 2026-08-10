@@ -94,8 +94,10 @@ export function reviewReportCardReadiness(
     title: "Attendance",
 
     description: attendanceComplete
-      ? `${reportCard.daysPresent} of ${reportCard.daysSchoolOpened} school days attended.`
-      : "Enter the total school days and days attended.",
+      ? `${reportCard.daysPresent} of ${reportCard.daysSchoolOpened} official school days attended.`
+      : reportCard.daysSchoolOpened !== null
+        ? "The attendance register for this student is incomplete for the current term."
+        : "Official school days have not been configured for this term.",
 
     severity: attendanceComplete ? "success" : "error",
 

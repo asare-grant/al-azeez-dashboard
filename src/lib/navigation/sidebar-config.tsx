@@ -309,7 +309,7 @@ export const sidebarNavigationGroups:
           "Term Settings",
 
         href:
-          "/list/settings/term",
+          "/list/settings/academic-calendar",
 
         icon:
           Settings2,

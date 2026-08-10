@@ -39,9 +39,10 @@ export default async function TeacherListPage(props: {
       <td className="flex items-center gap-4 p-4">
         <Image
           src={item.img || "/noAvatar.png"}
-          alt=""
+          alt={`${item.name} ${item.surname}`}
           width={40}
           height={40}
+          unoptimized={Boolean(item.img)}
           className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
         />
         <div className="flex flex-col">

@@ -631,6 +631,7 @@ model BusFeePayment {
   @@unique([studentId, date])
 }
 
+
 model Notification {
   id Int @id @default(autoincrement())
 
@@ -655,13 +656,180 @@ model Notification {
   @@index([assessmentId])
 }
 
+model NotificationEvent {
+  id Int @id @default(autoincrement())
+
+  /* -------------------------------------------------------- */
+  /*                        EVENT TYPE                        */
+  /* -------------------------------------------------------- */
+
+  type     NotificationType
+  category NotificationCategory
+
+  priority NotificationPriority @default(NORMAL)
+
+  /* -------------------------------------------------------- */
+  /*                       EVENT CONTENT                      */
+  /* -------------------------------------------------------- */
+
+  title   String
+  message String
+
+  actionUrl String?
+
+  /* -------------------------------------------------------- */
+  /*                      SOURCE ENTITY                       */
+  /* -------------------------------------------------------- */
+
+  entityType NotificationEntityType?
+  entityId   String?
+
+  /*
+   * Optional deduplication key.
+   *
+   * Example:
+   * assessment:42:due-soon:24h
+   *
+   * This prevents recurring/scheduled jobs from
+   * creating the same logical event repeatedly.
+   */
+  dedupeKey String? @unique
+
+  /* -------------------------------------------------------- */
+  /*                         ACTOR                            */
+  /* -------------------------------------------------------- */
+
+  actorId   String?
+  actorRole String?
+  actorName String?
+
+  /*
+   * Flexible event payload for future modules.
+   *
+   * Example:
+   * {
+   *   "reportCardId": 12,
+   *   "studentId": "...",
+   *   "classId": 20
+   * }
+   */
+  metadata Json?
+
+  /* -------------------------------------------------------- */
+  /*                       DELIVERIES                         */
+  /* -------------------------------------------------------- */
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([category, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
+
+
+enum NotificationCategory {
+  ASSESSMENT
+  REPORT_CARD
+  ATTENDANCE
+  ACADEMIC
+  FINANCE
+  ANNOUNCEMENT
+  SYSTEM
+  GENERAL
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 enum NotificationType {
-  ASSESSMENT_PUBLISHED
+  /* -------------------------------------------------------- */
+  /*                       ASSESSMENTS                        */
+  /* -------------------------------------------------------- */
+
+  ASSESSMENT_CREATED
   ASSESSMENT_SCHEDULED
+  ASSESSMENT_PUBLISHED
   ASSESSMENT_DUE_SOON
+  ASSESSMENT_SUBMITTED
   ASSESSMENT_RESULT_READY
   ASSESSMENT_FEEDBACK_ADDED
+
+  /* -------------------------------------------------------- */
+  /*                       REPORT CARDS                       */
+  /* -------------------------------------------------------- */
+
+  REPORT_CARD_GENERATED
+  REPORT_CARD_REGENERATED
+  REPORT_CARD_SUBMITTED
+  REPORT_CARD_CHANGES_REQUESTED
+  REPORT_CARD_APPROVED
+  REPORT_CARD_REOPENED
+  REPORT_CARD_PUBLISHED
+  REPORT_CARD_ARCHIVED
+  REPORT_CARD_STALE
+
+  /* -------------------------------------------------------- */
+  /*                        ATTENDANCE                        */
+  /* -------------------------------------------------------- */
+
+  ATTENDANCE_UPDATED
+  ATTENDANCE_INCOMPLETE
+  ATTENDANCE_REPORT_STALE
+
+  /* -------------------------------------------------------- */
+  /*                      ACADEMIC SETUP                      */
+  /* -------------------------------------------------------- */
+
+  ACADEMIC_TERM_UPDATED
+  ACADEMIC_WEIGHTING_UPDATED
+  GRADING_SCALE_UPDATED
+
+  /* -------------------------------------------------------- */
+  /*                         FINANCE                          */
+  /* -------------------------------------------------------- */
+
+  FEE_ASSIGNED
+  FEE_PAYMENT_RECEIVED
+  FEE_PAYMENT_CONFIRMED
+  FEE_BALANCE_DUE
+
+  /* -------------------------------------------------------- */
+  /*                      ANNOUNCEMENTS                       */
+  /* -------------------------------------------------------- */
+
+  ANNOUNCEMENT_PUBLISHED
+
+  /* -------------------------------------------------------- */
+  /*                         SYSTEM                           */
+  /* -------------------------------------------------------- */
+
+  SYSTEM_ALERT
   GENERAL
+}
+
+enum NotificationEntityType {
+  ASSESSMENT
+  REPORT_CARD
+  ATTENDANCE
+  RESULT
+  ASSIGNMENT
+  EXAM
+  SCHOOL_TERM
+  ACADEMIC_WEIGHTING
+  GRADING_SCALE
+  FEE
+  PAYMENT
+  ANNOUNCEMENT
+  STUDENT
+  CLASS
+  SYSTEM
 }
 
 model AcademicWeighting {
@@ -1008,6 +1176,8 @@ model SchoolTerm {
   startDate DateTime
   endDate   DateTime
   isActive  Boolean  @default(false)
+
+  daysSchoolOpened Int?
 
   academicYearId Int?
   academicYear   SchoolAcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: Restrict)

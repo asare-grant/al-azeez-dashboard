@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
 
-import { calculateReportCardAttendance } from "./attendance";
+import { Prisma } from "@prisma/client";
 
 import { requireReportCardUser } from "./auth";
 
@@ -37,6 +37,9 @@ import { reportCardFailure, reportCardSuccess } from "./action-result";
 
 import { createReportCardActivity } from "./activity-service";
 
+import { requireReportCardAdmin, requireReportCardManager } from "./auth";
+
+import { buildReportCardManagerWhere } from "./access";
 /* -------------------------------------------------------------------------- */
 /*                            SHARED CONSTANTS                                */
 /* -------------------------------------------------------------------------- */
@@ -118,37 +121,6 @@ function revalidateReportCardRoutes({
 /*                           ACCESS HELPERS                                   */
 /* -------------------------------------------------------------------------- */
 
-type ReportCardManager = {
-  userId: string;
-  role: "admin" | "teacher";
-};
-
-async function requireReportCardManager(): Promise<ReportCardManager> {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin" && role !== "teacher") {
-    throw new Error("UNAUTHORISED");
-  }
-
-  return {
-    userId,
-    role,
-  };
-}
-
-async function requireReportCardAdministrator() {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin") {
-    throw new Error("ADMIN_REQUIRED");
-  }
-
-  return {
-    userId,
-    role,
-  } as const;
-}
-
 /* -------------------------------------------------------------------------- */
 /*                      REVIEWABLE REPORT SELECT                              */
 /* -------------------------------------------------------------------------- */
@@ -217,146 +189,191 @@ export async function saveReportCardDetails(
 
     const data = parsed.data;
 
-    const attendance = calculateReportCardAttendance({
-      daysSchoolOpened: data.daysSchoolOpened,
+    const managerWhere = buildReportCardManagerWhere({
+      reportCardId: data.reportCardId,
 
-      daysPresent: data.daysPresent,
+      userId,
+
+      role,
     });
 
-    const result = await prisma.$transaction(async (tx) => {
-      const reportCard = await tx.reportCard.findFirst({
-        where: {
-          id: data.reportCardId,
+    if (!managerWhere) {
+      return reportCardFailure(
+        "You do not have permission to update this report card.",
+      );
+    }
 
-          ...(role === "teacher"
-            ? {
-                class: {
-                  lessons: {
-                    some: {
-                      teacherId: userId,
-                    },
-                  },
-                },
-              }
-            : {}),
-        },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        /*
+         * First read the report using the same
+         * manager ownership policy that will
+         * later be repeated in the mutation.
+         */
+        const reportCard = await tx.reportCard.findFirst({
+          where: managerWhere,
 
-        select: {
-          id: true,
+          select: {
+            id: true,
 
-          studentId: true,
-          classId: true,
+            studentId: true,
 
-          status: true,
-          reviewStatus: true,
+            classId: true,
 
-          headTeacherRemark: true,
-        },
-      });
+            status: true,
 
-      if (!reportCard) {
-        throw new Error("REPORT_CARD_NOT_FOUND");
-      }
+            reviewStatus: true,
 
-      if (reportCard.status !== "DRAFT") {
-        throw new Error("REPORT_CARD_LOCKED");
-      }
+            version: true,
 
-      if (
-        !REPORT_CARD_EDITABLE_REVIEW_STATUSES.includes(
-          reportCard.reviewStatus as "DRAFT" | "CHANGES_REQUESTED",
-        )
-      ) {
-        throw new Error("REVIEW_STATE_LOCKED");
-      }
-
-      const now = new Date();
-
-      const updated = await tx.reportCard.update({
-        where: {
-          id: reportCard.id,
-        },
-
-        data: {
-          daysSchoolOpened: attendance.daysSchoolOpened,
-
-          daysPresent: attendance.daysPresent,
-
-          daysAbsent: attendance.daysAbsent,
-
-          attendancePercentage: attendance.attendancePercentage,
-
-          conduct: normalizeNullableText(data.conduct),
-
-          attitude: normalizeNullableText(data.attitude),
-
-          interest: normalizeNullableText(data.interest),
-
-          classTeacherRemark: normalizeNullableText(data.classTeacherRemark),
-
-          /*
-           * A teacher cannot overwrite the
-           * administrator/head-teacher remark.
-           */
-          headTeacherRemark:
-            role === "admin"
-              ? normalizeNullableText(data.headTeacherRemark)
-              : reportCard.headTeacherRemark,
-
-          promotionStatus: normalizeNullableText(data.promotionStatus),
-
-          termClosedOn: data.termClosedOn,
-
-          nextTermBegins: data.nextTermBegins,
-
-          regeneratedAt: now,
-
-          version: {
-            increment: 1,
+            headTeacherRemark: true,
           },
-        },
+        });
 
-        select: {
-          id: true,
+        if (!reportCard) {
+          throw new Error("REPORT_CARD_NOT_FOUND");
+        }
 
-          studentId: true,
-          classId: true,
+        if (reportCard.status !== "DRAFT") {
+          throw new Error("REPORT_CARD_LOCKED");
+        }
 
-          reviewStatus: true,
+        if (
+          !REPORT_CARD_EDITABLE_REVIEW_STATUSES.includes(
+            reportCard.reviewStatus as "DRAFT" | "CHANGES_REQUESTED",
+          )
+        ) {
+          throw new Error("REVIEW_STATE_LOCKED");
+        }
 
-          daysSchoolOpened: true,
+        /*
+         * Repeat authorization, lifecycle state
+         * and version in the actual write.
+         */
+        const updated = await tx.reportCard.updateMany({
+          where: {
+            ...managerWhere,
 
-          daysPresent: true,
+            status: "DRAFT",
 
-          daysAbsent: true,
+            reviewStatus: {
+              in: ["DRAFT", "CHANGES_REQUESTED"],
+            },
 
-          attendancePercentage: true,
+            version: reportCard.version,
+          },
 
-          updatedAt: true,
-        },
-      });
+          data: {
+            conduct: normalizeNullableText(data.conduct),
 
-      await createReportCardActivity({
-        tx,
+            attitude: normalizeNullableText(data.attitude),
 
-        reportCardId: reportCard.id,
+            interest: normalizeNullableText(data.interest),
 
-        type: "DETAILS_UPDATED",
+            classTeacherRemark: normalizeNullableText(data.classTeacherRemark),
 
-        actorId: userId,
+            /*
+             * Teachers cannot overwrite
+             * the head-teacher remark.
+             */
+            headTeacherRemark:
+              role === "admin"
+                ? normalizeNullableText(data.headTeacherRemark)
+                : reportCard.headTeacherRemark,
 
-        actorRole: role,
+            promotionStatus: normalizeNullableText(data.promotionStatus),
 
-        actorName: null,
+            termClosedOn: data.termClosedOn,
 
-        title: "Report details updated",
+            nextTermBegins: data.nextTermBegins,
 
-        description:
-          "Attendance, remarks or student development details were updated.",
-      });
+            version: {
+              increment: 1,
+            },
+          },
+        });
 
-      return updated;
-    });
+        /*
+         * If another request changed the card
+         * after our read, the version no longer
+         * matches and this write affects zero rows.
+         */
+        if (updated.count !== 1) {
+          throw new Error("CONCURRENT_REVIEW_UPDATE");
+        }
+
+        /*
+         * Only create the activity after the
+         * state mutation succeeded.
+         */
+        await createReportCardActivity({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          type: "DETAILS_UPDATED",
+
+          actorId: userId,
+
+          actorRole: role,
+
+          actorName: null,
+
+          title: "Report details updated",
+
+          description:
+            "Student development, remarks or progression details were updated.",
+        });
+
+        /*
+         * updateMany only returns a count,
+         * so read the updated values required
+         * by the server-action response.
+         */
+        const updatedReportCard = await tx.reportCard.findUniqueOrThrow({
+          where: {
+            id: reportCard.id,
+          },
+
+          select: {
+            id: true,
+
+            studentId: true,
+
+            classId: true,
+
+            reviewStatus: true,
+
+            daysSchoolOpened: true,
+
+            daysPresent: true,
+
+            daysAbsent: true,
+
+            attendancePercentage: true,
+
+            updatedAt: true,
+          },
+        });
+
+        return updatedReportCard;
+      },
+
+      /*
+       * THIS IS WHERE THE TRANSACTION
+       * OPTIONS GO.
+       *
+       * They are the second argument to
+       * prisma.$transaction().
+       */
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
+      },
+    );
 
     revalidateReportCardRoutes({
       reportCardId: result.id,
@@ -411,124 +428,141 @@ export async function submitReportCardForReview(
 
     const { reportCardId, note } = parsed.data;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const reportCard = await tx.reportCard.findFirst({
-        where: {
-          id: reportCardId,
+    const managerWhere = buildReportCardManagerWhere({
+      reportCardId,
 
-          ...(role === "teacher"
-            ? {
-                class: {
-                  lessons: {
-                    some: {
-                      teacherId: userId,
-                    },
-                  },
-                },
-              }
-            : {}),
-        },
+      userId,
 
-        select: reviewableReportCardSelect,
-      });
+      role,
+    });
 
-      if (!reportCard) {
-        throw new Error("REPORT_CARD_NOT_FOUND");
-      }
+    if (!managerWhere) {
+      return reportCardFailure(
+        "You do not have permission to submit this report card.",
+      );
+    }
 
-      const workflow = canSubmitReportCardForReview(reportCard);
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const reportCard = await tx.reportCard.findFirst({
+          where: managerWhere,
 
-      if (!workflow.allowed) {
-        throw new ReportCardWorkflowError(
-          workflow.reason ?? "This report card cannot be submitted for review.",
-        );
-      }
+          select: reviewableReportCardSelect,
+        });
 
-      const readiness = reviewReportCardReadiness(reportCard);
+        if (!reportCard) {
+          throw new Error("REPORT_CARD_NOT_FOUND");
+        }
 
-      if (!readiness.readyForReview) {
-        throw new ReportCardReadinessError(
-          buildReadinessErrorMessage(readiness.errors),
-        );
-      }
+        const workflow = canSubmitReportCardForReview(reportCard);
 
-      const now = new Date();
+        if (!workflow.allowed) {
+          throw new ReportCardWorkflowError(
+            workflow.reason ??
+              "This report card cannot be submitted for review.",
+          );
+        }
 
-      const updated = await tx.reportCard.updateMany({
-        where: {
-          id: reportCard.id,
+        const readiness = reviewReportCardReadiness(reportCard);
 
-          status: "DRAFT",
+        if (!readiness.readyForReview) {
+          throw new ReportCardReadinessError(
+            buildReadinessErrorMessage(readiness.errors),
+          );
+        }
 
-          reviewStatus: {
-            in: ["DRAFT", "CHANGES_REQUESTED"],
+        const now = new Date();
+
+        const updated = await tx.reportCard.updateMany({
+          where: {
+            ...managerWhere,
+
+            status: "DRAFT",
+
+            reviewStatus: {
+              in: ["DRAFT", "CHANGES_REQUESTED"],
+            },
+
+            isStale: false,
+
+            calculationStatus: "READY",
+
+            /*
+             * The snapshot cannot have changed between
+             * validation and submission.
+             */
+            version: reportCard.version,
           },
 
-          isStale: false,
+          data: {
+            reviewStatus: "SUBMITTED",
 
-          calculationStatus: "READY",
-        },
+            submittedForReviewAt: now,
 
-        data: {
-          reviewStatus: "SUBMITTED",
+            submittedForReviewBy: userId,
+
+            reviewNote: note?.trim() || null,
+
+            /*
+             * Clear the previous correction state.
+             */
+            changesRequestedAt: null,
+
+            changesRequestedBy: null,
+
+            approvedAt: null,
+
+            approvedBy: null,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updated.count !== 1) {
+          throw new Error("CONCURRENT_REVIEW_UPDATE");
+        }
+
+        await createReportCardActivity({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          type: "SUBMITTED_FOR_REVIEW",
+
+          actorId: userId,
+
+          actorRole: role,
+
+          actorName: null,
+
+          title: "Submitted for review",
+
+          description:
+            "The report card was submitted for administrative review.",
+
+          note: note?.trim() || null,
+        });
+
+        return {
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          classId: reportCard.classId,
 
           submittedForReviewAt: now,
+        };
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-          submittedForReviewBy: userId,
+        maxWait: 10_000,
 
-          reviewNote: note?.trim() || null,
-
-          /*
-           * Clear the previous correction state.
-           */
-          changesRequestedAt: null,
-
-          changesRequestedBy: null,
-
-          approvedAt: null,
-
-          approvedBy: null,
-
-          version: {
-            increment: 1,
-          },
-        },
-      });
-
-      if (updated.count !== 1) {
-        throw new Error("CONCURRENT_REVIEW_UPDATE");
-      }
-
-      await createReportCardActivity({
-        tx,
-
-        reportCardId: reportCard.id,
-
-        type: "SUBMITTED_FOR_REVIEW",
-
-        actorId: userId,
-
-        actorRole: role,
-
-        actorName: null,
-
-        title: "Submitted for review",
-
-        description: "The report card was submitted for administrative review.",
-
-        note: note?.trim() || null,
-      });
-
-      return {
-        reportCardId: reportCard.id,
-
-        studentId: reportCard.studentId,
-
-        classId: reportCard.classId,
-
-        submittedForReviewAt: now,
-      };
-    });
+        timeout: 30_000,
+      },
+    );
 
     revalidateReportCardRoutes({
       reportCardId: result.reportCardId,
@@ -569,96 +603,108 @@ export async function requestReportCardChanges(
   }
 
   try {
-    const { userId } = await requireReportCardAdministrator();
+    const { userId } = await requireReportCardAdmin();
 
     const { reportCardId, reviewNote } = parsed.data;
 
     const now = new Date();
 
-    const result = await prisma.$transaction(async (tx) => {
-      const reportCard = await tx.reportCard.findUnique({
-        where: {
-          id: reportCardId,
-        },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const reportCard = await tx.reportCard.findUnique({
+          where: {
+            id: reportCardId,
+          },
 
-        select: reviewableReportCardSelect,
-      });
+          select: reviewableReportCardSelect,
+        });
 
-      if (!reportCard) {
-        throw new Error("REPORT_CARD_NOT_FOUND");
-      }
+        if (!reportCard) {
+          throw new Error("REPORT_CARD_NOT_FOUND");
+        }
 
-      const workflow = canRequestReportCardChanges(reportCard);
+        const workflow = canRequestReportCardChanges(reportCard);
 
-      if (!workflow.allowed) {
-        throw new ReportCardWorkflowError(
-          workflow.reason ??
-            "Changes cannot be requested for this report card.",
-        );
-      }
+        if (!workflow.allowed) {
+          throw new ReportCardWorkflowError(
+            workflow.reason ??
+              "Changes cannot be requested for this report card.",
+          );
+        }
 
-      const updated = await tx.reportCard.updateMany({
-        where: {
-          id: reportCard.id,
+        const updated = await tx.reportCard.updateMany({
+          where: {
+            id: reportCard.id,
 
-          status: "DRAFT",
+            status: "DRAFT",
 
-          reviewStatus: "SUBMITTED",
+            reviewStatus: "SUBMITTED",
 
-          isStale: false,
-        },
+            isStale: false,
 
-        data: {
-          reviewStatus: "CHANGES_REQUESTED",
+            version: reportCard.version,
+          },
 
-          reviewNote: reviewNote.trim(),
+          data: {
+            reviewStatus: "CHANGES_REQUESTED",
+
+            reviewNote: reviewNote.trim(),
+
+            changesRequestedAt: now,
+
+            changesRequestedBy: userId,
+
+            approvedAt: null,
+
+            approvedBy: null,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updated.count !== 1) {
+          throw new Error("CONCURRENT_REVIEW_UPDATE");
+        }
+
+        await createReportCardActivity({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          type: "CHANGES_REQUESTED",
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
+
+          title: "Changes requested",
+
+          description: "The report card was returned for correction.",
+
+          note: reviewNote.trim(),
+        });
+
+        return {
+          ...reportCard,
 
           changesRequestedAt: now,
 
-          changesRequestedBy: userId,
+          reviewNote: reviewNote.trim(),
+        };
+      },
 
-          approvedAt: null,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-          approvedBy: null,
+        maxWait: 10_000,
 
-          version: {
-            increment: 1,
-          },
-        },
-      });
-
-      if (updated.count !== 1) {
-        throw new Error("CONCURRENT_REVIEW_UPDATE");
-      }
-
-      await createReportCardActivity({
-        tx,
-
-        reportCardId: reportCard.id,
-
-        type: "CHANGES_REQUESTED",
-
-        actorId: userId,
-
-        actorRole: "admin",
-
-        actorName: null,
-
-        title: "Changes requested",
-
-        description: "The report card was returned for correction.",
-
-        note: reviewNote.trim(),
-      });
-
-      return {
-        ...reportCard,
-
-        changesRequestedAt: now,
-
-        reviewNote: reviewNote.trim(),
-      };
-    });
+        timeout: 30_000,
+      },
+    );
 
     revalidateReportCardRoutes({
       reportCardId: result.id,
@@ -704,107 +750,119 @@ export async function approveReportCard(
   }
 
   try {
-    const { userId } = await requireReportCardAdministrator();
+    const { userId } = await requireReportCardAdmin();
 
     const { reportCardId, reviewNote } = parsed.data;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const reportCard = await tx.reportCard.findUnique({
-        where: {
-          id: reportCardId,
-        },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const reportCard = await tx.reportCard.findUnique({
+          where: {
+            id: reportCardId,
+          },
 
-        select: reviewableReportCardSelect,
-      });
+          select: reviewableReportCardSelect,
+        });
 
-      if (!reportCard) {
-        throw new Error("REPORT_CARD_NOT_FOUND");
-      }
+        if (!reportCard) {
+          throw new Error("REPORT_CARD_NOT_FOUND");
+        }
 
-      const workflow = canApproveReportCard(reportCard);
+        const workflow = canApproveReportCard(reportCard);
 
-      if (!workflow.allowed) {
-        throw new ReportCardWorkflowError(
-          workflow.reason ?? "This report card cannot be approved.",
-        );
-      }
+        if (!workflow.allowed) {
+          throw new ReportCardWorkflowError(
+            workflow.reason ?? "This report card cannot be approved.",
+          );
+        }
 
-      const readiness = reviewReportCardReadiness(reportCard);
+        const readiness = reviewReportCardReadiness(reportCard);
 
-      if (!readiness.readyForApproval) {
-        throw new ReportCardReadinessError(
-          buildReadinessErrorMessage(readiness.errors),
-        );
-      }
+        if (!readiness.readyForApproval) {
+          throw new ReportCardReadinessError(
+            buildReadinessErrorMessage(readiness.errors),
+          );
+        }
 
-      const now = new Date();
+        const now = new Date();
 
-      const updated = await tx.reportCard.updateMany({
-        where: {
-          id: reportCard.id,
+        const updated = await tx.reportCard.updateMany({
+          where: {
+            id: reportCard.id,
 
-          status: "DRAFT",
+            status: "DRAFT",
 
-          reviewStatus: "SUBMITTED",
+            reviewStatus: "SUBMITTED",
 
-          calculationStatus: "READY",
+            calculationStatus: "READY",
 
-          isStale: false,
-        },
+            isStale: false,
 
-        data: {
-          reviewStatus: "APPROVED",
+            version: reportCard.version,
+          },
+
+          data: {
+            reviewStatus: "APPROVED",
+
+            approvedAt: now,
+
+            approvedBy: userId,
+
+            reviewNote: reviewNote?.trim() || reportCard.reviewNote,
+
+            changesRequestedAt: null,
+
+            changesRequestedBy: null,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updated.count !== 1) {
+          throw new Error("CONCURRENT_REVIEW_UPDATE");
+        }
+
+        await createReportCardActivity({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          type: "APPROVED",
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
+
+          title: "Report approved",
+
+          description: "The report card passed administrative review.",
+
+          note: reviewNote?.trim() || null,
+        });
+
+        return {
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          classId: reportCard.classId,
 
           approvedAt: now,
+        };
+      },
 
-          approvedBy: userId,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-          reviewNote: reviewNote?.trim() || reportCard.reviewNote,
+        maxWait: 10_000,
 
-          changesRequestedAt: null,
-
-          changesRequestedBy: null,
-
-          version: {
-            increment: 1,
-          },
-        },
-      });
-
-      if (updated.count !== 1) {
-        throw new Error("CONCURRENT_REVIEW_UPDATE");
-      }
-
-      await createReportCardActivity({
-        tx,
-
-        reportCardId: reportCard.id,
-
-        type: "APPROVED",
-
-        actorId: userId,
-
-        actorRole: "admin",
-
-        actorName: null,
-
-        title: "Report approved",
-
-        description: "The report card passed administrative review.",
-
-        note: reviewNote?.trim() || null,
-      });
-
-      return {
-        reportCardId: reportCard.id,
-
-        studentId: reportCard.studentId,
-
-        classId: reportCard.classId,
-
-        approvedAt: now,
-      };
-    });
+        timeout: 30_000,
+      },
+    );
 
     revalidateReportCardRoutes({
       reportCardId: result.reportCardId,
@@ -845,98 +903,112 @@ export async function reopenReportCardReview(
   }
 
   try {
-    const { userId } = await requireReportCardAdministrator();
+    const { userId } = await requireReportCardAdmin();
 
     const { reportCardId, reviewNote } = parsed.data;
 
     const now = new Date();
 
-    const result = await prisma.$transaction(async (tx) => {
-      const reportCard = await tx.reportCard.findFirst({
-        where: {
-          id: reportCardId,
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const reportCard = await tx.reportCard.findFirst({
+          where: {
+            id: reportCardId,
 
-          status: "DRAFT",
+            status: "DRAFT",
 
-          reviewStatus: "APPROVED",
-        },
+            reviewStatus: "APPROVED",
+          },
 
-        select: {
-          id: true,
+          select: {
+            id: true,
 
-          studentId: true,
+            studentId: true,
 
-          classId: true,
-        },
-      });
+            classId: true,
 
-      if (!reportCard) {
-        throw new Error("REPORT_NOT_APPROVED");
-      }
+            version: true,
+          },
+        });
 
-      const updated = await tx.reportCard.updateMany({
-        where: {
-          id: reportCard.id,
+        if (!reportCard) {
+          throw new Error("REPORT_NOT_APPROVED");
+        }
 
-          status: "DRAFT",
+        const updated = await tx.reportCard.updateMany({
+          where: {
+            id: reportCard.id,
 
-          reviewStatus: "APPROVED",
-        },
+            status: "DRAFT",
 
-        data: {
-          reviewStatus: "DRAFT",
+            reviewStatus: "APPROVED",
+
+            version: reportCard.version,
+          },
+
+          data: {
+            reviewStatus: "DRAFT",
+
+            reviewNote: reviewNote.trim(),
+
+            approvedAt: null,
+
+            approvedBy: null,
+
+            submittedForReviewAt: null,
+
+            submittedForReviewBy: null,
+
+            changesRequestedAt: now,
+
+            changesRequestedBy: userId,
+
+            version: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updated.count !== 1) {
+          throw new Error("CONCURRENT_REVIEW_UPDATE");
+        }
+
+        await createReportCardActivity({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          type: "REOPENED",
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
+
+          title: "Review reopened",
+
+          description:
+            "The approved report card was reopened for further editing.",
+
+          note: reviewNote.trim(),
+        });
+
+        return {
+          ...reportCard,
 
           reviewNote: reviewNote.trim(),
+        };
+      },
 
-          approvedAt: null,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-          approvedBy: null,
+        maxWait: 10_000,
 
-          submittedForReviewAt: null,
-
-          submittedForReviewBy: null,
-
-          changesRequestedAt: now,
-
-          changesRequestedBy: userId,
-
-          version: {
-            increment: 1,
-          },
-        },
-      });
-
-      if (updated.count !== 1) {
-        throw new Error("CONCURRENT_REVIEW_UPDATE");
-      }
-
-      await createReportCardActivity({
-        tx,
-
-        reportCardId: reportCard.id,
-
-        type: "REOPENED",
-
-        actorId: userId,
-
-        actorRole: "admin",
-
-        actorName: null,
-
-        title: "Review reopened",
-
-        description:
-          "The approved report card was reopened for further editing.",
-
-        note: reviewNote.trim(),
-      });
-
-      return {
-        ...reportCard,
-
-        reviewNote: reviewNote.trim(),
-      };
-    });
+        timeout: 30_000,
+      },
+    );
 
     revalidateReportCardRoutes({
       reportCardId: result.id,

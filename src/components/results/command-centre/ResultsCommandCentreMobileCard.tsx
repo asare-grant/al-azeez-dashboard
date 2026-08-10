@@ -71,6 +71,7 @@ export default function ResultsCommandCentreMobileCard({
               alt={`${result.student.name} ${result.student.surname}`}
               width={48}
               height={48}
+              unoptimized={Boolean(result.student.img)}
               className="h-12 w-12 shrink-0 rounded-2xl object-cover"
             />
           ) : (

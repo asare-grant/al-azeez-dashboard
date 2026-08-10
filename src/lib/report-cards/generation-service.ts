@@ -24,6 +24,8 @@ import type {
 
 import { createReportCardActivity } from "./activity-service";
 
+import { getClassTermAttendanceSummaries } from "@/lib/attendance/report-attendance-service";
+
 /* -------------------------------------------------------------------------- */
 /*                              ENGINE TYPES                                  */
 /* -------------------------------------------------------------------------- */
@@ -37,14 +39,6 @@ type GeneratedSubjectResult = RankedSubjectResult;
 /* -------------------------------------------------------------------------- */
 
 type PreservedManualReportFields = {
-  daysSchoolOpened: number | null;
-
-  daysPresent: number | null;
-
-  daysAbsent: number | null;
-
-  attendancePercentage: number | null;
-
   conduct: string | null;
 
   attitude: string | null;
@@ -429,17 +423,7 @@ function buildReportSnapshot({
 
   preservedManualFields?: PreservedManualReportFields;
 }): Prisma.InputJsonValue {
-  const attendance = preservedManualFields
-    ? {
-        daysSchoolOpened: preservedManualFields.daysSchoolOpened,
-
-        daysPresent: preservedManualFields.daysPresent,
-
-        daysAbsent: preservedManualFields.daysAbsent,
-
-        attendancePercentage: preservedManualFields.attendancePercentage,
-      }
-    : report.attendance;
+  const attendance = report.attendance;
 
   const remarks = preservedManualFields
     ? {
@@ -543,6 +527,18 @@ function buildReportCardScalarData({
     totalScore: report.summary.totalScore,
 
     averageScore: report.summary.averageScore,
+
+    /* -------------------------------------------------------------- */
+    /*                    ATTENDANCE SNAPSHOT                          */
+    /* -------------------------------------------------------------- */
+
+    daysSchoolOpened: report.attendance.daysSchoolOpened,
+
+    daysPresent: report.attendance.daysPresent,
+
+    daysAbsent: report.attendance.daysAbsent,
+
+    attendancePercentage: report.attendance.attendancePercentage,
 
     highestSubjectScore: metrics.highestSubjectScore,
 
@@ -691,6 +687,56 @@ async function loadGenerationConfiguration(
 /* -------------------------------------------------------------------------- */
 /*                        GENERATE CLASS REPORT CARDS                         */
 /* -------------------------------------------------------------------------- */
+function applyAttendanceSummaryToReport({
+  report,
+  attendance,
+}: {
+  report: GeneratedStudentReport;
+
+  attendance: ReturnType<typeof getAttendanceSnapshotForReport>;
+}) {
+  return {
+    ...report,
+
+    attendance,
+  };
+}
+
+function getAttendanceSnapshotForReport({
+  daysSchoolOpened,
+  registerStatus,
+  daysPresent,
+  daysAbsent,
+  attendancePercentage,
+}: {
+  daysSchoolOpened: number;
+
+  registerStatus: "COMPLETE" | "INCOMPLETE";
+
+  daysPresent: number | null;
+
+  daysAbsent: number | null;
+
+  attendancePercentage: number | null;
+}) {
+  /*
+   * We can safely expose official school days even
+   * while the individual register is incomplete.
+   *
+   * Final student attendance values remain null
+   * until every official attendance day is recorded.
+   */
+  return {
+    daysSchoolOpened,
+
+    daysPresent: registerStatus === "COMPLETE" ? daysPresent : null,
+
+    daysAbsent: registerStatus === "COMPLETE" ? daysAbsent : null,
+
+    attendancePercentage:
+      registerStatus === "COMPLETE" ? attendancePercentage : null,
+  };
+}
 
 export async function generateClassReportCards(
   input: GenerateClassReportCardsInput,
@@ -773,6 +819,23 @@ export async function generateClassReportCards(
 
   const studentIds = classReport.students.map((report) => report.student.id);
 
+  /* ------------------------------------------------------------------------ */
+  /*                     LOAD TERM ATTENDANCE SNAPSHOTS                       */
+  /* ------------------------------------------------------------------------ */
+
+  const attendanceSummaries = await getClassTermAttendanceSummaries({
+    studentIds,
+
+    termId: validatedTerm.id,
+  });
+
+  for (const summary of attendanceSummaries.values()) {
+    if (summary.academicYear !== academicYear) {
+      throw new Error(
+        `Attendance configuration belongs to ${summary.academicYear}, but report generation requested ${academicYear}.`,
+      );
+    }
+  }
   /* ------------------------------------------------------------------------ */
   /*                    LOAD EXISTING PERSISTED CARDS                         */
   /* ------------------------------------------------------------------------ */
@@ -864,7 +927,22 @@ export async function generateClassReportCards(
 
       let subjectSnapshotsCreated = 0;
 
-      for (const studentReport of classReport.students) {
+      for (const academicStudentReport of classReport.students) {
+        const attendanceSummary = attendanceSummaries.get(
+          academicStudentReport.student.id,
+        );
+
+        if (!attendanceSummary) {
+          throw new Error(
+            `Attendance summary could not be resolved for ${academicStudentReport.student.name} ${academicStudentReport.student.surname}.`,
+          );
+        }
+
+        const studentReport = applyAttendanceSummaryToReport({
+          report: academicStudentReport,
+
+          attendance: getAttendanceSnapshotForReport(attendanceSummary),
+        });
         const studentId = studentReport.student.id;
 
         const studentName = getStudentDisplayName(studentReport);
@@ -944,13 +1022,6 @@ export async function generateClassReportCards(
               generatedById,
 
               preservedManualFields: {
-                daysSchoolOpened: existing.daysSchoolOpened,
-
-                daysPresent: existing.daysPresent,
-
-                daysAbsent: existing.daysAbsent,
-
-                attendancePercentage: existing.attendancePercentage,
 
                 conduct: existing.conduct,
 

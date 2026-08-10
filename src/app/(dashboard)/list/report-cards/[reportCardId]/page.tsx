@@ -1,3 +1,4 @@
+// /list/report-cards/[reportCardId]/page.tsx
 import { notFound } from "next/navigation";
 
 import { ReportCardViewer } from "@/components/report-cards/viewer";

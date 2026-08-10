@@ -1,3 +1,4 @@
+// src/app/(dashboard)/parent/children/[childId]/report-cards/[reportCardId]/print/page.tsx
 import {
   notFound,
 } from "next/navigation";

@@ -52,9 +52,10 @@ const SingleTeacherPage = async (props: { params: Promise<{ id: string }> }) => 
             <div className="w-1/3">
               <Image
                 src={teacher.img || "/noAvatar.png"}
-                alt=""
+                alt={`${teacher.name} ${teacher.surname}`}
                 width={144}
                 height={144}
+                unoptimized={Boolean(teacher.img)}
                 className="w-36 h-36 rounded-full object-cover"
               />
             </div>

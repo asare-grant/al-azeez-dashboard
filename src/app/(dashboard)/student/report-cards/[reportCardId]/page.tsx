@@ -1,8 +1,9 @@
+// scr/app/(dashboard)/student/report-cards/[reportCardId]/page.tsx
 import { notFound } from "next/navigation";
 
 import { ReportCardViewer } from "@/components/report-cards/viewer";
 
-import { getAccessibleReportCard } from "@/lib/report-cards/queries";
+import { getStudentAccessibleReportCard } from "@/lib/report-cards/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function StudentReportCardPage({
    * 2. reportCard.studentId equals the current user ID;
    * 3. reportCard.status equals PUBLISHED.
    */
-  const reportCard = await getAccessibleReportCard(parsedReportCardId);
+  const reportCard = await getStudentAccessibleReportCard(parsedReportCardId);
 
   if (!reportCard) {
     notFound();
@@ -44,6 +45,9 @@ export default async function StudentReportCardPage({
       isAdmin={false}
       backHref="/student/report-cards"
       printHref={`/student/report-cards/${reportCard.id}/print`}
+       canReview={
+        false
+      }
     />
   );
 }

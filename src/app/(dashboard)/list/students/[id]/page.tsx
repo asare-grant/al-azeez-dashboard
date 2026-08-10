@@ -14,7 +14,9 @@ import { Suspense } from "react";
 
 export const revalidate = 0;
 
-const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => {
+const SingleStudentPage = async (props: {
+  params: Promise<{ id: string }>;
+}) => {
   const { id } = await props.params; // ✅ Await params before destructuring
 
   console.log("🧩 PARAM ID:", id);
@@ -32,7 +34,7 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
     where: { id },
     include: {
       class: { include: { _count: { select: { lessons: true } } } },
-      grade:  true 
+      grade: true,
     },
   });
 
@@ -49,9 +51,10 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
             <div className="w-1/3">
               <Image
                 src={student.img || "/noAvatar.png"}
-                alt=""
+                alt={`${student.name} ${student.surname}`}
                 width={144}
                 height={144}
+                unoptimized={Boolean(student.img)}
                 className="w-36 h-36 rounded-full object-cover"
               />
             </div>
@@ -116,7 +119,9 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
                 className="w-6 h-6"
               />
               <div>
-                <h1 className="text-[16px] font-semibold">{student.grade.level}</h1>
+                <h1 className="text-[16px] font-semibold">
+                  {student.grade.level}
+                </h1>
                 <span className="text-sm text-gray-400">Grade</span>
               </div>
             </div>
@@ -148,7 +153,9 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
                 className="w-6 h-6"
               />
               <div>
-                <h1 className="text-[16px] font-semibold">{student.class.name}</h1>
+                <h1 className="text-[16px] font-semibold">
+                  {student.class.name}
+                </h1>
                 <span className="text-sm text-gray-400">Class</span>
               </div>
             </div>
@@ -164,9 +171,7 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
 
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-4">
-      {role === "admin" && (
-                <FeeStatementForm studentId={student.id} />
-                )}
+        {role === "admin" && <FeeStatementForm studentId={student.id} />}
         <div className="bg-white p-4 rounded-md">
           <h1 className="text-xl font-semibold">Shortcuts</h1>
           <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
@@ -201,7 +206,6 @@ const SingleStudentPage = async (props: { params: Promise<{ id: string }> }) => 
               Student&apos;s Results
             </Link>
           </div>
-          
         </div>
         <Performance />
         <Announcements />

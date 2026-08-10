@@ -1,3 +1,4 @@
+// src/app/(dashboard)/student/report-cards/[reportCardId]/print
 import {
   notFound,
 } from "next/navigation";
@@ -8,7 +9,7 @@ import {
 } from "@/components/report-cards/viewer";
 
 import {
-  getAccessibleReportCard,
+  getStudentAccessibleReportCard,
 } from "@/lib/report-cards/queries";
 
 export const dynamic =
@@ -42,7 +43,7 @@ export default async function StudentPrintReportCardPage({
   }
 
   const reportCard =
-    await getAccessibleReportCard(
+    await getStudentAccessibleReportCard(
       parsedReportCardId,
     );
 

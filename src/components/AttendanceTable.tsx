@@ -81,7 +81,13 @@ export default function AttendanceTable({
     return Array.from({ length: total }, (_, i) => i + 1);
   };
 
-  const isSameDay = (a: string, b: Date) => moment(a).isSame(b, "day");
+  const isSameDay = (attendanceDate: string, calendarDate: Date) => {
+    const savedDate = moment.utc(attendanceDate).format("YYYY-MM-DD");
+
+    const selectedDate = moment(calendarDate).format("YYYY-MM-DD");
+
+    return savedDate === selectedDate;
+  };
 
   const filteredStudents = useMemo(
     () =>
@@ -180,7 +186,7 @@ export default function AttendanceTable({
     }
 
     const day = Number(e.colDef.field);
-    const present = Boolean(e.newValue);
+    const present = e.newValue === true;
     const date = new Date(
       moment(selectedMonth).year(),
       moment(selectedMonth).month(),
@@ -188,21 +194,28 @@ export default function AttendanceTable({
     );
 
     try {
+      const attendanceDate = moment({
+        year: moment(selectedMonth).year(),
+
+        month: moment(selectedMonth).month(),
+
+        day: day,
+      }).format("YYYY-MM-DD");
+
       const saved = await GlobalApi.UpsertAttendance({
         studentId: e.data.studentId,
-        date: date.toISOString(),
+
+        date: attendanceDate,
+
         day,
+
         present,
       });
-
       setAttendance((prev) => {
         const others = prev.filter(
-          (a) =>
-            !(
-              a.studentId === saved.studentId &&
-              isSameDay(a.date, new Date(saved.date))
-            ),
+          (a) => !(a.studentId === saved.studentId && a.day === saved.day),
         );
+
         return [...others, saved];
       });
 

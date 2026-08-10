@@ -1,5 +1,9 @@
+import Link from "next/link";
 import {
+  ArrowLeft,
+  BarChart3,
   FileBarChart,
+  LayoutDashboard,
 } from "lucide-react";
 
 import type {
@@ -25,6 +29,31 @@ export default function ResultsCommandCentre({
 }: ResultsCommandCentreProps) {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+      <div className="mb-4 flex flex-wrap gap-3">
+                  <Link
+                    href="/list/assessments"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Assessments
+                  </Link>
+        
+                  <Link
+                    href="/list/results/legacy"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Legacy Results
+                  </Link>
+        
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                </div>
       <div className="mx-auto max-w-[1800px]">
         <ResultsCommandCentreHero
           totalResults={

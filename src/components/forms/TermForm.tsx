@@ -1,107 +1,6 @@
-// "use client";
-
-// import { useForm } from "react-hook-form";
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import { toast } from "react-toastify";
-// import { useRouter } from "next/navigation";
-
-// import InputField from "../InputField";
-// import { termSchema, TermSchema } from "@/lib/formValidationSchemas";
-// import { saveTermSettings } from "@/lib/actions";
-
-// const TermForm = ({ data }: { data?: any }) => {
-//   const router = useRouter();
-
-//   const {
-//     register,
-//     handleSubmit,
-//     formState: { errors },
-//   } = useForm<TermSchema>({
-//     resolver: zodResolver(termSchema) as any,
-//     defaultValues: {
-//       name: data?.name ?? "FIRST",
-//       startDate: data?.startDate
-//         ? new Date(data.startDate).toISOString().slice(0, 10)
-//         : "",
-//       endDate: data?.endDate
-//         ? new Date(data.endDate).toISOString().slice(0, 10)
-//         : "",
-//     },
-//   });
-
-//   const onSubmit = handleSubmit(async (values) => {
-//     const result = await saveTermSettings(values);
-
-//     if (result.success) {
-//       toast.success("Term settings updated");
-//       router.refresh();
-//     } else {
-//       toast.error("Something went wrong");
-//     }
-//   });
-
-//   return (
-//     <form
-//       onSubmit={onSubmit}
-//       className="bg-white p-4 rounded-md space-y-4 max-w-md "
-//     >
-//       {/* TERM NAME */}
-//       <div>
-//         <label className="text-xs text-gray-500">Term</label>
-//         <select
-//           {...register("name")}
-//           className="ring-1 ring-gray-300 p-2 rounded-md w-full"
-//         >
-//           <option value="FIRST">First Term</option>
-//           <option value="SECOND">Second Term</option>
-//           <option value="THIRD">Third Term</option>
-//         </select>
-//       </div>
-
-//       {/* START DATE */}
-//       <div className="flex flex-col flex-1 md:flex-row gap-4">
-//       <InputField
-//         label="Term Start Date"
-//         name="startDate"
-//         type="date"
-//         register={register}
-//         error={errors.startDate}
-//       />
-
-//       {/* END DATE */}
-//       <InputField
-//         label="Term End Date"
-//         name="endDate"
-//         type="date"
-//         register={register}
-//         error={errors.endDate}
-//       />
-//       </div>
-//       {data?.id && <input type="hidden" {...register("id")} value={data.id} />}
-
-//       <button className="bg-blue-500 text-white p-2 rounded-md w-full">
-//         Save Settings
-//       </button>
-//     </form>
-//   );
-// };
-
-// export default TermForm;
-
-
-
-
-
-
-
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   CalendarDays,
@@ -125,29 +24,22 @@ import { saveTermSettings } from "@/lib/actions";
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
 
-type TermName =
-  | "FIRST"
-  | "SECOND"
-  | "THIRD";
+type TermName = "FIRST" | "SECOND" | "THIRD";
 
 type SchoolTerm = {
   id: number;
 
   name: TermName;
 
-  startDate:
-    | Date
-    | string;
+  startDate: Date | string;
 
-  endDate:
-    | Date
-    | string;
+  endDate: Date | string;
 
-  isActive:
-    boolean;
+  daysSchoolOpened: number | null;
 
-  academicYearId:
-    number | null;
+  isActive: boolean;
+
+  academicYearId: number | null;
 
   academicYear?: {
     id: number;
@@ -160,99 +52,62 @@ type AcademicYearOption = {
 
   name: string;
 
-  startDate?:
-    | Date
-    | string;
+  startDate?: Date | string;
 
-  endDate?:
-    | Date
-    | string;
+  endDate?: Date | string;
 
   isActive: boolean;
 };
 
 type TermFormProps = {
-  data?:
-    SchoolTerm | null;
+  data?: SchoolTerm | null;
 
-  terms:
-    SchoolTerm[];
+  terms: SchoolTerm[];
 
-  academicYears:
-    AcademicYearOption[];
+  academicYears: AcademicYearOption[];
 
-  activeAcademicYearId:
-    number | null;
+  activeAcademicYearId: number | null;
 };
 
 type TermFormState = {
-  name:
-    TermName;
+  name: TermName;
 
-  academicYearId:
-    number | null;
+  academicYearId: number | null;
 
-  startDate:
-    string;
+  startDate: string;
 
-  endDate:
-    string;
+  endDate: string;
 
-  isActive:
-    boolean;
+  daysSchoolOpened: string;
+
+  isActive: boolean;
 };
 
 /* -------------------------------------------------------------------------- */
 /*                                  HELPERS                                   */
 /* -------------------------------------------------------------------------- */
 
-function formatDate(
-  value?:
-    | Date
-    | string
-    | null,
-) {
+function formatDate(value?: Date | string | null) {
   if (!value) {
     return "";
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return "";
   }
 
-  const year =
-    date.getFullYear();
+  const year = date.getFullYear();
 
-  const month =
-    String(
-      date.getMonth() + 1,
-    ).padStart(
-      2,
-      "0",
-    );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
 
-  const day =
-    String(
-      date.getDate(),
-    ).padStart(
-      2,
-      "0",
-    );
+  const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function formatTermName(
-  value:
-    TermName,
-) {
+function formatTermName(value: TermName) {
   switch (value) {
     case "FIRST":
       return "First Term";
@@ -272,34 +127,25 @@ function createInitialState({
   data,
   activeAcademicYearId,
 }: {
-  data?:
-    SchoolTerm | null;
+  data?: SchoolTerm | null;
 
-  activeAcademicYearId:
-    number | null;
+  activeAcademicYearId: number | null;
 }): TermFormState {
   return {
-    name:
-      data?.name ??
-      "FIRST",
+    name: data?.name ?? "FIRST",
 
-    academicYearId:
-      data?.academicYearId ??
-      activeAcademicYearId,
+    academicYearId: data?.academicYearId ?? activeAcademicYearId,
 
-    startDate:
-      formatDate(
-        data?.startDate,
-      ),
+    startDate: formatDate(data?.startDate),
 
-    endDate:
-      formatDate(
-        data?.endDate,
-      ),
+    endDate: formatDate(data?.endDate),
 
-    isActive:
-      data?.isActive ??
-      false,
+    daysSchoolOpened:
+      data?.daysSchoolOpened !== null && data?.daysSchoolOpened !== undefined
+        ? String(data.daysSchoolOpened)
+        : "",
+
+    isActive: data?.isActive ?? false,
   };
 }
 
@@ -313,69 +159,36 @@ export default function TermForm({
   academicYears,
   activeAcademicYearId,
 }: TermFormProps) {
-  const router =
-    useRouter();
+  const router = useRouter();
 
-  const [
-    isPending,
-    startTransition,
-  ] =
-    useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  const [
-    selectedId,
-    setSelectedId,
-  ] =
-    useState<number | null>(
-      data?.id ??
-        null,
-    );
+  const [selectedId, setSelectedId] = useState<number | null>(data?.id ?? null);
 
-  const [
-    form,
-    setForm,
-  ] =
-    useState<TermFormState>(() =>
-      createInitialState({
-        data,
+  const [form, setForm] = useState<TermFormState>(() =>
+    createInitialState({
+      data,
 
-        activeAcademicYearId,
-      }),
-    );
+      activeAcademicYearId,
+    }),
+  );
 
   /* ------------------------------------------------------------------------ */
   /*                          DERIVED VALUES                                  */
   /* ------------------------------------------------------------------------ */
 
-  const selectedAcademicYear =
-    useMemo(
-      () =>
-        academicYears.find(
-          (year) =>
-            year.id ===
-            form.academicYearId,
-        ) ?? null,
-      [
-        academicYears,
-        form.academicYearId,
-      ],
-    );
+  const selectedAcademicYear = useMemo(
+    () => academicYears.find((year) => year.id === form.academicYearId) ?? null,
+    [academicYears, form.academicYearId],
+  );
 
-  const termsForSelectedYear =
-    useMemo(
-      () =>
-        form.academicYearId
-          ? terms.filter(
-              (term) =>
-                term.academicYearId ===
-                form.academicYearId,
-            )
-          : terms,
-      [
-        terms,
-        form.academicYearId,
-      ],
-    );
+  const termsForSelectedYear = useMemo(
+    () =>
+      form.academicYearId
+        ? terms.filter((term) => term.academicYearId === form.academicYearId)
+        : terms,
+    [terms, form.academicYearId],
+  );
 
   /* ------------------------------------------------------------------------ */
   /*                    LOAD SELECTED EXISTING TERM                           */
@@ -386,60 +199,44 @@ export default function TermForm({
       return;
     }
 
-    const selected =
-      terms.find(
-        (term) =>
-          term.id ===
-          selectedId,
-      );
+    const selected = terms.find((term) => term.id === selectedId);
 
     if (!selected) {
       return;
     }
 
     setForm({
-      name:
-        selected.name,
+      name: selected.name,
 
-      academicYearId:
-        selected.academicYearId,
+      academicYearId: selected.academicYearId,
 
-      startDate:
-        formatDate(
-          selected.startDate,
-        ),
+      startDate: formatDate(selected.startDate),
 
-      endDate:
-        formatDate(
-          selected.endDate,
-        ),
+      endDate: formatDate(selected.endDate),
 
-      isActive:
-        selected.isActive,
+      daysSchoolOpened:
+        selected.daysSchoolOpened !== null &&
+        selected.daysSchoolOpened !== undefined
+          ? String(selected.daysSchoolOpened)
+          : "",
+
+      isActive: selected.isActive,
     });
-  }, [
-    selectedId,
-    terms,
-  ]);
+  }, [selectedId, terms]);
 
   /* ------------------------------------------------------------------------ */
   /*                              FIELD UPDATE                                */
   /* ------------------------------------------------------------------------ */
 
-  function updateField<
-    K extends keyof TermFormState,
-  >(
+  function updateField<K extends keyof TermFormState>(
     field: K,
     value: TermFormState[K],
   ) {
-    setForm(
-      (current) => ({
-        ...current,
+    setForm((current) => ({
+      ...current,
 
-        [field]:
-          value,
-      }),
-    );
+      [field]: value,
+    }));
   }
 
   /* ------------------------------------------------------------------------ */
@@ -447,25 +244,20 @@ export default function TermForm({
   /* ------------------------------------------------------------------------ */
 
   function startNew() {
-    setSelectedId(
-      null,
-    );
+    setSelectedId(null);
 
     setForm({
-      name:
-        "FIRST",
+      name: "FIRST",
 
-      academicYearId:
-        activeAcademicYearId,
+      academicYearId: activeAcademicYearId,
 
-      startDate:
-        "",
+      startDate: "",
 
-      endDate:
-        "",
+      endDate: "",
 
-      isActive:
-        false,
+      daysSchoolOpened: "",
+
+      isActive: false,
     });
   }
 
@@ -473,65 +265,33 @@ export default function TermForm({
   /*                                SUBMIT                                    */
   /* ------------------------------------------------------------------------ */
 
-  function handleSubmit(
-    event:
-      React.FormEvent<HTMLFormElement>,
-  ) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (
-      !form.academicYearId
-    ) {
-      toast.error(
-        "Select an academic year.",
-      );
+    if (!form.academicYearId) {
+      toast.error("Select an academic year.");
 
       return;
     }
 
-    if (
-      !form.startDate ||
-      !form.endDate
-    ) {
-      toast.error(
-        "Enter the term start and end dates.",
-      );
+    if (!form.startDate || !form.endDate) {
+      toast.error("Enter the term start and end dates.");
 
       return;
     }
 
-    const startDate =
-      new Date(
-        form.startDate,
-      );
+    const startDate = new Date(form.startDate);
 
-    const endDate =
-      new Date(
-        form.endDate,
-      );
+    const endDate = new Date(form.endDate);
 
-    if (
-      Number.isNaN(
-        startDate.getTime(),
-      ) ||
-      Number.isNaN(
-        endDate.getTime(),
-      )
-    ) {
-      toast.error(
-        "Enter valid term dates.",
-      );
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      toast.error("Enter valid term dates.");
 
       return;
     }
 
-    if (
-      endDate <=
-      startDate
-    ) {
-      toast.error(
-        "The term end date must be after the start date.",
-      );
+    if (endDate <= startDate) {
+      toast.error("The term end date must be after the start date.");
 
       return;
     }
@@ -541,28 +301,12 @@ export default function TermForm({
      * The server action still remains the
      * authoritative validation layer.
      */
-    if (
-      selectedAcademicYear
-        ?.startDate &&
-      selectedAcademicYear
-        ?.endDate
-    ) {
-      const yearStart =
-        new Date(
-          selectedAcademicYear.startDate,
-        );
+    if (selectedAcademicYear?.startDate && selectedAcademicYear?.endDate) {
+      const yearStart = new Date(selectedAcademicYear.startDate);
 
-      const yearEnd =
-        new Date(
-          selectedAcademicYear.endDate,
-        );
+      const yearEnd = new Date(selectedAcademicYear.endDate);
 
-      if (
-        startDate <
-          yearStart ||
-        endDate >
-          yearEnd
-      ) {
+      if (startDate < yearStart || endDate > yearEnd) {
         toast.error(
           `The term dates must fall within the ${selectedAcademicYear.name} academic year.`,
         );
@@ -571,55 +315,62 @@ export default function TermForm({
       }
     }
 
-    startTransition(
-      async () => {
-        const result =
-          await saveTermSettings({
-            id:
-              selectedId ??
-              undefined,
+    const daysSchoolOpened = Number(form.daysSchoolOpened);
 
-            academicYearId:
-              form.academicYearId!,
+    if (!form.daysSchoolOpened.trim()) {
+      toast.error("Enter the number of days school was opened for this term.");
 
-            name:
-              form.name,
+      return;
+    }
 
-            /*
-             * Your current server action
-             * expects date strings.
-             */
-            startDate:
-              form.startDate,
+    if (!Number.isInteger(daysSchoolOpened) || daysSchoolOpened <= 0) {
+      toast.error("Days school opened must be a positive whole number.");
 
-            endDate:
-              form.endDate,
+      return;
+    }
 
-            isActive:
-              form.isActive,
-          });
+    if (daysSchoolOpened > 150) {
+      toast.error("Days school opened appears too high for one academic term.");
 
-        if (
-          !result.success
-        ) {
-          toast.error(
-            result.message ||
-              "The term could not be saved.",
-          );
+      return;
+    }
 
-          return;
-        }
+    startTransition(async () => {
+      const result = await saveTermSettings({
+        id: selectedId ?? undefined,
 
-        toast.success(
-          result.message ||
-            (selectedId
-              ? "Term updated successfully."
-              : "Term created successfully."),
-        );
+        academicYearId: form.academicYearId!,
 
-        router.refresh();
-      },
-    );
+        name: form.name,
+
+        /*
+         * Your current server action
+         * expects date strings.
+         */
+        startDate: form.startDate,
+
+        endDate: form.endDate,
+
+        daysSchoolOpened,
+
+        isActive: form.isActive,
+      });
+
+      if (!result.success) {
+        toast.error(result.message || "The term could not be saved.");
+
+        return;
+      }
+
+      toast.success(
+        result.message ||
+          (selectedId
+            ? "Term updated successfully."
+            : "Term created successfully."),
+      );
+
+      router.refresh();
+    });
   }
 
   /* ------------------------------------------------------------------------ */
@@ -628,13 +379,11 @@ export default function TermForm({
 
   return (
     <div className="min-w-0">
-
       {/* -------------------------------------------------------------- */}
       {/*                  EXISTING TERM SELECTOR                        */}
       {/* -------------------------------------------------------------- */}
 
-      {terms.length >
-      0 ? (
+      {terms.length > 0 ? (
         <div className="mb-5">
           <div className="flex items-center justify-between gap-3">
             <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
@@ -642,12 +391,7 @@ export default function TermForm({
             </label>
 
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
-              {
-                terms.length
-              }{" "}
-              {terms.length === 1
-                ? "Term"
-                : "Terms"}
+              {terms.length} {terms.length === 1 ? "Term" : "Terms"}
             </span>
           </div>
 
@@ -655,16 +399,9 @@ export default function TermForm({
             <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
             <select
-              value={
-                selectedId ??
-                ""
-              }
-              onChange={(
-                event,
-              ) => {
-                const value =
-                  event.target
-                    .value;
+              value={selectedId ?? ""}
+              onChange={(event) => {
+                const value = event.target.value;
 
                 if (!value) {
                   startNew();
@@ -672,43 +409,23 @@ export default function TermForm({
                   return;
                 }
 
-                setSelectedId(
-                  Number(
-                    value,
-                  ),
-                );
+                setSelectedId(Number(value));
               }}
               className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50"
             >
-              <option value="">
-                Create new term
-              </option>
+              <option value="">Create new term</option>
 
-              {terms.map(
-                (term) => (
-                  <option
-                    key={
-                      term.id
-                    }
-                    value={
-                      term.id
-                    }
-                  >
-                    {formatTermName(
-                      term.name,
-                    )}
+              {terms.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {formatTermName(term.name)}
 
-                    {term.academicYear
-                      ?.name
-                      ? ` — ${term.academicYear.name}`
-                      : ""}
+                  {term.academicYear?.name
+                    ? ` — ${term.academicYear.name}`
+                    : ""}
 
-                    {term.isActive
-                      ? " — Active"
-                      : ""}
-                  </option>
-                ),
-              )}
+                  {term.isActive ? " — Active" : ""}
+                </option>
+              ))}
             </select>
 
             <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -734,13 +451,7 @@ export default function TermForm({
         </div>
       )}
 
-      <form
-        onSubmit={
-          handleSubmit
-        }
-        className="space-y-5"
-      >
-
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* ------------------------------------------------------------ */}
         {/*                       ACADEMIC YEAR                          */}
         {/* ------------------------------------------------------------ */}
@@ -754,53 +465,25 @@ export default function TermForm({
             <CalendarRange className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
             <select
-              value={
-                form.academicYearId ??
-                ""
-              }
-              onChange={(
-                event,
-              ) =>
+              value={form.academicYearId ?? ""}
+              onChange={(event) =>
                 updateField(
                   "academicYearId",
-                  event.target
-                    .value
-                    ? Number(
-                        event.target
-                          .value,
-                      )
-                    : null,
+                  event.target.value ? Number(event.target.value) : null,
                 )
               }
-              disabled={
-                isPending
-              }
+              disabled={isPending}
               className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">
-                Select academic year
-              </option>
+              <option value="">Select academic year</option>
 
-              {academicYears.map(
-                (year) => (
-                  <option
-                    key={
-                      year.id
-                    }
-                    value={
-                      year.id
-                    }
-                  >
-                    {
-                      year.name
-                    }
+              {academicYears.map((year) => (
+                <option key={year.id} value={year.id}>
+                  {year.name}
 
-                    {year.isActive
-                      ? " — Active"
-                      : ""}
-                  </option>
-                ),
-              )}
+                  {year.isActive ? " — Active" : ""}
+                </option>
+              ))}
             </select>
 
             <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -811,11 +494,9 @@ export default function TermForm({
               Every school term belongs to one academic year.
             </p>
 
-            {selectedAcademicYear
-              ?.isActive ? (
+            {selectedAcademicYear?.isActive ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-700">
                 <CheckCircle2 className="h-3 w-3" />
-
                 Active Year
               </span>
             ) : null}
@@ -835,34 +516,18 @@ export default function TermForm({
             <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
             <select
-              value={
-                form.name
+              value={form.name}
+              onChange={(event) =>
+                updateField("name", event.target.value as TermName)
               }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  "name",
-                  event.target
-                    .value as TermName,
-                )
-              }
-              disabled={
-                isPending
-              }
+              disabled={isPending}
               className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="FIRST">
-                First Term
-              </option>
+              <option value="FIRST">First Term</option>
 
-              <option value="SECOND">
-                Second Term
-              </option>
+              <option value="SECOND">Second Term</option>
 
-              <option value="THIRD">
-                Third Term
-              </option>
+              <option value="THIRD">Third Term</option>
             </select>
 
             <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -885,21 +550,9 @@ export default function TermForm({
 
             <input
               type="date"
-              value={
-                form.startDate
-              }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  "startDate",
-                  event.target
-                    .value,
-                )
-              }
-              disabled={
-                isPending
-              }
+              value={form.startDate}
+              onChange={(event) => updateField("startDate", event.target.value)}
+              disabled={isPending}
               className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
@@ -911,32 +564,62 @@ export default function TermForm({
 
             <input
               type="date"
-              value={
-                form.endDate
-              }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  "endDate",
-                  event.target
-                    .value,
-                )
-              }
-              disabled={
-                isPending
-              }
+              value={form.endDate}
+              onChange={(event) => updateField("endDate", event.target.value)}
+              disabled={isPending}
               className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>
 
         {/* ------------------------------------------------------------ */}
+        {/*                  OFFICIAL SCHOOL DAYS                        */}
+        {/* ------------------------------------------------------------ */}
+
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Days School Opened
+            </label>
+
+            {form.daysSchoolOpened ? (
+              <span className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-blue-700">
+                Attendance Source
+              </span>
+            ) : null}
+          </div>
+
+          <div className="relative mt-2">
+            <Clock3 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+            <input
+              type="number"
+              min={1}
+              max={150}
+              step={1}
+              inputMode="numeric"
+              value={form.daysSchoolOpened}
+              onChange={(event) =>
+                updateField("daysSchoolOpened", event.target.value)
+              }
+              disabled={isPending}
+              placeholder="e.g. 64"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+
+          <p className="mt-1.5 text-xs leading-5 text-slate-400">
+            Official number of school days for this term. Student attendance
+            totals will be calculated automatically from the attendance
+            register.
+          </p>
+        </div>
+
+        {/* ------------------------------------------------------------ */}
         {/*                     PERIOD SUMMARY                           */}
         {/* ------------------------------------------------------------ */}
 
-        {form.startDate &&
-        form.endDate ? (
+        {form.startDate && form.endDate ? (
           <div className="flex items-start gap-3 rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
               <Clock3 className="h-4 w-4" />
@@ -948,20 +631,21 @@ export default function TermForm({
               </p>
 
               <p className="mt-1 text-sm font-bold leading-6 text-slate-700">
-                {formatTermName(
-                  form.name,
-                )}
+                {formatTermName(form.name)}
 
-                {selectedAcademicYear
-                  ? ` • ${selectedAcademicYear.name}`
-                  : ""}
+                {selectedAcademicYear ? ` • ${selectedAcademicYear.name}` : ""}
               </p>
 
               <p className="mt-1 text-xs text-slate-500">
-                {form.startDate}{" "}
-                →{" "}
-                {form.endDate}
+                {form.startDate} → {form.endDate}
               </p>
+
+              {form.daysSchoolOpened ? (
+                <p className="mt-1 text-xs font-semibold text-violet-700">
+                  {form.daysSchoolOpened} official school{" "}
+                  {Number(form.daysSchoolOpened) === 1 ? "day" : "days"}
+                </p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -975,11 +659,7 @@ export default function TermForm({
             form.isActive
               ? "border-emerald-200 bg-emerald-50/70"
               : "border-slate-200 bg-slate-50"
-          } ${
-            isPending
-              ? "cursor-not-allowed opacity-60"
-              : ""
-          }`}
+          } ${isPending ? "cursor-not-allowed opacity-60" : ""}`}
         >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -1002,20 +682,10 @@ export default function TermForm({
           <div className="relative shrink-0">
             <input
               type="checkbox"
-              checked={
-                form.isActive
-              }
-              disabled={
-                isPending
-              }
-              onChange={(
-                event,
-              ) =>
-                updateField(
-                  "isActive",
-                  event.target
-                    .checked,
-                )
+              checked={form.isActive}
+              disabled={isPending}
+              onChange={(event) =>
+                updateField("isActive", event.target.checked)
               }
               className="peer sr-only"
             />
@@ -1037,7 +707,8 @@ export default function TermForm({
               isPending ||
               !form.academicYearId ||
               !form.startDate ||
-              !form.endDate
+              !form.endDate ||
+              !form.daysSchoolOpened
             }
             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-sm font-black text-white shadow-lg shadow-violet-600/20 transition hover:-translate-y-0.5 hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
@@ -1059,16 +730,11 @@ export default function TermForm({
           {selectedId ? (
             <button
               type="button"
-              onClick={
-                startNew
-              }
-              disabled={
-                isPending
-              }
+              onClick={startNew}
+              disabled={isPending}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
-
               New Term
             </button>
           ) : null}
@@ -1083,10 +749,7 @@ export default function TermForm({
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
 
             <span>
-              {formatTermName(
-                form.name,
-              )}
-
+              {formatTermName(form.name)}
               {selectedAcademicYear
                 ? ` for ${selectedAcademicYear.name}`
                 : ""}{" "}
@@ -1103,9 +766,7 @@ export default function TermForm({
         {/*                 EXISTING TERMS IN SELECTED YEAR              */}
         {/* ------------------------------------------------------------ */}
 
-        {form.academicYearId &&
-        termsForSelectedYear.length >
-          0 ? (
+        {form.academicYearId && termsForSelectedYear.length > 0 ? (
           <div className="border-t border-slate-100 pt-5">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -1114,81 +775,59 @@ export default function TermForm({
                 </p>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  {selectedAcademicYear
-                    ?.name ??
-                    "Selected year"}
+                  {selectedAcademicYear?.name ?? "Selected year"}
                 </p>
               </div>
 
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500">
-                {
-                  termsForSelectedYear.length
-                }
+                {termsForSelectedYear.length}
                 /3
               </span>
             </div>
 
             <div className="mt-3 space-y-2">
-              {termsForSelectedYear.map(
-                (term) => (
-                  <button
-                    key={
-                      term.id
-                    }
-                    type="button"
-                    onClick={() =>
-                      setSelectedId(
-                        term.id,
-                      )
-                    }
-                    disabled={
-                      isPending
-                    }
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition ${
-                      selectedId ===
-                      term.id
-                        ? "border-violet-200 bg-violet-50"
-                        : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40"
-                    }`}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                          term.isActive
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        <CalendarDays className="h-3.5 w-3.5" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-slate-800">
-                          {formatTermName(
-                            term.name,
-                          )}
-                        </p>
-
-                        <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
-                          {formatDate(
-                            term.startDate,
-                          )}{" "}
-                          →{" "}
-                          {formatDate(
-                            term.endDate,
-                          )}
-                        </p>
-                      </div>
+              {termsForSelectedYear.map((term) => (
+                <button
+                  key={term.id}
+                  type="button"
+                  onClick={() => setSelectedId(term.id)}
+                  disabled={isPending}
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                    selectedId === term.id
+                      ? "border-violet-200 bg-violet-50"
+                      : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40"
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                        term.isActive
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      <CalendarDays className="h-3.5 w-3.5" />
                     </div>
 
-                    {term.isActive ? (
-                      <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-emerald-700">
-                        Active
-                      </span>
-                    ) : null}
-                  </button>
-                ),
-              )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-800">
+                        {formatTermName(term.name)}
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+                        {formatDate(term.startDate)} →{" "}
+                        {formatDate(term.endDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {term.isActive ? (
+                    <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-emerald-700">
+                      Active
+                    </span>
+                  ) : null}
+                </button>
+              ))}
             </div>
           </div>
         ) : null}

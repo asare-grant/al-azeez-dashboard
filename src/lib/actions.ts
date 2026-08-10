@@ -2034,6 +2034,8 @@ export const updateAttendance = async (
   }
 };
 
+
+
 export const saveTermSettings =
   async (data: {
     id?: number;
@@ -2052,15 +2054,23 @@ export const saveTermSettings =
     endDate:
       string;
 
+    daysSchoolOpened:
+      number;
+
     isActive:
       boolean;
   }) => {
     try {
+      /* ------------------------------------------------------------------ */
+      /*                       BASIC VALIDATION                             */
+      /* ------------------------------------------------------------------ */
+
       if (
         !Number.isInteger(
           data.academicYearId,
         ) ||
-        data.academicYearId <= 0
+        data.academicYearId <=
+          0
       ) {
         return {
           success: false,
@@ -2068,6 +2078,35 @@ export const saveTermSettings =
 
           message:
             "Select a valid academic year.",
+        };
+      }
+
+      if (
+        !Number.isInteger(
+          data.daysSchoolOpened,
+        ) ||
+        data.daysSchoolOpened <=
+          0
+      ) {
+        return {
+          success: false,
+          error: true,
+
+          message:
+            "Days school opened must be a positive whole number.",
+        };
+      }
+
+      if (
+        data.daysSchoolOpened >
+        150
+      ) {
+        return {
+          success: false,
+          error: true,
+
+          message:
+            "Days school opened appears too high for one academic term.",
         };
       }
 
@@ -2099,7 +2138,8 @@ export const saveTermSettings =
       }
 
       if (
-        endDate <= startDate
+        endDate <=
+        startDate
       ) {
         return {
           success: false,
@@ -2109,6 +2149,10 @@ export const saveTermSettings =
             "The term end date must be after the start date.",
         };
       }
+
+      /* ------------------------------------------------------------------ */
+      /*                         TRANSACTION                                */
+      /* ------------------------------------------------------------------ */
 
       const result =
         await prisma.$transaction(
@@ -2121,10 +2165,17 @@ export const saveTermSettings =
                 },
 
                 select: {
-                  id: true,
-                  name: true,
-                  startDate: true,
-                  endDate: true,
+                  id:
+                    true,
+
+                  name:
+                    true,
+
+                  startDate:
+                    true,
+
+                  endDate:
+                    true,
                 },
               });
 
@@ -2137,8 +2188,8 @@ export const saveTermSettings =
             }
 
             /*
-             * A term should normally fall inside
-             * its parent academic-year boundaries.
+             * A term should fall within its
+             * parent academic-year boundaries.
              */
             if (
               startDate <
@@ -2188,15 +2239,17 @@ export const saveTermSettings =
                   .toLowerCase()
                   .replace(
                     /\b\w/g,
-                    (character) =>
+                    (
+                      character,
+                    ) =>
                       character.toUpperCase(),
                   )} Term already exists for ${academicYear.name}.`,
               );
             }
 
             /*
-             * The school has one current active term
-             * across the management system.
+             * The school has one current active
+             * term across the application.
              */
             if (
               data.isActive
@@ -2223,6 +2276,10 @@ export const saveTermSettings =
               });
             }
 
+            /* ------------------------------------------------------------ */
+            /*                         UPDATE                               */
+            /* ------------------------------------------------------------ */
+
             if (
               data.id
             ) {
@@ -2236,6 +2293,12 @@ export const saveTermSettings =
                   select: {
                     id:
                       true,
+
+                    academicYearId:
+                      true,
+
+                    daysSchoolOpened:
+                      true,
                   },
                 });
 
@@ -2247,12 +2310,151 @@ export const saveTermSettings =
                 );
               }
 
-              return tx.schoolTerm.update({
-                where: {
-                  id:
-                    data.id,
-                },
+              const daysSchoolOpenedChanged =
+                existing.daysSchoolOpened !==
+                data.daysSchoolOpened;
 
+              /*
+               * Changing the academic year assigned
+               * to an existing term would also change
+               * report ownership semantics.
+               *
+               * We keep the existing safety behavior
+               * and invalidate against the term's new
+               * academic-year identity below.
+               */
+              const academicYearChanged =
+                existing.academicYearId !==
+                data.academicYearId;
+
+              const updated =
+                await tx.schoolTerm.update({
+                  where: {
+                    id:
+                      data.id,
+                  },
+
+                  data: {
+                    academicYearId:
+                      data.academicYearId,
+
+                    name:
+                      data.name,
+
+                    startDate,
+
+                    endDate,
+
+                    daysSchoolOpened:
+                      data.daysSchoolOpened,
+
+                    isActive:
+                      data.isActive,
+                  },
+                });
+
+              /* ---------------------------------------------------------- */
+              /*              ATTENDANCE CONFIG INVALIDATION               */
+              /* ---------------------------------------------------------- */
+
+              let invalidatedReportCardCount =
+                0;
+
+              if (
+                daysSchoolOpenedChanged ||
+                academicYearChanged
+              ) {
+                const now =
+                  new Date();
+
+                const invalidation =
+                  await tx.reportCard.updateMany({
+                    where: {
+                      termId:
+                        updated.id,
+
+                      /*
+                       * Published/archived records are
+                       * historical snapshots and remain
+                       * immutable.
+                       */
+                      status:
+                        "DRAFT",
+
+                      /*
+                       * Do not repeatedly rewrite an
+                       * already stale report merely because
+                       * settings are saved again.
+                       */
+                      isStale:
+                        false,
+                    },
+
+                    data: {
+                      isStale:
+                        true,
+
+                      staleAt:
+                        now,
+
+                      staleReason:
+                        daysSchoolOpenedChanged
+                          ? `Official school days for ${academicYear.name} ${data.name.toLowerCase()} term changed from ${
+                              existing.daysSchoolOpened ??
+                              "not configured"
+                            } to ${data.daysSchoolOpened}.`
+                          : `The academic-year configuration for this term changed.`,
+
+                      /*
+                       * A changed attendance source makes
+                       * any previous review decision obsolete.
+                       */
+                      reviewStatus:
+                        "DRAFT",
+
+                      submittedForReviewAt:
+                        null,
+
+                      submittedForReviewBy:
+                        null,
+
+                      approvedAt:
+                        null,
+
+                      approvedBy:
+                        null,
+
+                      changesRequestedAt:
+                        null,
+
+                      changesRequestedBy:
+                        null,
+
+                      reviewNote:
+                        null,
+                    },
+                  });
+
+                invalidatedReportCardCount =
+                  invalidation.count;
+              }
+
+              return {
+                term:
+                  updated,
+
+                daysSchoolOpenedChanged,
+
+                invalidatedReportCardCount,
+              };
+            }
+
+            /* ------------------------------------------------------------ */
+            /*                         CREATE                               */
+            /* ------------------------------------------------------------ */
+
+            const created =
+              await tx.schoolTerm.create({
                 data: {
                   academicYearId:
                     data.academicYearId,
@@ -2264,33 +2466,49 @@ export const saveTermSettings =
 
                   endDate,
 
+                  daysSchoolOpened:
+                    data.daysSchoolOpened,
+
                   isActive:
                     data.isActive,
                 },
               });
-            }
 
-            return tx.schoolTerm.create({
-              data: {
-                academicYearId:
-                  data.academicYearId,
+            /*
+             * A newly created term cannot have
+             * existing report cards that need
+             * invalidation.
+             */
+            return {
+              term:
+                created,
 
-                name:
-                  data.name,
+              daysSchoolOpenedChanged:
+                false,
 
-                startDate,
+              invalidatedReportCardCount:
+                0,
+            };
+          },
 
-                endDate,
+          {
+            isolationLevel:
+              Prisma.TransactionIsolationLevel.Serializable,
 
-                isActive:
-                  data.isActive,
-              },
-            });
+            maxWait:
+              10_000,
+
+            timeout:
+              30_000,
           },
         );
 
+      /* ------------------------------------------------------------------ */
+      /*                       REVALIDATION                                 */
+      /* ------------------------------------------------------------------ */
+
       revalidatePath(
-        "/list/settings/term",
+        "/list/settings/academic-calendar",
       );
 
       revalidatePath(
@@ -2305,16 +2523,41 @@ export const saveTermSettings =
         "/list/report-cards/generate",
       );
 
+      revalidatePath(
+        "/list/report-cards/review",
+      );
+
+      /* ------------------------------------------------------------------ */
+      /*                           RESPONSE                                 */
+      /* ------------------------------------------------------------------ */
+
+      const invalidated =
+        result.invalidatedReportCardCount;
+
       return {
         success: true,
         error: false,
 
         data:
-          result,
+          result.term,
+
+        daysSchoolOpenedChanged:
+          result.daysSchoolOpenedChanged,
+
+        invalidatedReportCardCount:
+          invalidated,
 
         message:
           data.id
-            ? "Term updated successfully."
+            ? invalidated >
+              0
+              ? `Term updated successfully. ${invalidated} draft report card${
+                  invalidated ===
+                  1
+                    ? ""
+                    : "s"
+                } now require regeneration.`
+              : "Term updated successfully."
             : "Term created successfully.",
       };
     } catch (error) {
@@ -2328,53 +2571,414 @@ export const saveTermSettings =
         error: true,
 
         message:
-          error instanceof Error
+          error instanceof
+          Error
             ? error.message
             : "The term could not be saved.",
       };
     }
   };
 
+
 // export const saveTermSettings = async (data: {
 //   id?: number;
-//   name: "FIRST" | "SECOND" | "THIRD";
-//   startDate: string;
-//   endDate: string;
+
+//   academicYearId:
+//     number;
+
+//   name:
+//     | "FIRST"
+//     | "SECOND"
+//     | "THIRD";
+
+//   startDate:
+//     string;
+
+//   endDate:
+//     string;
+
+//   daysSchoolOpened:
+//     number;
+
+//   isActive:
+//     boolean;
 // }) => {
 //   try {
-//     if (data.id) {
-//       // UPDATE existing term
-//       await prisma.schoolTerm.update({
-//         where: { id: data.id },
-//         data: {
-//           name: data.name,
-//           startDate: new Date(data.startDate),
-//           endDate: new Date(data.endDate),
-//         },
-//       });
-//     } else {
-//       // CREATE new term (deactivate old ones)
-//       await prisma.schoolTerm.updateMany({
-//         where: { isActive: true },
-//         data: { isActive: false },
-//       });
+//     /* ------------------------------------------------------------------ */
+//     /*                       BASIC VALIDATION                             */
+//     /* ------------------------------------------------------------------ */
 
-//       await prisma.schoolTerm.create({
-//         data: {
-//           name: data.name,
-//           startDate: new Date(data.startDate),
-//           endDate: new Date(data.endDate),
-//           isActive: true,
-//         },
-//       });
+//     if (
+//       !Number.isInteger(
+//         data.academicYearId,
+//       ) ||
+//       data.academicYearId <=
+//         0
+//     ) {
+//       return {
+//         success: false,
+//         error: true,
+
+//         message:
+//           "Select a valid academic year.",
+//       };
 //     }
 
-//     return { success: true };
+//     if (
+//       !Number.isInteger(
+//         data.daysSchoolOpened,
+//       ) ||
+//       data.daysSchoolOpened <=
+//         0
+//     ) {
+//       return {
+//         success: false,
+//         error: true,
+
+//         message:
+//           "Days school opened must be a positive whole number.",
+//       };
+//     }
+
+//     if (
+//       data.daysSchoolOpened >
+//       150
+//     ) {
+//       return {
+//         success: false,
+//         error: true,
+
+//         message:
+//           "Days school opened appears too high for one academic term.",
+//       };
+//     }
+
+//     const startDate =
+//       new Date(
+//         data.startDate,
+//       );
+
+//     const endDate =
+//       new Date(
+//         data.endDate,
+//       );
+
+//     if (
+//       Number.isNaN(
+//         startDate.getTime(),
+//       ) ||
+//       Number.isNaN(
+//         endDate.getTime(),
+//       )
+//     ) {
+//       return {
+//         success: false,
+//         error: true,
+
+//         message:
+//           "Enter valid term dates.",
+//       };
+//     }
+
+//     if (
+//       endDate <=
+//       startDate
+//     ) {
+//       return {
+//         success: false,
+//         error: true,
+
+//         message:
+//           "The term end date must be after the start date.",
+//       };
+//     }
+
+//     /* ------------------------------------------------------------------ */
+//     /*                         TRANSACTION                                */
+//     /* ------------------------------------------------------------------ */
+
+//     const result =
+//       await prisma.$transaction(
+//         async (tx) => {
+//           const academicYear =
+//             await tx.schoolAcademicYear.findUnique({
+//               where: {
+//                 id:
+//                   data.academicYearId,
+//               },
+
+//               select: {
+//                 id:
+//                   true,
+
+//                 name:
+//                   true,
+
+//                 startDate:
+//                   true,
+
+//                 endDate:
+//                   true,
+//               },
+//             });
+
+//           if (
+//             !academicYear
+//           ) {
+//             throw new Error(
+//               "The selected academic year could not be found.",
+//             );
+//           }
+
+//           /*
+//            * A term should fall within its
+//            * parent academic-year boundaries.
+//            */
+//           if (
+//             startDate <
+//               academicYear.startDate ||
+//             endDate >
+//               academicYear.endDate
+//           ) {
+//             throw new Error(
+//               `The term dates must fall within the ${academicYear.name} academic year.`,
+//             );
+//           }
+
+//           /*
+//            * Prevent duplicate First/Second/Third
+//            * Term records inside the same year.
+//            */
+//           const duplicate =
+//             await tx.schoolTerm.findFirst({
+//               where: {
+//                 academicYearId:
+//                   data.academicYearId,
+
+//                 name:
+//                   data.name,
+
+//                 ...(data.id
+//                   ? {
+//                       NOT: {
+//                         id:
+//                           data.id,
+//                       },
+//                     }
+//                   : {}),
+//               },
+
+//               select: {
+//                 id:
+//                   true,
+//               },
+//             });
+
+//           if (
+//             duplicate
+//           ) {
+//             throw new Error(
+//               `${data.name
+//                 .toLowerCase()
+//                 .replace(
+//                   /\b\w/g,
+//                   (
+//                     character,
+//                   ) =>
+//                     character.toUpperCase(),
+//                 )} Term already exists for ${academicYear.name}.`,
+//             );
+//           }
+
+//           /*
+//            * The school has one current active
+//            * term across the application.
+//            */
+//           if (
+//             data.isActive
+//           ) {
+//             await tx.schoolTerm.updateMany({
+//               where: {
+//                 isActive:
+//                   true,
+
+//                 ...(data.id
+//                   ? {
+//                       NOT: {
+//                         id:
+//                           data.id,
+//                       },
+//                     }
+//                   : {}),
+//               },
+
+//               data: {
+//                 isActive:
+//                   false,
+//               },
+//             });
+//           }
+
+//           /* ------------------------------------------------------------ */
+//           /*                         UPDATE                               */
+//           /* ------------------------------------------------------------ */
+
+//           if (
+//             data.id
+//           ) {
+//             const existing =
+//               await tx.schoolTerm.findUnique({
+//                 where: {
+//                   id:
+//                     data.id,
+//                 },
+
+//                 select: {
+//                   id:
+//                     true,
+
+//                   daysSchoolOpened:
+//                     true,
+//                 },
+//               });
+
+//             if (
+//               !existing
+//             ) {
+//               throw new Error(
+//                 "The selected school term could not be found.",
+//               );
+//             }
+
+//             const updated =
+//               await tx.schoolTerm.update({
+//                 where: {
+//                   id:
+//                     data.id,
+//                 },
+
+//                 data: {
+//                   academicYearId:
+//                     data.academicYearId,
+
+//                   name:
+//                     data.name,
+
+//                   startDate,
+
+//                   endDate,
+
+//                   daysSchoolOpened:
+//                     data.daysSchoolOpened,
+
+//                   isActive:
+//                     data.isActive,
+//                 },
+//               });
+
+//             return {
+//               term:
+//                 updated,
+
+//               daysSchoolOpenedChanged:
+//                 existing.daysSchoolOpened !==
+//                 data.daysSchoolOpened,
+//             };
+//           }
+
+//           /* ------------------------------------------------------------ */
+//           /*                         CREATE                               */
+//           /* ------------------------------------------------------------ */
+
+//           const created =
+//             await tx.schoolTerm.create({
+//               data: {
+//                 academicYearId:
+//                   data.academicYearId,
+
+//                 name:
+//                   data.name,
+
+//                 startDate,
+
+//                 endDate,
+
+//                 daysSchoolOpened:
+//                   data.daysSchoolOpened,
+
+//                 isActive:
+//                   data.isActive,
+//               },
+//             });
+
+//           return {
+//             term:
+//               created,
+
+//             daysSchoolOpenedChanged:
+//               false,
+//           };
+//         },
+//       );
+
+//     /* ------------------------------------------------------------------ */
+//     /*                       REVALIDATION                                 */
+//     /* ------------------------------------------------------------------ */
+
+   
+//     revalidatePath(
+//       "/list/settings/academic-calendar",
+//     );
+
+//     revalidatePath(
+//       "/list/settings",
+//     );
+
+//     revalidatePath(
+//       "/list/report-cards",
+//     );
+
+//     revalidatePath(
+//       "/list/report-cards/generate",
+//     );
+
+//     revalidatePath(
+//       "/list/report-cards/review",
+//     );
+
+//     return {
+//       success: true,
+//       error: false,
+
+//       data:
+//         result.term,
+
+//       daysSchoolOpenedChanged:
+//         result.daysSchoolOpenedChanged,
+
+//       message:
+//         data.id
+//           ? "Term updated successfully."
+//           : "Term created successfully.",
+//     };
 //   } catch (error) {
-//     console.error("TERM SAVE ERROR:", error);
-//     return { success: false };
+//     console.error(
+//       "TERM SAVE ERROR:",
+//       error,
+//     );
+
+//     return {
+//       success: false,
+//       error: true,
+
+//       message:
+//         error instanceof Error
+//           ? error.message
+//           : "The term could not be saved.",
+//     };
 //   }
 // };
+
 
 
 /* -------------------------------------------------------------------------- */

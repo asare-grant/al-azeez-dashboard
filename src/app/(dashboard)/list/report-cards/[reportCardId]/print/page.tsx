@@ -1,3 +1,4 @@
+// src/app/(dashboard)/list/report-cards/[reportCardId]/print
 import {
   notFound,
 } from "next/navigation";

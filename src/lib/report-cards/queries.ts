@@ -24,6 +24,246 @@ import type { ReportCardReviewWorkspaceData } from "./review-types";
 
 import { validateReportCardGeneration } from "./generation-validator";
 
+import {
+  buildReportCardReadWhere,
+} from "./access";
+
+
+
+const accessibleReportCardSelect = {
+  id:
+    true,
+
+  status:
+    true,
+
+  calculationStatus:
+    true,
+
+  version:
+    true,
+
+  academicYear:
+    true,
+
+  student: {
+    select: {
+      id:
+        true,
+
+      studentID:
+        true,
+
+      name:
+        true,
+
+      surname:
+        true,
+
+      img:
+        true,
+    },
+  },
+
+  class: {
+    select: {
+      id:
+        true,
+
+      name:
+        true,
+    },
+  },
+
+  grade: {
+    select: {
+      id:
+        true,
+
+      level:
+        true,
+    },
+  },
+
+  term: {
+    select: {
+      id:
+        true,
+
+      name:
+        true,
+
+      startDate:
+        true,
+
+      endDate:
+        true,
+    },
+  },
+
+  subjectCount:
+    true,
+
+  completedSubjectCount:
+    true,
+
+  incompleteSubjectCount:
+    true,
+
+  totalScore:
+    true,
+
+  averageScore:
+    true,
+
+  highestSubjectScore:
+    true,
+
+  lowestSubjectScore:
+    true,
+
+  passedSubjectCount:
+    true,
+
+  failedSubjectCount:
+    true,
+
+  passRate:
+    true,
+
+  totalGradePoints:
+    true,
+
+  averageGradePoint:
+    true,
+
+  overallGrade:
+    true,
+
+  overallRemark:
+    true,
+
+  overallGradePoint:
+    true,
+
+  overallPosition:
+    true,
+
+  classStudentCount:
+    true,
+
+  daysSchoolOpened:
+    true,
+
+  daysPresent:
+    true,
+
+  daysAbsent:
+    true,
+
+  attendancePercentage:
+    true,
+
+  conduct:
+    true,
+
+  classTeacherRemark:
+    true,
+
+  headTeacherRemark:
+    true,
+
+  promotionStatus:
+    true,
+
+  nextTermBegins:
+    true,
+
+  generatedAt:
+    true,
+
+  regeneratedAt:
+    true,
+
+  publishedAt:
+    true,
+
+  subjects: {
+    select: {
+      id:
+        true,
+
+      subjectId:
+        true,
+
+      subjectName:
+        true,
+
+      teacherId:
+        true,
+
+      teacherName:
+        true,
+
+      assignmentPercentage:
+        true,
+
+      assignmentWeight:
+        true,
+
+      assignmentScore:
+        true,
+
+      assessmentPercentage:
+        true,
+
+      assessmentWeight:
+        true,
+
+      assessmentScore:
+        true,
+
+      examinationPercentage:
+        true,
+
+      examinationWeight:
+        true,
+
+      examinationScore:
+        true,
+
+      finalScore:
+        true,
+
+      grade:
+        true,
+
+      remark:
+        true,
+
+      gradePoint:
+        true,
+
+      passed:
+        true,
+
+      calculationStatus:
+        true,
+
+      subjectPosition:
+        true,
+
+      classAverage:
+        true,
+    },
+
+    orderBy: {
+      subjectName:
+        "asc",
+    },
+  },
+} satisfies Prisma.ReportCardSelect;
+
 /* -------------------------------------------------------------------------- */
 /*                      ADMIN AND TEACHER REPORT LIST                         */
 /* -------------------------------------------------------------------------- */
@@ -424,190 +664,47 @@ export async function getParentChildReportCards(childId: string) {
 /*                      SECURE SINGLE REPORT-CARD QUERY                       */
 /* -------------------------------------------------------------------------- */
 
-export async function getAccessibleReportCard(reportCardId: number) {
-  const { userId, role } = await requireReportCardUser();
+export async function getAccessibleReportCard(
+  reportCardId: number,
+) {
+  const {
+    userId,
+    role,
+  } =
+    await requireReportCardUser();
 
-  if (!Number.isInteger(reportCardId) || reportCardId <= 0) {
+  const where =
+    buildReportCardReadWhere({
+      reportCardId,
+
+      userId,
+
+      role,
+    });
+
+  if (!where) {
     return null;
   }
 
-  const where: Prisma.ReportCardWhereInput = {
-    id: reportCardId,
-  };
+  const reportCard =
+    await prisma.reportCard.findFirst({
+      where,
 
-  switch (role) {
-    case "student":
-      where.studentId = userId;
-      where.status = "PUBLISHED";
-      break;
-
-    case "parent":
-      where.student = {
-        parentId: userId,
-      };
-
-      where.status = "PUBLISHED";
-      break;
-
-    case "teacher":
-      where.class = {
-        lessons: {
-          some: {
-            teacherId: userId,
-          },
-        },
-      };
-      break;
-
-    case "admin":
-      break;
-
-    default:
-      return null;
-  }
-
-  const reportCard = await prisma.reportCard.findFirst({
-    where,
-
-    select: {
-      id: true,
-
-      status: true,
-      calculationStatus: true,
-
-      version: true,
-      academicYear: true,
-
-      student: {
-        select: {
-          id: true,
-
-          studentID: true,
-          name: true,
-          surname: true,
-          img: true,
-        },
-      },
-
-      class: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-
-      grade: {
-        select: {
-          id: true,
-          level: true,
-        },
-      },
-
-      term: {
-        select: {
-          id: true,
-          name: true,
-          startDate: true,
-          endDate: true,
-        },
-      },
-
-      subjectCount: true,
-      completedSubjectCount: true,
-      incompleteSubjectCount: true,
-
-      totalScore: true,
-      averageScore: true,
-
-      highestSubjectScore: true,
-      lowestSubjectScore: true,
-
-      passedSubjectCount: true,
-      failedSubjectCount: true,
-      passRate: true,
-
-      totalGradePoints: true,
-      averageGradePoint: true,
-
-      overallGrade: true,
-      overallRemark: true,
-      overallGradePoint: true,
-
-      overallPosition: true,
-      classStudentCount: true,
-
-      daysSchoolOpened: true,
-      daysPresent: true,
-      daysAbsent: true,
-      attendancePercentage: true,
-
-      conduct: true,
-      classTeacherRemark: true,
-      headTeacherRemark: true,
-      promotionStatus: true,
-      nextTermBegins: true,
-
-      generatedAt: true,
-      regeneratedAt: true,
-      publishedAt: true,
-
-      subjects: {
-        select: {
-          id: true,
-
-          subjectId: true,
-          subjectName: true,
-
-          teacherId: true,
-          teacherName: true,
-
-          assignmentPercentage: true,
-          assignmentWeight: true,
-          assignmentScore: true,
-
-          assessmentPercentage: true,
-          assessmentWeight: true,
-          assessmentScore: true,
-
-          examinationPercentage: true,
-          examinationWeight: true,
-          examinationScore: true,
-
-          finalScore: true,
-
-          grade: true,
-          remark: true,
-          gradePoint: true,
-
-          passed: true,
-
-          calculationStatus: true,
-
-          subjectPosition: true,
-          classAverage: true,
-          highestScore: true,
-          lowestScore: true,
-        },
-
-        orderBy: {
-          subjectName: "asc",
-        },
-      },
-    },
-  });
+      select:
+        accessibleReportCardSelect,
+    });
 
   if (!reportCard) {
     return null;
   }
 
-  /*
-   * Convert the database field `username` into the
-   * `studentId` property expected by the report-card UI.
-   */
   return {
     ...reportCard,
 
-    student: mapStudentIdentity(reportCard.student),
+    student:
+      mapStudentIdentity(
+        reportCard.student,
+      ),
   };
 }
 
@@ -1202,165 +1299,55 @@ export async function getParentChildrenForReportCards() {
   }));
 }
 
+
+
 /* -------------------------------------------------------------------------- */
-/*                    PARENT ACCESSIBLE SINGLE REPORT                         */
+/*                    STUDENT ACCESSIBLE REPORT CARD                          */
 /* -------------------------------------------------------------------------- */
 
-export async function getParentAccessibleReportCard({
-  childId,
-  reportCardId,
-}: {
-  childId: string;
-  reportCardId: number;
-}) {
-  const { userId, role } = await requireReportCardUser();
+export async function getStudentAccessibleReportCard(
+  reportCardId: number,
+) {
+  const {
+    userId,
+    role,
+  } =
+    await requireReportCardUser();
 
-  if (role !== "parent") {
+  /*
+   * This is a student-specific route/query.
+   *
+   * Administrators and teachers may have permission
+   * to view this report elsewhere, but they should
+   * not enter through a student-owned route.
+   */
+  if (
+    role !==
+    "student"
+  ) {
     return null;
   }
 
-  if (!childId.trim() || !Number.isInteger(reportCardId) || reportCardId <= 0) {
+  const where =
+    buildReportCardReadWhere({
+      reportCardId,
+
+      userId,
+
+      role,
+    });
+
+  if (!where) {
     return null;
   }
 
-  const reportCard = await prisma.reportCard.findFirst({
-    where: {
-      id: reportCardId,
+  const reportCard =
+    await prisma.reportCard.findFirst({
+      where,
 
-      studentId: childId,
-
-      status: "PUBLISHED",
-
-      student: {
-        parentId: userId,
-      },
-    },
-
-    select: {
-      id: true,
-
-      status: true,
-      calculationStatus: true,
-
-      version: true,
-      academicYear: true,
-
-      student: {
-        select: {
-          id: true,
-          studentID: true,
-          name: true,
-          surname: true,
-          img: true,
-        },
-      },
-
-      class: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-
-      grade: {
-        select: {
-          id: true,
-          level: true,
-        },
-      },
-
-      term: {
-        select: {
-          id: true,
-          name: true,
-          startDate: true,
-          endDate: true,
-        },
-      },
-
-      subjectCount: true,
-      completedSubjectCount: true,
-      incompleteSubjectCount: true,
-
-      totalScore: true,
-      averageScore: true,
-
-      highestSubjectScore: true,
-      lowestSubjectScore: true,
-
-      passedSubjectCount: true,
-      failedSubjectCount: true,
-      passRate: true,
-
-      totalGradePoints: true,
-      averageGradePoint: true,
-
-      overallGrade: true,
-      overallRemark: true,
-      overallGradePoint: true,
-
-      overallPosition: true,
-      classStudentCount: true,
-
-      daysSchoolOpened: true,
-      daysPresent: true,
-      daysAbsent: true,
-      attendancePercentage: true,
-
-      conduct: true,
-      classTeacherRemark: true,
-      headTeacherRemark: true,
-      promotionStatus: true,
-      nextTermBegins: true,
-
-      generatedAt: true,
-      regeneratedAt: true,
-      publishedAt: true,
-
-      subjects: {
-        select: {
-          id: true,
-
-          subjectId: true,
-          subjectName: true,
-
-          teacherId: true,
-          teacherName: true,
-
-          assignmentPercentage: true,
-          assignmentWeight: true,
-          assignmentScore: true,
-
-          assessmentPercentage: true,
-          assessmentWeight: true,
-          assessmentScore: true,
-
-          examinationPercentage: true,
-          examinationWeight: true,
-          examinationScore: true,
-
-          finalScore: true,
-
-          grade: true,
-          remark: true,
-          gradePoint: true,
-
-          passed: true,
-
-          calculationStatus: true,
-
-          subjectPosition: true,
-          classAverage: true,
-          highestScore: true,
-          lowestScore: true,
-        },
-
-        orderBy: {
-          subjectName: "asc",
-        },
-      },
-    },
-  });
+      select:
+        accessibleReportCardSelect,
+    });
 
   if (!reportCard) {
     return null;
@@ -1369,7 +1356,74 @@ export async function getParentAccessibleReportCard({
   return {
     ...reportCard,
 
-    student: mapStudentIdentity(reportCard.student),
+    student:
+      mapStudentIdentity(
+        reportCard.student,
+      ),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                    PARENT ACCESSIBLE SINGLE REPORT                         */
+/* -------------------------------------------------------------------------- */
+
+export async function getParentAccessibleReportCard({
+  childId,
+  reportCardId,
+}: {
+  childId:
+    string;
+
+  reportCardId:
+    number;
+}) {
+  const {
+    userId,
+    role,
+  } =
+    await requireReportCardUser();
+
+  if (
+    role !==
+    "parent"
+  ) {
+    return null;
+  }
+
+  const where =
+    buildReportCardReadWhere({
+      reportCardId,
+
+      userId,
+
+      role,
+
+      childId,
+    });
+
+  if (!where) {
+    return null;
+  }
+
+  const reportCard =
+    await prisma.reportCard.findFirst({
+      where,
+
+      select:
+        accessibleReportCardSelect,
+    });
+
+  if (!reportCard) {
+    return null;
+  }
+
+  return {
+    ...reportCard,
+
+    student:
+      mapStudentIdentity(
+        reportCard.student,
+      ),
   };
 }
 
@@ -1933,161 +1987,47 @@ export async function getTeacherAccessibleReportCard({
   classId,
   reportCardId,
 }: {
-  classId: number;
-  reportCardId: number;
+  classId:
+    number;
+
+  reportCardId:
+    number;
 }) {
-  const { userId, role } = await requireReportCardUser();
+  const {
+    userId,
+    role,
+  } =
+    await requireReportCardUser();
 
   if (
-    role !== "teacher" ||
-    !Number.isInteger(classId) ||
-    classId <= 0 ||
-    !Number.isInteger(reportCardId) ||
-    reportCardId <= 0
+    role !==
+    "teacher"
   ) {
     return null;
   }
 
-  const reportCard = await prisma.reportCard.findFirst({
-    where: {
-      id: reportCardId,
+  const where =
+    buildReportCardReadWhere({
+      reportCardId,
+
+      userId,
+
+      role,
 
       classId,
+    });
 
-      class: {
-        lessons: {
-          some: {
-            teacherId: userId,
-          },
-        },
-      },
-    },
+  if (!where) {
+    return null;
+  }
 
-    select: {
-      id: true,
+  const reportCard =
+    await prisma.reportCard.findFirst({
+      where,
 
-      status: true,
-      calculationStatus: true,
-
-      version: true,
-      academicYear: true,
-
-      student: {
-        select: {
-          id: true,
-          studentID: true,
-          name: true,
-          surname: true,
-          img: true,
-        },
-      },
-
-      class: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-
-      grade: {
-        select: {
-          id: true,
-          level: true,
-        },
-      },
-
-      term: {
-        select: {
-          id: true,
-          name: true,
-          startDate: true,
-          endDate: true,
-        },
-      },
-
-      subjectCount: true,
-      completedSubjectCount: true,
-      incompleteSubjectCount: true,
-
-      totalScore: true,
-      averageScore: true,
-
-      highestSubjectScore: true,
-      lowestSubjectScore: true,
-
-      passedSubjectCount: true,
-      failedSubjectCount: true,
-      passRate: true,
-
-      totalGradePoints: true,
-      averageGradePoint: true,
-
-      overallGrade: true,
-      overallRemark: true,
-      overallGradePoint: true,
-
-      overallPosition: true,
-      classStudentCount: true,
-
-      daysSchoolOpened: true,
-      daysPresent: true,
-      daysAbsent: true,
-      attendancePercentage: true,
-
-      conduct: true,
-      classTeacherRemark: true,
-      headTeacherRemark: true,
-      promotionStatus: true,
-      nextTermBegins: true,
-
-      generatedAt: true,
-      regeneratedAt: true,
-      publishedAt: true,
-
-      subjects: {
-        select: {
-          id: true,
-
-          subjectId: true,
-          subjectName: true,
-
-          teacherId: true,
-          teacherName: true,
-
-          assignmentPercentage: true,
-          assignmentWeight: true,
-          assignmentScore: true,
-
-          assessmentPercentage: true,
-          assessmentWeight: true,
-          assessmentScore: true,
-
-          examinationPercentage: true,
-          examinationWeight: true,
-          examinationScore: true,
-
-          finalScore: true,
-
-          grade: true,
-          remark: true,
-          gradePoint: true,
-
-          passed: true,
-
-          calculationStatus: true,
-
-          subjectPosition: true,
-          classAverage: true,
-          highestScore: true,
-          lowestScore: true,
-        },
-
-        orderBy: {
-          subjectName: "asc",
-        },
-      },
-    },
-  });
+      select:
+        accessibleReportCardSelect,
+    });
 
   if (!reportCard) {
     return null;
@@ -2096,7 +2036,10 @@ export async function getTeacherAccessibleReportCard({
   return {
     ...reportCard,
 
-    student: mapStudentIdentity(reportCard.student),
+    student:
+      mapStudentIdentity(
+        reportCard.student,
+      ),
   };
 }
 

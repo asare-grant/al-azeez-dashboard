@@ -213,8 +213,6 @@
 //   );
 // }
 
-
-
 import {
   Archive,
   BadgeCheck,
@@ -237,170 +235,118 @@ import type {
 } from "@/lib/report-cards/review-types";
 
 type ReportCardWorkflowTimelineProps = {
-  reportCard:
-    ReportCardReviewWorkspaceData;
+  reportCard: ReportCardReviewWorkspaceData;
 };
 
-function formatDateTime(
-  value:
-    Date | string,
-) {
-  return new Intl.DateTimeFormat(
-    "en-GH",
-    {
-      day:
-        "numeric",
+function formatDateTime(value: Date | string) {
+  return new Intl.DateTimeFormat("en-GH", {
+    day: "numeric",
 
-      month:
-        "short",
+    month: "short",
 
-      year:
-        "numeric",
+    year: "numeric",
 
-      hour:
-        "numeric",
+    hour: "numeric",
 
-      minute:
-        "2-digit",
-    },
-  ).format(
-    new Date(value),
-  );
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
-function getActivityVisual(
-  type: string,
-) {
+function getActivityVisual(type: string) {
   switch (type) {
     case "GENERATED":
       return {
-        icon:
-          FilePlus2,
+        icon: FilePlus2,
 
-        iconClass:
-          "bg-blue-50 text-blue-600 ring-blue-100",
+        iconClass: "bg-blue-50 text-blue-600 ring-blue-100",
       };
 
     case "REGENERATED":
       return {
-        icon:
-          RefreshCcw,
+        icon: RefreshCcw,
 
-        iconClass:
-          "bg-cyan-50 text-cyan-700 ring-cyan-100",
+        iconClass: "bg-cyan-50 text-cyan-700 ring-cyan-100",
       };
 
     case "MARKED_STALE":
       return {
-        icon:
-          TriangleAlert,
+        icon: TriangleAlert,
 
-        iconClass:
-          "bg-amber-50 text-amber-700 ring-amber-100",
+        iconClass: "bg-amber-50 text-amber-700 ring-amber-100",
       };
 
     case "DETAILS_UPDATED":
       return {
-        icon:
-          PencilLine,
+        icon: PencilLine,
 
-        iconClass:
-          "bg-slate-100 text-slate-600 ring-slate-200",
+        iconClass: "bg-slate-100 text-slate-600 ring-slate-200",
       };
 
     case "SUBMITTED_FOR_REVIEW":
       return {
-        icon:
-          Send,
+        icon: Send,
 
-        iconClass:
-          "bg-indigo-50 text-indigo-700 ring-indigo-100",
+        iconClass: "bg-indigo-50 text-indigo-700 ring-indigo-100",
       };
 
     case "CHANGES_REQUESTED":
       return {
-        icon:
-          MessageSquareWarning,
+        icon: MessageSquareWarning,
 
-        iconClass:
-          "bg-orange-50 text-orange-700 ring-orange-100",
+        iconClass: "bg-orange-50 text-orange-700 ring-orange-100",
       };
 
     case "REOPENED":
       return {
-        icon:
-          RotateCcw,
+        icon: RotateCcw,
 
-        iconClass:
-          "bg-violet-50 text-violet-700 ring-violet-100",
+        iconClass: "bg-violet-50 text-violet-700 ring-violet-100",
       };
 
     case "APPROVED":
       return {
-        icon:
-          BadgeCheck,
+        icon: BadgeCheck,
 
-        iconClass:
-          "bg-emerald-50 text-emerald-700 ring-emerald-100",
+        iconClass: "bg-emerald-50 text-emerald-700 ring-emerald-100",
       };
 
     case "PUBLISHED":
       return {
-        icon:
-          LockKeyhole,
+        icon: LockKeyhole,
 
-        iconClass:
-          "bg-emerald-50 text-emerald-700 ring-emerald-100",
+        iconClass: "bg-emerald-50 text-emerald-700 ring-emerald-100",
       };
 
     case "ARCHIVED":
       return {
-        icon:
-          Archive,
+        icon: Archive,
 
-        iconClass:
-          "bg-slate-100 text-slate-700 ring-slate-200",
+        iconClass: "bg-slate-100 text-slate-700 ring-slate-200",
       };
 
     default:
       return {
-        icon:
-          History,
+        icon: History,
 
-        iconClass:
-          "bg-slate-100 text-slate-600 ring-slate-200",
+        iconClass: "bg-slate-100 text-slate-600 ring-slate-200",
       };
   }
 }
 
-function formatActor(
-  activity:
-    ReportCardActivityItem,
-) {
-  if (
-    activity.actorName?.trim()
-  ) {
+function formatActor(activity: ReportCardActivityItem) {
+  if (activity.actorName?.trim()) {
     return activity.actorName.trim();
   }
 
-  if (
-    activity.actorRole ===
-    "system"
-  ) {
+  if (activity.actorRole === "system") {
     return "System";
   }
 
-  if (
-    activity.actorRole ===
-    "admin"
-  ) {
+  if (activity.actorRole === "admin") {
     return "Administrator";
   }
 
-  if (
-    activity.actorRole ===
-    "teacher"
-  ) {
+  if (activity.actorRole === "teacher") {
     return "Teacher";
   }
 
@@ -410,8 +356,7 @@ function formatActor(
 export default function ReportCardWorkflowTimeline({
   reportCard,
 }: ReportCardWorkflowTimelineProps) {
-  const activities =
-    reportCard.activities;
+  const activities = reportCard.activities;
 
   return (
     <section className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.05)]">
@@ -437,8 +382,7 @@ export default function ReportCardWorkflowTimeline({
         </p>
       </div>
 
-      {activities.length ===
-      0 ? (
+      {activities.length === 0 ? (
         <div className="p-6">
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-center">
             <History className="mx-auto h-6 w-6 text-slate-400" />
@@ -448,7 +392,8 @@ export default function ReportCardWorkflowTimeline({
             </p>
 
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Activity tracking may have started after this report card was originally created.
+              Activity tracking may have started after this report card was
+              originally created.
             </p>
           </div>
         </div>
@@ -458,24 +403,13 @@ export default function ReportCardWorkflowTimeline({
             <div className="absolute bottom-2 left-[19px] top-2 w-px bg-slate-200" />
 
             <div className="space-y-6">
-              {activities.map(
-                (
-                  activity,
-                  index,
-                ) => (
-                  <TimelineItem
-                    key={
-                      activity.id
-                    }
-                    activity={
-                      activity
-                    }
-                    first={
-                      index === 0
-                    }
-                  />
-                ),
-              )}
+              {activities.map((activity, index) => (
+                <TimelineItem
+                  key={activity.id}
+                  activity={activity}
+                  first={index === 0}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -488,24 +422,15 @@ function TimelineItem({
   activity,
   first,
 }: {
-  activity:
-    ReportCardActivityItem;
+  activity: ReportCardActivityItem;
 
-  first:
-    boolean;
+  first: boolean;
 }) {
-  const visual =
-    getActivityVisual(
-      activity.type,
-    );
+  const visual = getActivityVisual(activity.type);
 
-  const Icon =
-    visual.icon;
+  const Icon = visual.icon;
 
-  const actor =
-    formatActor(
-      activity,
-    );
+  const actor = formatActor(activity);
 
   return (
     <article className="relative flex gap-4">
@@ -524,36 +449,39 @@ function TimelineItem({
       >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="font-black text-slate-900">
-              {
-                activity.title
-              }
-            </p>
+            <p className="font-black text-slate-900">{activity.title}</p>
 
             {activity.description ? (
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                {
-                  activity.description
-                }
+                {activity.description}
               </p>
             ) : null}
           </div>
 
-          <div className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-bold text-slate-400">
+          {/* <div className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-bold text-slate-400">
             <Clock3 className="h-3.5 w-3.5" />
 
             {formatDateTime(
               activity.createdAt,
             )}
-          </div>
+          </div> */}
         </div>
 
         {actor ? (
-          <div className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
-            <UserRound className="h-3.5 w-3.5" />
+          <>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-3">
+              <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+                <UserRound className="h-3.5 w-3.5" />
 
-            {actor}
-          </div>
+                {actor}
+              </div>
+              <div className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                <Clock3 className="h-3.5 w-3.5 text-green-300" />
+
+                {formatDateTime(activity.createdAt)}
+              </div>
+            </div>
+          </>
         ) : null}
 
         {activity.note ? (
@@ -563,9 +491,7 @@ function TimelineItem({
             </p>
 
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-              {
-                activity.note
-              }
+              {activity.note}
             </p>
           </div>
         ) : null}
