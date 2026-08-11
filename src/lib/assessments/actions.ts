@@ -64,7 +64,13 @@ import {
   hasAttemptExpired,
 } from "./timing";
 import { AssessmentError } from "./errors";
-import { createAssessmentPublishedNotifications } from "./notifications";
+
+import {
+  notifyAssessmentFeedbackAdded,
+  notifyAssessmentPublished,
+  notifyAssessmentResultReady,
+  notifyAssessmentScheduled,
+} from "@/lib/notifications";
 
 /* -------------------------------------------------------------------------- */
 /*                                  CONSTANTS                                 */
@@ -758,32 +764,43 @@ export async function publishAssessment(
 
     const published = await prisma.$transaction(
       async (tx) => {
-        const updatedAssessment = await tx.assessment.update({
+        const updated = await tx.assessment.update({
           where: {
             id: assessment.id,
           },
 
           data: {
             status: nextStatus,
+
             publishedAt: now,
+
             closedAt: null,
           },
 
           select: {
             id: true,
+
             title: true,
+
             status: true,
+
             publishedAt: true,
+
+            startDate: true,
 
             lesson: {
               select: {
                 class: {
                   select: {
-                    students: {
-                      select: {
-                        id: true,
-                      },
-                    },
+                    id: true,
+
+                    name: true,
+                  },
+                },
+
+                subject: {
+                  select: {
+                    name: true,
                   },
                 },
               },
@@ -791,25 +808,45 @@ export async function publishAssessment(
           },
         });
 
-        await createAssessmentPublishedNotifications(tx, {
-          assessmentId: updatedAssessment.id,
+        const notificationInput = {
+          tx,
 
-          assessmentTitle: updatedAssessment.title,
+          assessmentId: updated.id,
 
-          studentIds: updatedAssessment.lesson.class.students.map(
-            (student) => student.id,
-          ),
+          assessmentTitle: updated.title,
 
-          scheduled: updatedAssessment.status === "SCHEDULED",
-        });
+          classId: updated.lesson.class.id,
 
-        return updatedAssessment;
+          className: updated.lesson.class.name,
+
+          subjectName: updated.lesson.subject.name,
+
+          actorId: userId,
+
+          actorRole: role,
+
+          actorName: null,
+        };
+
+        if (updated.status === "SCHEDULED") {
+          await notifyAssessmentScheduled({
+            ...notificationInput,
+
+            scheduledFor: updated.startDate,
+          });
+        } else {
+          await notifyAssessmentPublished(notificationInput);
+        }
+
+        return updated;
       },
+
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-        maxWait: 5_000,
-        timeout: 10_000,
+        maxWait: 10_000,
+
+        timeout: 30_000,
       },
     );
 
@@ -2062,6 +2099,23 @@ export async function submitAssessmentAttempt(
                   showInstantResult: true,
                   showCorrectAnswers: true,
                   showExplanations: true,
+                  lesson: {
+                    select: {
+                      class: {
+                        select: {
+                          id: true,
+
+                          name: true,
+                        },
+                      },
+
+                      subject: {
+                        select: {
+                          name: true,
+                        },
+                      },
+                    },
+                  },
                 },
               },
 
@@ -2205,6 +2259,24 @@ export async function submitAssessmentAttempt(
                 id: true,
                 title: true,
 
+                lesson: {
+                  select: {
+                    class: {
+                      select: {
+                        id: true,
+
+                        name: true,
+                      },
+                    },
+
+                    subject: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+
                 totalMarks: true,
                 passMarkPercent: true,
                 allowUnanswered: true,
@@ -2248,23 +2320,6 @@ export async function submitAssessmentAttempt(
         if (!attempt) {
           throw new Error("ATTEMPT_NOT_FOUND");
         }
-
-        await tx.notification.create({
-          data: {
-            title: "Assessment result available",
-
-            message: `${attempt.assessment.title} has been marked.`,
-
-            type: "ASSESSMENT_RESULT_READY",
-
-            recipientId: userId,
-            recipientRole: "student",
-
-            assessmentId: attempt.assessment.id,
-
-            actionUrl: `/student/assessments/${attempt.assessment.id}/result?attemptId=${attemptId}`,
-          },
-        });
 
         const answeredCount = attempt.answers.filter(
           (answer) => answer.selectedOptionId !== null,
@@ -2403,6 +2458,49 @@ export async function submitAssessmentAttempt(
 
           remarks: grading.remarks,
         });
+
+        /*
+         * Notify the student only after:
+         *
+         * 1. grading succeeded,
+         * 2. the attempt was completed,
+         * 3. the academic Result was synchronized,
+         * 4. any report-card invalidation attached to
+         *    result synchronization also succeeded.
+         *
+         * Everything remains inside the same transaction.
+         */
+        if (attempt.assessment.showInstantResult) {
+          await notifyAssessmentResultReady({
+            tx,
+
+            assessmentId: attempt.assessment.id,
+
+            assessmentTitle: attempt.assessment.title,
+
+            classId: attempt.assessment.lesson.class.id,
+
+            className: attempt.assessment.lesson.class.name,
+
+            subjectName: attempt.assessment.lesson.subject.name,
+
+            studentId: userId,
+
+            attemptId,
+
+            score: grading.score,
+
+            totalMarks: grading.totalMarks,
+
+            percentage: grading.percentage,
+
+            actorId: null,
+
+            actorRole: "system",
+
+            actorName: "Assessment Engine",
+          });
+        }
 
         return {
           attemptId: attempt.id,
@@ -2566,7 +2664,27 @@ export async function saveAssessmentTeacherFeedback(
 
             assessment: {
               select: {
+                id: true,
+
                 title: true,
+
+                lesson: {
+                  select: {
+                    class: {
+                      select: {
+                        id: true,
+
+                        name: true,
+                      },
+                    },
+
+                    subject: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -2617,26 +2735,34 @@ export async function saveAssessmentTeacherFeedback(
 
         /*
          * Notify only when feedback is added.
-         * Removing feedback should not create
-         * a new notification.
+         *
+         * Removing feedback is still a valid
+         * workflow change, but it should not
+         * create a new notification.
          */
         if (normalizedFeedback) {
-          await tx.notification.create({
-            data: {
-              title: "Teacher feedback added",
+          await notifyAssessmentFeedbackAdded({
+            tx,
 
-              message: `Feedback has been added to your result for ${attempt.assessment.title}.`,
+            assessmentId: attempt.assessment.id,
 
-              type: "ASSESSMENT_FEEDBACK_ADDED",
+            assessmentTitle: attempt.assessment.title,
 
-              recipientId: studentId,
+            classId: attempt.assessment.lesson.class.id,
 
-              recipientRole: "student",
+            className: attempt.assessment.lesson.class.name,
 
-              assessmentId,
+            subjectName: attempt.assessment.lesson.subject.name,
 
-              actionUrl: `/student/assessments/${assessmentId}/result?attemptId=${attemptId}`,
-            },
+            studentId,
+
+            attemptId,
+
+            actorId: userId,
+
+            actorRole: role,
+
+            actorName: null,
           });
         }
 

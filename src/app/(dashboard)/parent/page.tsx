@@ -16,7 +16,7 @@ const getFeeSummary = (feeMaster?: any) => {
 
   const paid = feeMaster.payments.reduce(
     (sum: number, p: any) => sum + p.amount,
-    0
+    0,
   );
 
   return {
@@ -28,28 +28,91 @@ const getFeeSummary = (feeMaster?: any) => {
 
 const ParentPage = async () => {
   const { userId } = await auth();
-  const currentUserId = userId;
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const activeTerm = await prisma.schoolTerm.findFirst({
+    where: {
+      isActive: true,
+
+      academicYear: {
+        isNot: null,
+      },
+    },
+
+    select: {
+      id: true,
+
+      name: true,
+
+      academicYear: {
+        select: {
+          name: true,
+        },
+      },
+    },
+
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+
+  const activeTermLabel = activeTerm
+    ? activeTerm.name === "FIRST"
+      ? "First Term"
+      : activeTerm.name === "SECOND"
+        ? "Second Term"
+        : "Third Term"
+    : null;
+
+  const activeAcademicYear = activeTerm?.academicYear?.name ?? null;
 
   const students = await prisma.student.findMany({
-    where: { parentId: currentUserId! },
+    where: {
+      parentId: userId,
+    },
+
     include: {
       class: {
         include: {
           lessons: {
             include: {
               teacher: true,
+
               assignments: true,
             },
           },
         },
       },
-      feeMasters: {
-        orderBy: { createdAt: "desc" },
-        take: 1, // latest / active term
-        include: {
-          payments: true,
-        },
-      },
+
+      feeMasters:
+        activeTermLabel && activeAcademicYear
+          ? {
+              where: {
+                term: activeTermLabel,
+
+                academicYear: activeAcademicYear,
+              },
+
+              include: {
+                payments: true,
+              },
+
+              take: 1,
+            }
+          : {
+              orderBy: {
+                createdAt: "desc",
+              },
+
+              include: {
+                payments: true,
+              },
+
+              take: 1,
+            },
     },
   });
 
@@ -70,6 +133,7 @@ const ParentPage = async () => {
 
                 {/* 🔹 FEES */}
                 <StudentFeeCards
+                  studentId={student.id}
                   total={total}
                   paid={paid}
                   balance={balance}
@@ -78,9 +142,7 @@ const ParentPage = async () => {
 
                 {/* 🔹 CALENDAR */}
                 <div className="mt-6">
-                  <BigCalendarContainer
-                    lessons={student.class.lessons}
-                  />
+                  <BigCalendarContainer lessons={student.class.lessons} />
                 </div>
               </div>
             </div>
@@ -97,60 +159,3 @@ const ParentPage = async () => {
 };
 
 export default ParentPage;
-
-
-
-
-
-
-// import Announcements from "@/components/Announcements";
-// import BigCalendarContainer from "@/components/BigCalendarContainer";
-// import prisma from "@/lib/prisma";
-// import { auth } from "@clerk/nextjs/server";
-
-// const ParentPage = async () => {
-//   const { userId } = await auth();
-//   const currentUserId = userId;
-
-//   // Fetch all children of the parent with lessons, assignments, and teacher info
-//   const students = await prisma.student.findMany({
-//     where: { parentId: currentUserId! },
-//     include: {
-//       class: {
-//         include: {
-//           lessons: {
-//             include: {
-//               teacher: true,
-//               assignments: true,
-//             },
-//           },
-//         },
-//       },
-//     },
-//   });
-
-//   return (
-//     <div className="flex-1 p-4 flex gap-4 flex-col xl:flex-row">
-//       {/* LEFT: Child Calendars */}
-//       <div className="w-full xl:w-2/3">
-//         {students.map((student) => (
-//           <div className="w-full mb-6" key={student.id}>
-//             <div className="h-full bg-white p-4 rounded-md">
-//               <h1 className="text-xl font-semibold mb-4">
-//                 Schedule ({student.name} {student.surname})
-//               </h1>
-//               <BigCalendarContainer lessons={student.class.lessons} />
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-
-//       {/* RIGHT: Announcements */}
-//       <div className="w-full xl:w-1/3 flex flex-col gap-8">
-//         <Announcements />
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ParentPage;

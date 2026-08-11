@@ -265,8 +265,6 @@ model Assessment {
   termId Int?
   term   SchoolTerm? @relation(fields: [termId], references: [id], onDelete: Restrict)
 
-  notifications Notification[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -631,93 +629,95 @@ model BusFeePayment {
   @@unique([studentId, date])
 }
 
-
-model Notification {
-  id Int @id @default(autoincrement())
-
-  title   String
-  message String
-  type    NotificationType
-
-  recipientId   String
-  recipientRole String
-
-  actionUrl String?
-
-  readAt DateTime?
-
-  assessmentId Int?
-  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-
-  @@index([recipientId, createdAt])
-  @@index([recipientId, readAt])
-  @@index([assessmentId])
-}
-
 model NotificationEvent {
   id Int @id @default(autoincrement())
 
-  /* -------------------------------------------------------- */
-  /*                        EVENT TYPE                        */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                        EVENT TYPE
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   type     NotificationType
   category NotificationCategory
 
   priority NotificationPriority @default(NORMAL)
 
-  /* -------------------------------------------------------- */
-  /*                       EVENT CONTENT                      */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                       EVENT CONTENT
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   title   String
   message String
 
   actionUrl String?
 
-  /* -------------------------------------------------------- */
-  /*                      SOURCE ENTITY                       */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                      SOURCE ENTITY
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   entityType NotificationEntityType?
   entityId   String?
 
-  /*
+  /**
    * Optional deduplication key.
-   *
    * Example:
    * assessment:42:due-soon:24h
-   *
    * This prevents recurring/scheduled jobs from
    * creating the same logical event repeatedly.
    */
   dedupeKey String? @unique
 
-  /* -------------------------------------------------------- */
-  /*                         ACTOR                            */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                         ACTOR
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   actorId   String?
   actorRole String?
   actorName String?
 
-  /*
+  /**
    * Flexible event payload for future modules.
-   *
    * Example:
    * {
-   *   "reportCardId": 12,
-   *   "studentId": "...",
-   *   "classId": 20
+   * "reportCardId": 12,
+   * "studentId": "...",
+   * "classId": 20
    * }
    */
   metadata Json?
 
-  /* -------------------------------------------------------- */
-  /*                       DELIVERIES                         */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                       DELIVERIES
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   notifications Notification[]
 
@@ -729,6 +729,98 @@ model NotificationEvent {
   @@index([actorId])
 }
 
+model Notification {
+  id Int @id @default(autoincrement())
+
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                          EVENT
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
+
+  eventId Int
+
+  event NotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                        RECIPIENT
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
+
+  recipientId   String
+  recipientRole String
+
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                        USER STATE
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
+
+  readAt DateTime?
+
+  /**
+   * Allows the user to hide an old notification
+   * without deleting the audit event.
+   */
+  archivedAt DateTime?
+
+  /**
+   * Useful later if the notification bell needs
+   * "new since last visit" independently of read.
+   */
+  seenAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  /**
+   * One logical event may only be delivered once
+   * to a particular user.
+   */
+  @@unique([eventId, recipientId])
+  @@index([recipientId, createdAt])
+  @@index([recipientId, readAt])
+  @@index([recipientId, archivedAt])
+  @@index([recipientRole])
+  @@index([eventId])
+}
+
+model NotificationPreference {
+  id Int @id @default(autoincrement())
+
+  userId String
+
+  category NotificationCategory
+
+  /**
+   * We are building in-app notifications first.
+   * Email and push can be activated later
+   * without redesigning the preference system.
+   */
+  inAppEnabled Boolean @default(true)
+
+  emailEnabled Boolean @default(false)
+
+  pushEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, category])
+  @@index([userId])
+}
 
 enum NotificationCategory {
   ASSESSMENT
@@ -749,9 +841,15 @@ enum NotificationPriority {
 }
 
 enum NotificationType {
-  /* -------------------------------------------------------- */
-  /*                       ASSESSMENTS                        */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                       ASSESSMENTS
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   ASSESSMENT_CREATED
   ASSESSMENT_SCHEDULED
@@ -761,9 +859,15 @@ enum NotificationType {
   ASSESSMENT_RESULT_READY
   ASSESSMENT_FEEDBACK_ADDED
 
-  /* -------------------------------------------------------- */
-  /*                       REPORT CARDS                       */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                       REPORT CARDS
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   REPORT_CARD_GENERATED
   REPORT_CARD_REGENERATED
@@ -775,40 +879,71 @@ enum NotificationType {
   REPORT_CARD_ARCHIVED
   REPORT_CARD_STALE
 
-  /* -------------------------------------------------------- */
-  /*                        ATTENDANCE                        */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                        ATTENDANCE
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   ATTENDANCE_UPDATED
+  ATTENDANCE_ABSENT
   ATTENDANCE_INCOMPLETE
   ATTENDANCE_REPORT_STALE
 
-  /* -------------------------------------------------------- */
-  /*                      ACADEMIC SETUP                      */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                      ACADEMIC SETUP
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   ACADEMIC_TERM_UPDATED
   ACADEMIC_WEIGHTING_UPDATED
   GRADING_SCALE_UPDATED
 
-  /* -------------------------------------------------------- */
-  /*                         FINANCE                          */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                         FINANCE
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   FEE_ASSIGNED
   FEE_PAYMENT_RECEIVED
   FEE_PAYMENT_CONFIRMED
   FEE_BALANCE_DUE
 
-  /* -------------------------------------------------------- */
-  /*                      ANNOUNCEMENTS                       */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                      ANNOUNCEMENTS
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   ANNOUNCEMENT_PUBLISHED
 
-  /* -------------------------------------------------------- */
-  /*                         SYSTEM                           */
-  /* -------------------------------------------------------- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /*                         SYSTEM
+   */
+  /**
+   * /* --------------------------------------------------------
+   */
 
   SYSTEM_ALERT
   GENERAL

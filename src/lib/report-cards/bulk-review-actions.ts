@@ -28,6 +28,12 @@ import {
 
 import { createReportCardActivity } from "./activity-service";
 
+import {
+  notifyReportCardApproved,
+  notifyReportCardChangesRequested,
+  notifyReportCardPublished,
+} from "@/lib/notifications";
+
 /* -------------------------------------------------------------------------- */
 /*                              SHARED HELPERS                                */
 /* -------------------------------------------------------------------------- */
@@ -67,6 +73,28 @@ const bulkReadinessSelect = {
   classId: true,
 
   version: true,
+
+  academicYear: true,
+
+  student: {
+    select: {
+      name: true,
+
+      surname: true,
+    },
+  },
+
+  class: {
+    select: {
+      name: true,
+    },
+  },
+
+  term: {
+    select: {
+      name: true,
+    },
+  },
 
   status: true,
   reviewStatus: true,
@@ -247,6 +275,31 @@ export async function bulkApproveReportCards(
             },
           });
 
+          await notifyReportCardApproved({
+            tx,
+
+            reportCardId: reportCard.id,
+
+            studentId: reportCard.studentId,
+
+            studentName:
+              `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+            classId: reportCard.classId,
+
+            className: reportCard.class.name,
+
+            academicYear: reportCard.academicYear,
+
+            termName: reportCard.term.name,
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
+          });
+
           completedIds.push(reportCardId);
         } else {
           skippedItems.push({
@@ -423,6 +476,33 @@ export async function bulkRequestReportCardChanges(
             },
           });
 
+          await notifyReportCardChangesRequested({
+            tx,
+
+            reportCardId: reportCard.id,
+
+            studentId: reportCard.studentId,
+
+            studentName:
+              `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+            classId: reportCard.classId,
+
+            className: reportCard.class.name,
+
+            academicYear: reportCard.academicYear,
+
+            termName: reportCard.term.name,
+
+            reviewNote: reviewNote.trim(),
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
+          });
+
           completedIds.push(reportCardId);
         } else {
           skippedItems.push({
@@ -592,6 +672,31 @@ export async function bulkPublishReportCards(
 
               version: reportCard.version + 1,
             },
+          });
+
+          await notifyReportCardPublished({
+            tx,
+
+            reportCardId: reportCard.id,
+
+            studentId: reportCard.studentId,
+
+            studentName:
+              `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+            classId: reportCard.classId,
+
+            className: reportCard.class.name,
+
+            academicYear: reportCard.academicYear,
+
+            termName: reportCard.term.name,
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
           });
 
           completedIds.push(reportCardId);

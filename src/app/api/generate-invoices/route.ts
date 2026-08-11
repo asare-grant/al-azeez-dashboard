@@ -1,70 +1,7 @@
-// // /app/api/generate-invoices/route.ts
-// import { NextResponse } from "next/server";
-// import prisma from "@/lib/prisma";
-// import { auth } from "@clerk/nextjs/server";
-
-// export async function POST() {
-//   try {
-//     // ensure requestor is admin (simple check via Clerk)
-//     const { sessionClaims } = await auth();
-//     const role = (sessionClaims?.metadata as { role?: string })?.role;
-//     if (role !== "admin") {
-//       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-//     }
-
-//     // load students and fee structures
-//     const students = await prisma.student.findMany();
-//     const feeStructures = await prisma.feeStructure.findMany();
-
-//     for (const student of students) {
-//       // find structures that apply to this student
-//       const applicable = feeStructures.filter((fs) => {
-//         // class-specific: if fs.classId present it must match student.classId
-//         if (fs.classId && fs.classId !== student.classId) return false;
-//         // grade-specific: if fs.gradeId present it must match student.gradeId
-//         if (fs.gradeId && fs.gradeId !== student.gradeId) return false;
-//         // if both null, it applies globally
-//         return true;
-//       });
-
-//       if (applicable.length === 0) continue;
-
-//       const totalAmount = applicable.reduce((s, a) => s + a.amount, 0);
-
-//       // create master
-//       const master = await prisma.feeMaster.create({
-//         data: {
-//           studentId: student.id,
-//           term: "Term 3",
-//           academicYear: "2025/2026",
-//           totalAmount,
-//           status: "PENDING",
-//         },
-//       });
-
-//       // create lines
-//       for (const fs of applicable) {
-//         await prisma.fee.create({
-//           data: {
-//             masterId: master.id,
-//             structureId: fs.id,
-//             amount: fs.amount,
-//           },
-//         });
-//       }
-//     }
-
-//     return NextResponse.json({ success: true });
-//   } catch (err) {
-//     console.error("generate-invoices error:", err);
-//     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
-//   }
-// }
-
-
-
 // /app/api/generate-invoices/route.ts
+import { Prisma } from "@prisma/client";
 
+import { notifyFeeAssigned } from "@/lib/notifications/finance-notifications";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -82,50 +19,89 @@ const formatTermName = (name: string) => {
   }
 };
 
-const getAcademicYear = (startDate: Date, endDate: Date) => {
-  const startYear = startDate.getFullYear();
-  const endYear = endDate.getFullYear();
+// const getAcademicYear = (startDate: Date, endDate: Date) => {
+//   const startYear = startDate.getFullYear();
+//   const endYear = endDate.getFullYear();
 
-  if (startYear === endYear) {
-    return `${startYear}/${startYear + 1}`;
-  }
+//   if (startYear === endYear) {
+//     return `${startYear}/${startYear + 1}`;
+//   }
 
-  return `${startYear}/${endYear}`;
-};
+//   return `${startYear}/${endYear}`;
+// };
 
 export async function POST() {
   try {
-    const { sessionClaims } = await auth();
+    const { sessionClaims, userId } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
     if (role !== "admin") {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Get active term from your settings page
     const activeTerm = await prisma.schoolTerm.findFirst({
-      where: { isActive: true },
-      orderBy: { updatedAt: "desc" },
+      where: {
+        isActive: true,
+
+        academicYear: {
+          isNot: null,
+        },
+      },
+
+      select: {
+        id: true,
+
+        name: true,
+
+        startDate: true,
+
+        endDate: true,
+
+        academicYear: {
+          select: {
+            id: true,
+
+            name: true,
+          },
+        },
+      },
+
+      orderBy: {
+        updatedAt: "desc",
+      },
     });
 
     if (!activeTerm) {
       return NextResponse.json(
         {
           success: false,
-          message: "No active academic term found. Please set an active term first.",
+          message:
+            "No active academic term found. Please set an active term first.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const term = formatTermName(activeTerm.name);
-    const academicYear = getAcademicYear(
-      activeTerm.startDate,
-      activeTerm.endDate
-    );
+    if (!activeTerm.academicYear) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message: "The active term is not linked to an academic year.",
+        },
+
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const academicYear = activeTerm.academicYear.name;
 
     const students = await prisma.student.findMany({
       select: {
@@ -184,24 +160,97 @@ export async function POST() {
 
       const totalAmount = applicableStructures.reduce(
         (sum, fs) => sum + fs.amount,
-        0
+        0,
       );
 
-      await prisma.feeMaster.create({
-        data: {
-          studentId: student.id,
-          term,
-          academicYear,
-          totalAmount,
-          status: "PENDING",
-          details: {
-            create: applicableStructures.map((fs) => ({
-              structureId: fs.id,
-              amount: fs.amount,
-            })),
-          },
+      await prisma.$transaction(
+        async (tx) => {
+          const studentDetails = await tx.student.findUnique({
+            where: {
+              id: student.id,
+            },
+
+            select: {
+              id: true,
+
+              name: true,
+
+              surname: true,
+
+              class: {
+                select: {
+                  id: true,
+
+                  name: true,
+                },
+              },
+            },
+          });
+
+          if (!studentDetails) {
+            throw new Error(
+              "Student could not be resolved while generating the invoice.",
+            );
+          }
+
+          const feeMaster = await tx.feeMaster.create({
+            data: {
+              studentId: student.id,
+
+              term,
+
+              academicYear,
+
+              totalAmount,
+
+              status: "PENDING",
+
+              details: {
+                create: applicableStructures.map((fs) => ({
+                  structureId: fs.id,
+
+                  amount: fs.amount,
+                })),
+              },
+            },
+          });
+
+          await notifyFeeAssigned({
+            tx,
+
+            feeMasterId: feeMaster.id,
+
+            studentId: studentDetails.id,
+
+            studentName:
+              `${studentDetails.name} ${studentDetails.surname}`.trim(),
+
+            classId: studentDetails.class.id,
+
+            className: studentDetails.class.name,
+
+            term,
+
+            academicYear,
+
+            totalAmount: feeMaster.totalAmount,
+
+            actorId: userId,
+
+            actorRole: role,
+
+            actorName: null,
+          });
         },
-      });
+
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+          maxWait: 10_000,
+
+          timeout: 30_000,
+        },
+      );
 
       createdCount++;
     }
@@ -224,7 +273,7 @@ export async function POST() {
         message: "Failed to generate invoices.",
         error: err instanceof Error ? err.message : String(err),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

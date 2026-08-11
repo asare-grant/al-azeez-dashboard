@@ -35,6 +35,8 @@ import type {
   ReportCardActionResult,
 } from "./types";
 
+import { notifyReportCardPublished } from "@/lib/notifications";
+
 function reportCardSuccess<T>(
   message: string,
   data: T,
@@ -221,6 +223,28 @@ export async function publishReportCard(
 
         classId: true,
 
+        academicYear: true,
+
+        student: {
+          select: {
+            name: true,
+
+            surname: true,
+          },
+        },
+
+        class: {
+          select: {
+            name: true,
+          },
+        },
+
+        term: {
+          select: {
+            name: true,
+          },
+        },
+
         status: true,
 
         reviewStatus: true,
@@ -324,6 +348,31 @@ export async function publishReportCard(
           metadata: {
             version: reportCard.version + 1,
           },
+        });
+
+        await notifyReportCardPublished({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          studentName:
+            `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+          classId: reportCard.classId,
+
+          className: reportCard.class.name,
+
+          academicYear: reportCard.academicYear,
+
+          termName: reportCard.term.name,
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
         });
 
         return tx.reportCard.findUniqueOrThrow({
@@ -748,7 +797,6 @@ export async function publishClassReportCards({
         reportCardIds: bulkPublication.publishedIds,
       },
     );
-    
   } catch (error) {
     console.error("PUBLISH CLASS REPORT CARDS ERROR:", error);
 

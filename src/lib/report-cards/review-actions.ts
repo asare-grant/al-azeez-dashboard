@@ -40,6 +40,13 @@ import { createReportCardActivity } from "./activity-service";
 import { requireReportCardAdmin, requireReportCardManager } from "./auth";
 
 import { buildReportCardManagerWhere } from "./access";
+
+import {
+  notifyReportCardApproved,
+  notifyReportCardChangesRequested,
+  notifyReportCardReopened,
+  notifyReportCardSubmitted,
+} from "@/lib/notifications";
 /* -------------------------------------------------------------------------- */
 /*                            SHARED CONSTANTS                                */
 /* -------------------------------------------------------------------------- */
@@ -141,6 +148,34 @@ const reviewableReportCardSelect = {
   staleReason: true,
 
   version: true,
+
+  academicYear: true,
+
+  student: {
+    select: {
+      id: true,
+
+      name: true,
+
+      surname: true,
+    },
+  },
+
+  class: {
+    select: {
+      id: true,
+
+      name: true,
+    },
+  },
+
+  term: {
+    select: {
+      id: true,
+
+      name: true,
+    },
+  },
 
   subjectCount: true,
   completedSubjectCount: true,
@@ -545,6 +580,31 @@ export async function submitReportCardForReview(
           note: note?.trim() || null,
         });
 
+        await notifyReportCardSubmitted({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          studentName:
+            `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+          classId: reportCard.classId,
+
+          className: reportCard.class.name,
+
+          academicYear: reportCard.academicYear,
+
+          termName: reportCard.term.name,
+
+          actorId: userId,
+
+          actorRole: role,
+
+          actorName: null,
+        });
+
         return {
           reportCardId: reportCard.id,
 
@@ -686,6 +746,33 @@ export async function requestReportCardChanges(
           description: "The report card was returned for correction.",
 
           note: reviewNote.trim(),
+        });
+
+        await notifyReportCardChangesRequested({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          studentName:
+            `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+          classId: reportCard.classId,
+
+          className: reportCard.class.name,
+
+          academicYear: reportCard.academicYear,
+
+          termName: reportCard.term.name,
+
+          reviewNote: reviewNote.trim(),
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
         });
 
         return {
@@ -844,6 +931,31 @@ export async function approveReportCard(
           note: reviewNote?.trim() || null,
         });
 
+        await notifyReportCardApproved({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          studentName:
+            `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+          classId: reportCard.classId,
+
+          className: reportCard.class.name,
+
+          academicYear: reportCard.academicYear,
+
+          termName: reportCard.term.name,
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
+        });
+
         return {
           reportCardId: reportCard.id,
 
@@ -927,7 +1039,29 @@ export async function reopenReportCardReview(
 
             classId: true,
 
+            academicYear: true,
+
             version: true,
+
+            student: {
+              select: {
+                name: true,
+
+                surname: true,
+              },
+            },
+
+            class: {
+              select: {
+                name: true,
+              },
+            },
+
+            term: {
+              select: {
+                name: true,
+              },
+            },
           },
         });
 
@@ -992,6 +1126,33 @@ export async function reopenReportCardReview(
             "The approved report card was reopened for further editing.",
 
           note: reviewNote.trim(),
+        });
+
+        await notifyReportCardReopened({
+          tx,
+
+          reportCardId: reportCard.id,
+
+          studentId: reportCard.studentId,
+
+          studentName:
+            `${reportCard.student.name} ${reportCard.student.surname}`.trim(),
+
+          classId: reportCard.classId,
+
+          className: reportCard.class.name,
+
+          academicYear: reportCard.academicYear,
+
+          termName: reportCard.term.name,
+
+          reviewNote: reviewNote.trim(),
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
         });
 
         return {

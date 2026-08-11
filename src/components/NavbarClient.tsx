@@ -16,20 +16,41 @@ import {
 import { LogOut, Settings } from "lucide-react";
 import { SidebarTrigger } from "./ui/sidebar";
 import Themespage from "./Themespage";
-import { useEffect, useState } from "react";
+import { 
+  useEffect, 
+  useState 
+} from "react";
+import type {
+  ReactNode,
+} from "react";
 
 interface NavbarClientProps {
-  username: string;
-  name: string;
-  role: string;
-  imageUrl: string;
+  username:
+    string;
+
+  name:
+    string;
+
+  firstName:
+    string;
+
+  role:
+    string;
+
+  imageUrl:
+    string;
+
+  notificationBell:
+    ReactNode;
 }
 
 const NavbarClient = ({
   username,
   name,
+  firstName,
   role,
   imageUrl,
+  notificationBell,
 }: NavbarClientProps) => {
   
     
@@ -53,20 +74,25 @@ const NavbarClient = ({
         <div className="flex items-center justify-between p-4">
       {/* LEFT SIDE */}
       <SidebarTrigger />
+      
       {/* RIGHT SIDE (ICONS AND USER) */}
       <div className="flex items-center gap-4">
         {/* THEME MENU */}
         <Themespage />
-        {/* MESSAGE AND NOTIFICATION MENU */}
+        {/* MESSAGE AND NOTIFICATION MENU
         <div className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative">
           <Image src="/announcement.png" alt="" width={20} height={20} />
           <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 text-white rounded-full text-xs">
             1
           </div>
-        </div>
+        </div> */}
+
+        {/* MESSAGE AND NOTIFICATION MENU */}
+       {notificationBell}
+
         <div className="flex flex-col">
           <span className="text-xs leading-3 font-medium">
-            {username}
+            {firstName}
           </span>
           <span className="text-[10px] text-gray-500 text-right">
             {/* Admin */}
