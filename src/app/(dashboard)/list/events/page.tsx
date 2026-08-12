@@ -1,3 +1,4 @@
+// src/app/(dashboard)/list/events/page.tsx
 import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
@@ -7,6 +8,10 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Class, Event, Prisma } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
+import {
+  getEventVisibilityWhere,
+  type EventViewerRole,
+} from "@/lib/events/visibility";
 
 export const revalidate = 0; // ✅ Disable caching for live updates
 
@@ -27,8 +32,16 @@ export default async function EventListPage(props: {
     { header: "Title", accessor: "title" },
     { header: "Class", accessor: "class" },
     { header: "Date", accessor: "date", className: "hidden md:table-cell" },
-    { header: "Start Time", accessor: "startTime", className: "hidden md:table-cell" },
-    { header: "End Time", accessor: "endTime", className: "hidden md:table-cell" },
+    {
+      header: "Start Time",
+      accessor: "startTime",
+      className: "hidden md:table-cell",
+    },
+    {
+      header: "End Time",
+      accessor: "endTime",
+      className: "hidden md:table-cell",
+    },
     ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
   ];
 
@@ -39,19 +52,25 @@ export default async function EventListPage(props: {
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
       <td className="flex items-center gap-4 p-4">{item.title}</td>
-      <td>{item.class?.name || "-"}</td>
+      <td>{item.class?.name ?? "School-wide"}</td>
       <td className="hidden md:table-cell">
-        {new Intl.DateTimeFormat("en-US").format(item.startTime)}
+        {new Intl.DateTimeFormat("en-GH", {
+          day: "numeric",
+
+          month: "short",
+
+          year: "numeric",
+        }).format(item.startTime)}
       </td>
       <td className="hidden md:table-cell">
-        {item.startTime.toLocaleTimeString("en-US", {
+        {item.startTime.toLocaleTimeString( "en-GH", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         })}
       </td>
       <td className="hidden md:table-cell">
-        {item.endTime.toLocaleTimeString("en-US", {
+        {item.endTime.toLocaleTimeString( "en-GH", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
@@ -74,46 +93,62 @@ export default async function EventListPage(props: {
   console.log("Rendering events page:", p);
 
   // ✅ Build dynamic search query
-  const query: Prisma.EventWhereInput = {};
+  // ✅ Build dynamic search query
+  const searchQuery: Prisma.EventWhereInput = {};
 
   for (const [key, value] of Object.entries(queryParams)) {
     if (value !== undefined) {
       switch (key) {
         case "search":
-          query.title = { contains: value as string, mode: "insensitive" };
+          searchQuery.title = {
+            contains: value as string,
+
+            mode: "insensitive",
+          };
+
           break;
+
         default:
           break;
       }
     }
   }
 
-  // ✅ Role-based visibility
-  const roleConditions = {
-    teacher: { lessons: { some: { teacherId: currentUserId! } } },
-    student: { students: { some: { id: currentUserId! } } },
-    parent: { students: { some: { parentId: currentUserId! } } },
-  };
-
-  if (role === "admin") {
-    // Admins see all events
-    query.OR = undefined;
-  } else {
-    query.OR = [
-      { classId: null },
-      { class: roleConditions[role as keyof typeof roleConditions] || {} },
-    ];
+  if (!currentUserId || !role) {
+    throw new Error("Unauthorized");
   }
+
+  const visibility = getEventVisibilityWhere({
+    userId: currentUserId,
+
+    role: role as EventViewerRole,
+  });
+
+  const query: Prisma.EventWhereInput = {
+    AND: [visibility, searchQuery],
+  };
 
   // ✅ Fetch paginated data
   const [data, count] = await prisma.$transaction([
     prisma.event.findMany({
       where: query,
-      include: { class: true },
+
+      include: {
+        class: true,
+      },
+
       take: ITEM_PER_PAGE,
+
       skip: ITEM_PER_PAGE * (p - 1),
+
+      orderBy: {
+        startTime: "asc",
+      },
     }),
-    prisma.event.count({ where: query }),
+
+    prisma.event.count({
+      where: query,
+    }),
   ]);
 
   // ✅ Page Layout

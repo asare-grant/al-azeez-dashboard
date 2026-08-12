@@ -1,3 +1,4 @@
+// src/lib/notifications/actions.ts
 "use server";
 
 import {
@@ -13,6 +14,10 @@ import prisma from "@/lib/prisma";
 import type {
   NotificationCategory,
 } from "@prisma/client";
+
+import {
+  NOTIFICATION_CATEGORY_SET,
+} from "./constants";
 
 /* -------------------------------------------------------------------------- */
 /*                            MARK AS READ                                    */
@@ -371,24 +376,7 @@ export async function openNotification(
 /*                    UPDATE NOTIFICATION PREFERENCE                          */
 /* -------------------------------------------------------------------------- */
 
-const validNotificationCategories =
-  new Set<NotificationCategory>([
-    "ASSESSMENT",
 
-    "REPORT_CARD",
-
-    "ATTENDANCE",
-
-    "ACADEMIC",
-
-    "FINANCE",
-
-    "ANNOUNCEMENT",
-
-    "SYSTEM",
-
-    "GENERAL",
-  ]);
 
 export async function updateNotificationPreference({
   category,
@@ -415,7 +403,7 @@ export async function updateNotificationPreference({
   }
 
   if (
-    !validNotificationCategories.has(
+    !NOTIFICATION_CATEGORY_SET.has(
       category,
     )
   ) {

@@ -54,6 +54,8 @@ model Student {
 
   busFeeStudent  BusFeeStudent?
   busFeePayments BusFeePayment[]
+
+  whatsAppDeliveries WhatsAppDelivery[]
 }
 
 model Teacher {
@@ -495,14 +497,41 @@ model Attendance {
 }
 
 model Event {
-  id          Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
+
   title       String
   description String
-  date        DateTime @default(now()) // NEW
-  startTime   DateTime
-  endTime     DateTime
-  classId     Int?
-  class       Class?   @relation(fields: [classId], references: [id])
+
+  /*
+   * Kept because the existing event UI already
+   * uses this field.
+   */
+  date DateTime @default(now())
+
+  /*
+   * Authoritative event scheduling values.
+   */
+  startTime DateTime
+  endTime   DateTime
+
+  classId Int?
+
+  class Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  /*
+   * Incremented whenever notification-relevant
+   * event details change.
+   *
+   * This allows a rescheduled event to generate
+   * a fresh set of scheduled reminders safely.
+   */
+  notificationRevision Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([startTime])
+  @@index([classId, startTime])
 }
 
 model Announcement {
@@ -562,6 +591,7 @@ model FeeMaster {
 
   details  Fee[]
   payments FeePayment[]
+  whatsAppDeliveries WhatsAppDelivery[]
 }
 
 model Fee {
@@ -631,6 +661,8 @@ model BusFeePayment {
 
 model NotificationEvent {
   id Int @id @default(autoincrement())
+
+  whatsAppDeliveries WhatsAppDelivery[]
 
   /**
    * --------------------------------------------------------
@@ -822,6 +854,91 @@ model NotificationPreference {
   @@index([userId])
 }
 
+
+/* -------------------------------------------------------------------------- */
+/*                   SCHEDULED NOTIFICATION ENGINE                            */
+/* -------------------------------------------------------------------------- */
+
+model NotificationSchedulerRun {
+  id Int @id @default(autoincrement())
+
+  trigger String
+
+  status NotificationSchedulerRunStatus @default(RUNNING)
+
+  scannerCount   Int @default(0)
+  succeededCount Int @default(0)
+  failedCount    Int @default(0)
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  durationMs Int?
+
+  scanners NotificationSchedulerScannerRun[]
+
+  createdAt DateTime @default(now())
+
+  @@index([startedAt])
+  @@index([status, startedAt])
+}
+
+model NotificationSchedulerScannerRun {
+  id Int @id @default(autoincrement())
+
+  runId Int
+
+  run NotificationSchedulerRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  scannerKey String
+
+  status NotificationSchedulerScannerStatus @default(RUNNING)
+
+  result Json?
+
+  errorMessage String?
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  durationMs Int?
+
+  @@index([runId])
+  @@index([scannerKey, startedAt])
+  @@index([status, startedAt])
+}
+
+/*
+ * Prevents two scheduler executions from processing
+ * the same scanners simultaneously.
+ */
+model NotificationSchedulerLock {
+  key String @id
+
+  token String
+
+  lockedUntil DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lockedUntil])
+}
+
+enum NotificationSchedulerRunStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum NotificationSchedulerScannerStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+
 enum NotificationCategory {
   ASSESSMENT
   REPORT_CARD
@@ -938,6 +1055,22 @@ enum NotificationType {
   /**
    * --------------------------------------------------------
    */
+
+   /**
+ * --------------------------------------------------------
+ */
+/**
+ * /*                       SCHOOL EVENTS
+ */
+/**
+ * /* --------------------------------------------------------
+ */
+
+EVENT_PUBLISHED
+EVENT_UPDATED
+EVENT_CANCELLED
+EVENT_UPCOMING
+EVENT_STARTING_SOON
   /**
    * /*                         SYSTEM
    */
@@ -956,6 +1089,7 @@ enum NotificationEntityType {
   RESULT
   ASSIGNMENT
   EXAM
+  EVENT
   SCHOOL_TERM
   ACADEMIC_WEIGHTING
   GRADING_SCALE
@@ -966,6 +1100,43 @@ enum NotificationEntityType {
   CLASS
   SYSTEM
 }
+
+model NotificationUserSettings {
+  id Int @id @default(autoincrement())
+
+  userId String @unique
+
+  quietHoursEnabled Boolean @default(false)
+
+  quietHoursStart String?
+  quietHoursEnd   String?
+
+  timezone String @default("Africa/Accra")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([userId])
+}
+
+model NotificationSystemSettings {
+  id Int @id @default(1)
+
+  inAppEnabled Boolean @default(true)
+
+  emailEnabled Boolean @default(false)
+
+  pushEnabled Boolean @default(false)
+
+  whatsAppEnabled Boolean @default(false)
+
+  smsEnabled Boolean @default(false)
+
+  quietHoursSupported Boolean @default(true)
+
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 
 model AcademicWeighting {
   id Int @id @default(autoincrement())
@@ -1479,4 +1650,65 @@ model ReportCardActivity {
   @@index([reportCardId, createdAt])
   @@index([type])
   @@index([actorId])
+}
+
+
+
+
+model WhatsAppDelivery {
+  id Int @id @default(autoincrement())
+
+  recipientId   String?
+  recipientRole String?
+
+  phoneNumber String
+
+  templateName String
+
+  status WhatsAppDeliveryStatus @default(QUEUED)
+
+  providerMessageId String? @unique
+
+  failureCode    String?
+  failureMessage String?
+
+  attemptCount Int      @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+
+  notificationEventId Int?
+  notificationEvent   NotificationEvent? @relation(fields: [notificationEventId], references: [id], onDelete: SetNull)
+
+  feeMasterId Int?
+  feeMaster   FeeMaster? @relation(fields: [feeMasterId],references: [id], onDelete: SetNull)
+
+  studentId String?
+  student   Student? @relation(fields: [studentId],references: [id], onDelete: SetNull)
+
+  queuedAt DateTime @default(now())
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  failedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([notificationEventId, recipientId])
+
+  @@index([status, nextAttemptAt, queuedAt])
+  @@index([recipientId, createdAt])
+  @@index([feeMasterId])
+  @@index([studentId])
+  @@index([notificationEventId])
+}
+
+enum WhatsAppDeliveryStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }

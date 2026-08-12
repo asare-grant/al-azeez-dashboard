@@ -105,3 +105,120 @@ export async function getUserNotificationPreference({
     )
   );
 }
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                  FILTER RECIPIENTS BY IN-APP PREFERENCE                    */
+/* -------------------------------------------------------------------------- */
+
+export async function filterRecipientsByInAppPreference<
+  T extends {
+    recipientId: string;
+  },
+>({
+  recipients,
+  category,
+  tx,
+}: {
+  recipients:
+    T[];
+
+  category:
+    NotificationCategory;
+
+  tx?:
+    Prisma.TransactionClient;
+}): Promise<T[]> {
+  if (
+    recipients.length ===
+    0
+  ) {
+    return [];
+  }
+
+  const db:
+    NotificationDb =
+    tx ??
+    prisma;
+
+  const userIds =
+    Array.from(
+      new Set(
+        recipients
+          .map(
+            (
+              recipient,
+            ) =>
+              recipient.recipientId.trim(),
+          )
+          .filter(
+            Boolean,
+          ),
+      ),
+    );
+
+  if (
+    userIds.length ===
+    0
+  ) {
+    return [];
+  }
+
+  /*
+   * Fetch only explicitly stored preferences.
+   *
+   * Missing rows intentionally mean:
+   *
+   * inAppEnabled = true
+   *
+   * because notifications are enabled
+   * by default.
+   */
+  const preferences =
+    await db.notificationPreference.findMany({
+      where: {
+        userId: {
+          in:
+            userIds,
+        },
+
+        category,
+      },
+
+      select: {
+        userId:
+          true,
+
+        inAppEnabled:
+          true,
+      },
+    });
+
+  const disabledUserIds =
+    new Set(
+      preferences
+        .filter(
+          (
+            preference,
+          ) =>
+            !preference.inAppEnabled,
+        )
+        .map(
+          (
+            preference,
+          ) =>
+            preference.userId,
+        ),
+    );
+
+  return recipients.filter(
+    (
+      recipient,
+    ) =>
+      !disabledUserIds.has(
+        recipient.recipientId,
+      ),
+  );
+}

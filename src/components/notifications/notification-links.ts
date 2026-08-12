@@ -67,102 +67,58 @@ export function resolveNotificationUrl({
   const meta = asObject(metadata);
 
   const reportCardId =
-    numberFromMetadata(
-      meta,
-      "reportCardId",
-    ) ??
-    (entityType ===
-    "REPORT_CARD"
-      ? Number(entityId) ||
-        null
-      : null);
+    numberFromMetadata(meta, "reportCardId") ??
+    (entityType === "REPORT_CARD" ? Number(entityId) || null : null);
 
   const assessmentId =
-    numberFromMetadata(
-      meta,
-      "assessmentId",
-    ) ??
-    (entityType ===
-    "ASSESSMENT"
-      ? Number(entityId) ||
-        null
-      : null);
+    numberFromMetadata(meta, "assessmentId") ??
+    (entityType === "ASSESSMENT" ? Number(entityId) || null : null);
 
-  const classId =
-    numberFromMetadata(
-      meta,
-      "classId",
-    );
+  const classId = numberFromMetadata(meta, "classId");
 
-  const studentId =
-    stringFromMetadata(
-      meta,
-      "studentId",
-    );
+  const studentId = stringFromMetadata(meta, "studentId");
 
-  const attemptId =
-    numberFromMetadata(
-      meta,
-      "attemptId",
-    );
+  const attemptId = numberFromMetadata(meta, "attemptId");
 
-  const feeMasterId =
-    numberFromMetadata(
-      meta,
-      "feeMasterId",
-    );
+  const feeMasterId = numberFromMetadata(meta, "feeMasterId");
 
-  const paymentId =
-    numberFromMetadata(
-      meta,
-      "paymentId",
-    );
+  const paymentId = numberFromMetadata(meta, "paymentId");
 
+  const eventId =
+    numberFromMetadata(meta, "eventId") ??
+    (entityType === "EVENT" ? Number(entityId) || null : null);
+
+  const eventStartTime =
+  stringFromMetadata(
+    meta,
+    "startTime",
+  ) ??
+  stringFromMetadata(
+    meta,
+    "scheduledStartTime",
+  );
   /* ---------------------------------------------------------------------- */
   /*                           REPORT CARDS                                 */
   /* ---------------------------------------------------------------------- */
 
-  if (
-    entityType ===
-      "REPORT_CARD" &&
-    reportCardId
-  ) {
-    if (
-      recipientRole ===
-      "admin"
-    ) {
-      if (
-        type ===
-          "REPORT_CARD_SUBMITTED" ||
-        type ===
-          "REPORT_CARD_STALE"
-      ) {
+  if (entityType === "REPORT_CARD" && reportCardId) {
+    if (recipientRole === "admin") {
+      if (type === "REPORT_CARD_SUBMITTED" || type === "REPORT_CARD_STALE") {
         return `/list/report-cards/${reportCardId}/review`;
       }
 
       return `/list/report-cards/${reportCardId}`;
     }
 
-    if (
-      recipientRole ===
-        "teacher" &&
-      classId
-    ) {
+    if (recipientRole === "teacher" && classId) {
       return `/teacher/classes/${classId}/report-cards/${reportCardId}`;
     }
 
-    if (
-      recipientRole ===
-        "parent" &&
-      studentId
-    ) {
+    if (recipientRole === "parent" && studentId) {
       return `/parent/children/${studentId}/report-cards/${reportCardId}`;
     }
 
-    if (
-      recipientRole ===
-      "student"
-    ) {
+    if (recipientRole === "student") {
       return `/student/report-cards/${reportCardId}`;
     }
   }
@@ -172,29 +128,18 @@ export function resolveNotificationUrl({
   /* ---------------------------------------------------------------------- */
 
   const isFinanceNotification =
-    type ===
-      "FEE_ASSIGNED" ||
-    type ===
-      "FEE_PAYMENT_RECEIVED" ||
-    type ===
-      "FEE_PAYMENT_CONFIRMED" ||
-    type ===
-      "FEE_BALANCE_DUE";
+    type === "FEE_ASSIGNED" ||
+    type === "FEE_PAYMENT_RECEIVED" ||
+    type === "FEE_PAYMENT_CONFIRMED" ||
+    type === "FEE_BALANCE_DUE";
 
-  if (
-    isFinanceNotification
-  ) {
+  if (isFinanceNotification) {
     /*
      * Parents should be sent to the exact
      * invoice whenever we know both the
      * student and fee-master IDs.
      */
-    if (
-      recipientRole ===
-        "parent" &&
-      studentId &&
-      feeMasterId
-    ) {
+    if (recipientRole === "parent" && studentId && feeMasterId) {
       return `/parent/children/${studentId}/fees/${feeMasterId}`;
     }
 
@@ -202,11 +147,7 @@ export function resolveNotificationUrl({
      * Fallback for older finance notifications
      * that have a student ID but no invoice ID.
      */
-    if (
-      recipientRole ===
-        "parent" &&
-      studentId
-    ) {
+    if (recipientRole === "parent" && studentId) {
       return `/parent/children/${studentId}/fees`;
     }
 
@@ -215,10 +156,7 @@ export function resolveNotificationUrl({
      * administrators return to the finance
      * workspace.
      */
-    if (
-      recipientRole ===
-      "admin"
-    ) {
+    if (recipientRole === "admin") {
       return "/list/FinanceDashboardPage";
     }
   }
@@ -227,21 +165,12 @@ export function resolveNotificationUrl({
   /*                           ASSESSMENTS                                  */
   /* ---------------------------------------------------------------------- */
 
-  if (
-    entityType ===
-      "ASSESSMENT" &&
-    assessmentId
-  ) {
-    if (
-      recipientRole ===
-      "student"
-    ) {
+  if (entityType === "ASSESSMENT" && assessmentId) {
+    if (recipientRole === "student") {
       if (
         attemptId &&
-        (type ===
-          "ASSESSMENT_RESULT_READY" ||
-          type ===
-            "ASSESSMENT_FEEDBACK_ADDED")
+        (type === "ASSESSMENT_RESULT_READY" ||
+          type === "ASSESSMENT_FEEDBACK_ADDED")
       ) {
         return `/student/assessments/${assessmentId}/result?attemptId=${attemptId}`;
       }
@@ -254,20 +183,59 @@ export function resolveNotificationUrl({
      * use the trusted domain action URL when one
      * has been supplied.
      */
-    if (
-      eventActionUrl
-    ) {
+    if (eventActionUrl) {
       return eventActionUrl;
     }
   }
 
   /* ---------------------------------------------------------------------- */
+  /*                                EVENTS                                  */
+  /* ---------------------------------------------------------------------- */
+
+  if (entityType === "EVENT" && eventId) {
+    return `/list/events?eventId=${eventId}`;
+  }
+
+  /* ---------------------------------------------------------------------- */
+/*                                EVENTS                                  */
+/* ---------------------------------------------------------------------- */
+
+if (
+  entityType ===
+    "EVENT" &&
+  eventId
+) {
+  if (
+    type ===
+    "EVENT_CANCELLED"
+  ) {
+    return "/list/events";
+  }
+
+  if (
+    eventStartTime
+  ) {
+    const dateKey =
+      new Date(
+        eventStartTime,
+      )
+        .toISOString()
+        .slice(
+          0,
+          10,
+        );
+
+    return `/list/events?date=${dateKey}`;
+  }
+
+  return "/list/events";
+}
+
+  /* ---------------------------------------------------------------------- */
   /*                              FALLBACK                                  */
   /* ---------------------------------------------------------------------- */
 
-  if (
-    eventActionUrl
-  ) {
+  if (eventActionUrl) {
     return eventActionUrl;
   }
 

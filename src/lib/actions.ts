@@ -37,14 +37,15 @@ import { deleteAcademicResultWithTransaction } from "@/lib/results/delete-result
 
 import { invalidateTermReportCardsWithTransaction } from "@/lib/report-cards/invalidation-service";
 
-import {
-  syncFeeMasterStatus,
-} from "@/lib/finance/fee-account-service";
+import { syncFeeMasterStatus } from "@/lib/finance/fee-account-service";
+
+import { notifyFeePaymentReceived } from "@/lib/notifications/finance-notifications";
 
 import {
-  notifyFeePaymentReceived,
-} from "@/lib/notifications/finance-notifications";
-
+  notifyEventCancelled,
+  notifyEventPublished,
+  notifyEventUpdated,
+} from "@/lib/notifications/event-notifications";
 
 type CurrentState = { success: boolean; error: boolean };
 
@@ -1470,80 +1471,626 @@ export const updateResult = async (
   }
 };
 
-/* ------------------------- CREATE EVENT ------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                              EVENT HELPERS                                 */
+/* -------------------------------------------------------------------------- */
+
+const EVENT_NOTIFICATION_TYPES = [
+  "EVENT_PUBLISHED",
+  "EVENT_UPDATED",
+  "EVENT_UPCOMING",
+  "EVENT_STARTING_SOON",
+] as const;
+
+async function archiveExistingEventReminders({
+  tx,
+  eventId,
+}: {
+  tx: Prisma.TransactionClient;
+
+  eventId: number;
+}) {
+  const now = new Date();
+
+  /*
+   * Keep NotificationEvent as historical/audit data,
+   * but hide deliveries that describe an obsolete
+   * event schedule.
+   */
+  await tx.notification.updateMany({
+    where: {
+      archivedAt: null,
+
+      event: {
+        is: {
+          entityType: "EVENT",
+
+          entityId: String(eventId),
+
+          type: {
+            in: [...EVENT_NOTIFICATION_TYPES],
+          },
+        },
+      },
+    },
+
+    data: {
+      archivedAt: now,
+    },
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              CREATE EVENT                                  */
+/* -------------------------------------------------------------------------- */
+
 export const createEvent = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: EventSchema,
 ) => {
-  try {
-    await prisma.event.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        date: new Date(data.date), // NEW
-        startTime: new Date(data.startTime),
-        endTime: new Date(data.endTime),
-        classId: data.classId ? parseInt(data.classId) : null,
-      },
-    });
+  const { userId, sessionClaims } = await auth();
 
-    // revalidatePath("/list/events");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (!userId || role !== "admin") {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "You are not authorized to create school events.",
+    };
+  }
+
+  try {
+    const parsed = eventSchema.safeParse(data);
+
+    if (!parsed.success) {
+      return {
+        success: false,
+
+        error: true,
+
+        message:
+          parsed.error.issues[0]?.message ?? "Enter valid event details.",
+      };
+    }
+
+    const values = parsed.data;
+
+    /*
+     * Validate an optional class instead of
+     * trusting the submitted class ID.
+     */
+    if (values.classId) {
+      const classExists = await prisma.class.findUnique({
+        where: {
+          id: values.classId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!classExists) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "The selected class could not be found.",
+        };
+      }
+    }
+
+    const event = await prisma.$transaction(
+      async (tx) => {
+        const created = await tx.event.create({
+          data: {
+            title: values.title,
+
+            description: values.description,
+
+            date: values.date,
+
+            startTime: values.startTime,
+
+            endTime: values.endTime,
+
+            classId: values.classId ?? null,
+          },
+
+          include: {
+            class: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+
+        await notifyEventPublished({
+          tx,
+
+          eventId: created.id,
+
+          title: created.title,
+
+          description: created.description,
+
+          startTime: created.startTime,
+
+          endTime: created.endTime,
+
+          classId: created.classId,
+
+          className: created.class?.name ?? null,
+
+          notificationRevision: created.notificationRevision,
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
+        });
+
+        return created;
+      },
+
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
+      },
+    );
+
+    revalidatePath("/list/events");
+
+    revalidatePath("/student");
+
+    revalidatePath("/teacher");
+
+    revalidatePath("/parent");
+
+    revalidatePath("/notifications");
+
+    return {
+      success: true,
+
+      error: false,
+
+      data: {
+        id: event.id,
+      },
+
+      message: "Event created successfully.",
+    };
+  } catch (error) {
+    console.error("CREATE EVENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The event could not be created.",
+    };
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/*                              UPDATE EVENT                                  */
+/* -------------------------------------------------------------------------- */
 
 export const updateEvent = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: EventSchema,
 ) => {
+  const { userId, sessionClaims } = await auth();
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (!userId || role !== "admin") {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "You are not authorized to update school events.",
+    };
+  }
+
   if (!data.id) {
-    return { success: false, error: true };
+    return {
+      success: false,
+
+      error: true,
+
+      message: "Select a valid event.",
+    };
   }
 
   try {
-    await prisma.event.update({
-      where: { id: typeof data.id === "string" ? parseInt(data.id) : data.id },
-      data: {
-        title: data.title,
-        description: data.description,
-        date: new Date(data.date),
-        startTime: new Date(data.startTime),
-        endTime: new Date(data.endTime),
-        classId: data.classId ? parseInt(data.classId) : null,
-      },
-    });
+    const parsed = eventSchema.safeParse(data);
 
-    // revalidatePath("/list/events");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log("UPDATE EVENT ERROR:", err);
-    return { success: false, error: true };
+    if (!parsed.success) {
+      return {
+        success: false,
+
+        error: true,
+
+        message:
+          parsed.error.issues[0]?.message ?? "Enter valid event details.",
+      };
+    }
+
+    const values = parsed.data;
+
+    const eventId = Number(values.id);
+
+    if (!Number.isInteger(eventId) || eventId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid event.",
+      };
+    }
+
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.event.findUnique({
+          where: {
+            id: eventId,
+          },
+
+          select: {
+            id: true,
+
+            title: true,
+
+            description: true,
+
+            date: true,
+
+            startTime: true,
+
+            endTime: true,
+
+            classId: true,
+          },
+        });
+
+        if (!existing) {
+          throw new Error("The event could not be found.");
+        }
+
+        if (values.classId) {
+          const classExists = await tx.class.findUnique({
+            where: {
+              id: values.classId,
+            },
+
+            select: {
+              id: true,
+            },
+          });
+
+          if (!classExists) {
+            throw new Error("The selected class could not be found.");
+          }
+        }
+
+        /*
+         * Determine whether anything that affects
+         * previously generated notifications changed.
+         */
+        const notificationRelevantChange =
+          existing.title !== values.title ||
+          existing.description !== values.description ||
+          existing.startTime.getTime() !== values.startTime.getTime() ||
+          existing.endTime.getTime() !== values.endTime.getTime() ||
+          existing.classId !== (values.classId ?? null);
+
+        const updated = await tx.event.update({
+          where: {
+            id: eventId,
+          },
+
+          data: {
+            title: values.title,
+
+            description: values.description,
+
+            date: values.date,
+
+            startTime: values.startTime,
+
+            endTime: values.endTime,
+
+            classId: values.classId ?? null,
+
+            ...(notificationRelevantChange
+              ? {
+                  notificationRevision: {
+                    increment: 1,
+                  },
+                }
+              : {}),
+          },
+
+          include: {
+            class: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+
+        /*
+         * If an already-reminded event is modified,
+         * hide the obsolete reminder deliveries.
+         *
+         * The scheduler can then generate a reminder
+         * describing the new event configuration.
+         */
+        if (notificationRelevantChange) {
+          await archiveExistingEventReminders({
+            tx,
+
+            eventId,
+          });
+        }
+
+        if (notificationRelevantChange) {
+          await notifyEventUpdated({
+            tx,
+
+            eventId: updated.id,
+
+            title: updated.title,
+
+            description: updated.description,
+
+            startTime: updated.startTime,
+
+            endTime: updated.endTime,
+
+            previousClassId: existing.classId,
+
+            classId: updated.classId,
+
+            className: updated.class?.name ?? null,
+
+            notificationRevision: updated.notificationRevision,
+
+            actorId: userId,
+
+            actorRole: "admin",
+
+            actorName: null,
+          });
+        }
+
+        return {
+          event: updated,
+
+          notificationRelevantChange,
+        };
+      },
+
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
+      },
+    );
+
+    revalidatePath("/list/events");
+
+    revalidatePath("/student");
+
+    revalidatePath("/teacher");
+
+    revalidatePath("/parent");
+
+    revalidatePath("/notifications");
+
+    return {
+      success: true,
+
+      error: false,
+
+      data: {
+        id: result.event.id,
+
+        notificationRelevantChange: result.notificationRelevantChange,
+      },
+
+      message: result.notificationRelevantChange
+        ? "Event updated successfully. Scheduled reminders will use the new event details."
+        : "Event updated successfully.",
+    };
+  } catch (error) {
+    console.error("UPDATE EVENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The event could not be updated.",
+    };
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/*                              DELETE EVENT                                  */
+/* -------------------------------------------------------------------------- */
 
 export const deleteEvent = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
-  if (!id) {
-    return { success: false, error: true };
-  }
-  try {
-    await prisma.event.delete({
-      where: { id: parseInt(id) },
-    });
+  const { userId, sessionClaims } = await auth();
 
-    // revalidatePath("/list/events");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (!userId || role !== "admin") {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "You are not authorized to delete school events.",
+    };
+  }
+
+  const eventId = Number(data.get("id"));
+
+  if (!Number.isInteger(eventId) || eventId <= 0) {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "Select a valid event.",
+    };
+  }
+
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.event.findUnique({
+          where: {
+            id: eventId,
+          },
+
+          include: {
+            class: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+
+        if (!existing) {
+          throw new Error("The event could not be found.");
+        }
+
+        /*
+         * Archive reminders before deleting the
+         * source event. NotificationEvent stays
+         * available as historical notification data.
+         */
+        await archiveExistingEventReminders({
+          tx,
+
+          eventId,
+        });
+
+        await notifyEventCancelled({
+          tx,
+
+          eventId: existing.id,
+
+          title: existing.title,
+
+          description: existing.description,
+
+          startTime: existing.startTime,
+
+          endTime: existing.endTime,
+
+          classId: existing.classId,
+
+          className: existing.class?.name ?? null,
+
+          notificationRevision: existing.notificationRevision,
+
+          actorId: userId,
+
+          actorRole: "admin",
+
+          actorName: null,
+        });
+
+        await tx.event.delete({
+          where: {
+            id: eventId,
+          },
+        });
+      },
+
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
+      },
+    );
+
+    revalidatePath("/list/events");
+
+    revalidatePath("/notifications");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Event deleted successfully.",
+    };
+  } catch (error) {
+    console.error("DELETE EVENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The event could not be deleted.",
+    };
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/*                  CREATE ANNOUNCEMENT                                  */
+/* -------------------------------------------------------------------------- */
 
 export const createAnnouncement = async (
   currentState: CurrentState,
@@ -1887,290 +2434,200 @@ export const deleteFee = async (currentState: any, data: FormData) => {
 };
 
 export const createFeePayment = async (
-  _currentState:
-    unknown,
+  _currentState: unknown,
 
-  data:
-    FeePaymentSchema,
+  data: FeePaymentSchema,
 ) => {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
+  const { userId, sessionClaims } = await auth();
 
   const role = (
     sessionClaims?.metadata as {
-      role?:
-        string;
+      role?: string;
     }
   )?.role;
 
-  if (
-    !userId ||
-    role !==
-      "admin"
-  ) {
+  if (!userId || role !== "admin") {
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
-      message:
-        "You are not authorized to record fee payments.",
+      message: "You are not authorized to record fee payments.",
     };
   }
 
   try {
-    const result =
-      await prisma.$transaction(
-        async (
-          tx,
-        ) => {
-          const invoice =
-            await tx.feeMaster.findUnique({
-              where: {
-                id:
-                  data.masterId,
-              },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const invoice = await tx.feeMaster.findUnique({
+          where: {
+            id: data.masterId,
+          },
 
+          select: {
+            id: true,
+
+            totalAmount: true,
+
+            term: true,
+
+            academicYear: true,
+
+            student: {
               select: {
-                id:
-                  true,
+                id: true,
 
-                totalAmount:
-                  true,
+                name: true,
 
-                term:
-                  true,
+                surname: true,
 
-                academicYear:
-                  true,
-
-                student: {
+                class: {
                   select: {
-                    id:
-                      true,
+                    id: true,
 
-                    name:
-                      true,
-
-                    surname:
-                      true,
-
-                    class: {
-                      select: {
-                        id:
-                          true,
-
-                        name:
-                          true,
-                      },
-                    },
+                    name: true,
                   },
                 },
               },
-            });
+            },
+          },
+        });
 
-          if (
-            !invoice
-          ) {
-            throw new Error(
-              "The fee invoice could not be found.",
-            );
-          }
+        if (!invoice) {
+          throw new Error("The fee invoice could not be found.");
+        }
 
-          if (
-            !Number.isFinite(
-              data.amount,
-            ) ||
-            data.amount <=
-              0
-          ) {
-            throw new Error(
-              "Enter a valid payment amount.",
-            );
-          }
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+          throw new Error("Enter a valid payment amount.");
+        }
 
-          /*
-           * Calculate the existing balance BEFORE
-           * accepting the new payment.
-           */
-          const existingSummary =
-            await syncFeeMasterStatus({
-              feeMasterId:
-                invoice.id,
+        /*
+         * Calculate the existing balance BEFORE
+         * accepting the new payment.
+         */
+        const existingSummary = await syncFeeMasterStatus({
+          feeMasterId: invoice.id,
 
-              tx,
-            });
+          tx,
+        });
 
-          if (
-            existingSummary.balance <=
-            0
-          ) {
-            throw new Error(
-              "This fee invoice is already fully paid.",
-            );
-          }
+        if (existingSummary.balance <= 0) {
+          throw new Error("This fee invoice is already fully paid.");
+        }
 
-          /*
-           * Prevent accidental overpayment.
-           *
-           * If you later want credit balances,
-           * we'll model credits explicitly rather
-           * than hiding them inside a negative fee balance.
-           */
-          if (
-            data.amount >
-            existingSummary.balance
-          ) {
-            throw new Error(
-              `The payment exceeds the outstanding balance of GHS ${existingSummary.balance.toFixed(
-                2,
-              )}.`,
-            );
-          }
+        /*
+         * Prevent accidental overpayment.
+         *
+         * If you later want credit balances,
+         * we'll model credits explicitly rather
+         * than hiding them inside a negative fee balance.
+         */
+        if (data.amount > existingSummary.balance) {
+          throw new Error(
+            `The payment exceeds the outstanding balance of GHS ${existingSummary.balance.toFixed(
+              2,
+            )}.`,
+          );
+        }
 
-          const payment =
-            await tx.feePayment.create({
-              data: {
-                masterId:
-                  data.masterId,
+        const payment = await tx.feePayment.create({
+          data: {
+            masterId: data.masterId,
 
-                amount:
-                  data.amount,
+            amount: data.amount,
 
-                method:
-                  data.method,
+            method: data.method,
 
-                date:
-                  data.date ??
-                  new Date(),
-              },
-            });
+            date: data.date ?? new Date(),
+          },
+        });
 
-          /*
-           * Recalculate after the payment and
-           * synchronize FeeMaster.status.
-           */
-          const summary =
-            await syncFeeMasterStatus({
-              feeMasterId:
-                invoice.id,
+        /*
+         * Recalculate after the payment and
+         * synchronize FeeMaster.status.
+         */
+        const summary = await syncFeeMasterStatus({
+          feeMasterId: invoice.id,
 
-              tx,
-            });
+          tx,
+        });
 
-          await notifyFeePaymentReceived({
-            tx,
+        await notifyFeePaymentReceived({
+          tx,
 
-            feeMasterId:
-              invoice.id,
+          feeMasterId: invoice.id,
 
-            studentId:
-              invoice.student.id,
+          studentId: invoice.student.id,
 
-            studentName:
-              `${invoice.student.name} ${invoice.student.surname}`.trim(),
+          studentName:
+            `${invoice.student.name} ${invoice.student.surname}`.trim(),
 
-            classId:
-              invoice.student.class.id,
+          classId: invoice.student.class.id,
 
-            className:
-              invoice.student.class.name,
+          className: invoice.student.class.name,
 
-            term:
-              invoice.term,
+          term: invoice.term,
 
-            academicYear:
-              invoice.academicYear,
+          academicYear: invoice.academicYear,
 
-            paymentId:
-              payment.id,
+          paymentId: payment.id,
 
-            amountPaid:
-              payment.amount,
+          amountPaid: payment.amount,
 
-            totalPaid:
-              summary.paidAmount,
+          totalPaid: summary.paidAmount,
 
-            balance:
-              summary.balance,
+          balance: summary.balance,
 
-            paymentMethod:
-              payment.method,
+          paymentMethod: payment.method,
 
-            actorId:
-              userId,
+          actorId: userId,
 
-            actorRole:
-              role,
+          actorRole: role,
 
-            actorName:
-              null,
-          });
+          actorName: null,
+        });
 
-          return {
-            payment,
+        return {
+          payment,
 
-            summary,
-          };
-        },
+          summary,
+        };
+      },
 
-        {
-          isolationLevel:
-            Prisma.TransactionIsolationLevel.Serializable,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-          maxWait:
-            10_000,
+        maxWait: 10_000,
 
-          timeout:
-            30_000,
-        },
-      );
-
-    revalidatePath(
-      "/list/FinanceDashboardPage",
+        timeout: 30_000,
+      },
     );
 
-    revalidatePath(
-      "/notifications",
-    );
+    revalidatePath("/list/FinanceDashboardPage");
+
+    revalidatePath("/notifications");
 
     return {
-      success:
-        true,
+      success: true,
 
-      error:
-        false,
+      error: false,
 
-      data:
-        result,
+      data: result,
 
       message:
-        result.summary.balance <=
-        0
+        result.summary.balance <= 0
           ? "Payment recorded successfully. The fee account is now fully paid."
           : `Payment recorded successfully. Remaining balance: GHS ${result.summary.balance.toFixed(
               2,
             )}.`,
     };
-  } catch (
-    error
-  ) {
-    console.error(
-      "CREATE FEE PAYMENT ERROR:",
-      error,
-    );
+  } catch (error) {
+    console.error("CREATE FEE PAYMENT ERROR:", error);
 
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
       message:
         error instanceof Error
@@ -2179,29 +2636,6 @@ export const createFeePayment = async (
     };
   }
 };
-
-// export const createFeePayment = async (
-//   currentState: any,
-//   data: FeePaymentSchema,
-// ) => {
-//   try {
-//     await prisma.feePayment.create({
-//       data: {
-//         masterId: data.masterId,
-//         amount: data.amount,
-//         method: data.method,
-//         date: data.date ?? new Date(),
-//       },
-//     });
-
-//     return { success: true, error: false };
-//   } catch (err) {
-//     console.log("CREATE FEE PAYMENT ERROR:", err);
-//     return { success: false, error: true };
-//   }
-// };
-
-
 
 export const updateFeePayment = async (
   currentState: any,
@@ -2594,7 +3028,6 @@ export const saveTermSettings = async (data: {
             academicYearChanged ||
             termDateRangeChanged
           ) {
-
             const reasonParts: string[] = [];
 
             if (daysSchoolOpenedChanged) {

@@ -1,12 +1,18 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import StudentAssessmentWidget from "@/components/dashboard/StudentAssessmentWidget";
-import EventCalendar from "@/components/EventCalendar";
+import EventCalendarContainer from "@/components/EventCalendarContainer";
 import { getStudentAssessmentWidget } from "@/lib/assessments/queries";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 
-const StudentPage = async () => {
+const StudentPage = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    [key: string]: string | undefined;
+  }>;
+}) => {
   const { userId } = await auth();
 
   const [assessmentWidget] = await Promise.all([getStudentAssessmentWidget()]);
@@ -41,16 +47,13 @@ const StudentPage = async () => {
           </h1>
           <BigCalendarContainer type="classId" id={classItem[0].id} />
         </div>
-        
       </div>
 
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-8">
-        <EventCalendar />
+        <EventCalendarContainer searchParams={searchParams} />
         <Announcements />
         <StudentAssessmentWidget data={assessmentWidget} />
-
-          
       </div>
     </div>
   );

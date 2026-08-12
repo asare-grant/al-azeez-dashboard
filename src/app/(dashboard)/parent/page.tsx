@@ -1,5 +1,6 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
+import EventCalendarContainer from "@/components/EventCalendarContainer";
 import StudentFeeCards from "@/components/StudentFeeCards";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -26,7 +27,13 @@ const getFeeSummary = (feeMaster?: any) => {
   };
 };
 
-const ParentPage = async () => {
+const ParentPage = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    [key: string]: string | undefined;
+  }>;
+}) => {
   const { userId } = await auth();
 
   if (!userId) {
@@ -152,6 +159,7 @@ const ParentPage = async () => {
 
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-8">
+        <EventCalendarContainer searchParams={searchParams} />
         <Announcements />
       </div>
     </div>

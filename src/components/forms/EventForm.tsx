@@ -1,3 +1,4 @@
+// scr/components/forms/EventForm.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,13 +35,18 @@ const EventForm = ({
   const onSubmit = handleSubmit(async (formValues) => {
     try {
       // Coerce IDs to number
-      const payload = {
+      const payload: EventSchema = {
         ...formValues,
-        id: formValues.id ? Number(formValues.id) : undefined,
-        classId: formValues.classId ? String(formValues.classId) : undefined,
+
+        id: formValues.id ?? undefined,
+
+        classId: formValues.classId ?? null,
+
         date: new Date(formValues.date),
-        startTime: formValues.startTime,
-        endTime: formValues.endTime,
+
+        startTime: new Date(formValues.startTime),
+
+        endTime: new Date(formValues.endTime),
       };
 
       const action = type === "create" ? createEvent : updateEvent;

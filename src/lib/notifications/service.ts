@@ -1,3 +1,4 @@
+// src/lib/notifications/service.ts
 import "server-only";
 
 import type {
@@ -12,8 +13,9 @@ import prisma from "@/lib/prisma";
 
 import { isMandatoryNotification } from "./policy";
 
-import { getUserNotificationPreference } from "./preferences";
-
+import {
+  filterRecipientsByInAppPreference,
+} from "./preferences";
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
@@ -152,27 +154,18 @@ export async function createNotificationEvent({
    */
   const mandatory = isMandatoryNotification(input.type);
 
-  const recipients: NotificationRecipient[] = [];
+  const recipients =
+  mandatory
+    ? resolvedRecipients
+    : await filterRecipientsByInAppPreference({
+        recipients:
+          resolvedRecipients,
 
-  for (const recipient of resolvedRecipients) {
-    if (mandatory) {
-      recipients.push(recipient);
+        category:
+          input.category,
 
-      continue;
-    }
-
-    const preference = await getUserNotificationPreference({
-      userId: recipient.recipientId,
-
-      category: input.category,
-
-      tx,
-    });
-
-    if (preference.inAppEnabled) {
-      recipients.push(recipient);
-    }
-  }
+        tx,
+      });
 
   /*
    * The event had intended recipients, but all

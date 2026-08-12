@@ -1,3 +1,4 @@
+// src/lib/notifications/policy.ts
 import "server-only";
 
 import type {
@@ -10,21 +11,44 @@ import type {
 
 const mandatoryNotificationTypes =
   new Set<NotificationType>([
-    /*
-     * Academic integrity / workflow notifications
-     * must always reach their intended recipient.
-     */
+    /* -------------------------------------------------------------- */
+    /*                    REPORT-CARD WORKFLOW                        */
+    /* -------------------------------------------------------------- */
+
     "REPORT_CARD_STALE",
 
     "REPORT_CARD_CHANGES_REQUESTED",
 
     "REPORT_CARD_SUBMITTED",
 
+    "REPORT_CARD_APPROVED",
+
+    "REPORT_CARD_PUBLISHED",
+
+    /* -------------------------------------------------------------- */
+    /*                        ATTENDANCE                              */
+    /* -------------------------------------------------------------- */
+
     "ATTENDANCE_INCOMPLETE",
 
-    /*
-     * System-critical notifications.
-     */
+    /* -------------------------------------------------------------- */
+    /*                          FINANCE                               */
+    /* -------------------------------------------------------------- */
+
+    "FEE_PAYMENT_RECEIVED",
+
+    "FEE_PAYMENT_CONFIRMED",
+
+    /* -------------------------------------------------------------- */
+    /*                           EVENTS                               */
+    /* -------------------------------------------------------------- */
+
+    "EVENT_CANCELLED",
+
+    /* -------------------------------------------------------------- */
+    /*                           SYSTEM                               */
+    /* -------------------------------------------------------------- */
+
     "SYSTEM_ALERT",
   ]);
 

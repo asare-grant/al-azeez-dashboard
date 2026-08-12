@@ -1,3 +1,9 @@
+// src/app/api/cron/notifications/route.ts
+
+import {
+  timingSafeEqual,
+} from "node:crypto";
+
 import {
   NextResponse,
 } from "next/server";
@@ -12,32 +18,50 @@ export const dynamic =
 export const runtime =
   "nodejs";
 
-export async function GET(
-  request: Request,
-) {
-  const expectedSecret =
-    process.env.CRON_SECRET;
+/* -------------------------------------------------------------------------- */
+/*                             AUTHENTICATION                                 */
+/* -------------------------------------------------------------------------- */
 
-  if (
-    !expectedSecret
-  ) {
-    console.error(
-      "CRON_SECRET is not configured.",
+function safelyEquals(
+  actual: string,
+  expected: string,
+) {
+  const actualBuffer =
+    Buffer.from(
+      actual,
     );
 
-    return NextResponse.json(
-      {
-        success:
-          false,
+  const expectedBuffer =
+    Buffer.from(
+      expected,
+    );
 
-        message:
-          "Scheduled notification service is not configured.",
-      },
+  if (
+    actualBuffer.length !==
+    expectedBuffer.length
+  ) {
+    return false;
+  }
 
-      {
-        status:
-          500,
-      },
+  return timingSafeEqual(
+    actualBuffer,
+    expectedBuffer,
+  );
+}
+
+function isAuthorized(
+  request: Request,
+) {
+  const secret =
+    process.env
+      .CRON_SECRET
+      ?.trim();
+
+  if (
+    !secret
+  ) {
+    throw new Error(
+      "CRON_SECRET is not configured.",
     );
   }
 
@@ -47,65 +71,142 @@ export async function GET(
     );
 
   if (
-    authorization !==
-    `Bearer ${expectedSecret}`
+    !authorization?.startsWith(
+      "Bearer ",
+    )
   ) {
-    return NextResponse.json(
-      {
-        success:
-          false,
-
-        message:
-          "Unauthorized.",
-      },
-
-      {
-        status:
-          401,
-      },
-    );
+    return false;
   }
 
+  const suppliedSecret =
+    authorization
+      .slice(
+        "Bearer ".length,
+      )
+      .trim();
+
+  return safelyEquals(
+    suppliedSecret,
+    secret,
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               HANDLER                                      */
+/* -------------------------------------------------------------------------- */
+
+async function handleCron(
+  request: Request,
+) {
   try {
-    const summary =
-      await runScheduledNotifications();
+    if (
+      !isAuthorized(
+        request,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "Unauthorized.",
+        },
+
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const result =
+      await runScheduledNotifications({
+        trigger:
+          "cron",
+      });
+
+    /*
+     * Another scheduler instance already owns
+     * the active lease.
+     *
+     * This is a successful no-op, not an error.
+     */
+    if (
+      !result.executed
+    ) {
+      return NextResponse.json(
+        {
+          success: true,
+
+          skipped: true,
+
+          reason:
+            result.reason,
+        },
+
+        {
+          status: 200,
+        },
+      );
+    }
 
     return NextResponse.json(
       {
         success:
-          true,
+          result.status !==
+          "FAILED",
 
-        summary,
+        result,
       },
 
       {
         status:
-          200,
+          result.status ===
+          "FAILED"
+            ? 500
+            : 200,
       },
     );
   } catch (
     error
   ) {
     console.error(
-      "SCHEDULED NOTIFICATION ERROR:",
+      "NOTIFICATION CRON ERROR:",
       error,
     );
 
     return NextResponse.json(
       {
-        success:
-          false,
+        success: false,
 
         message:
           error instanceof Error
             ? error.message
-            : "Scheduled notifications could not be processed.",
+            : "The notification scheduler could not run.",
       },
 
       {
-        status:
-          500,
+        status: 500,
       },
     );
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     GET + POST SUPPORT                                     */
+/* -------------------------------------------------------------------------- */
+
+export async function GET(
+  request: Request,
+) {
+  return handleCron(
+    request,
+  );
+}
+
+export async function POST(
+  request: Request,
+) {
+  return handleCron(
+    request,
+  );
 }

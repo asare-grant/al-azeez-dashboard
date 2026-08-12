@@ -1,3 +1,4 @@
+// src/lib/notifications/queries.ts
 import "server-only";
 
 import {
@@ -9,6 +10,10 @@ import prisma from "@/lib/prisma";
 import type {
   NotificationCategory,
 } from "@prisma/client";
+
+import {
+  NOTIFICATION_CATEGORIES,
+} from "./constants";
 
 
 /* -------------------------------------------------------------------------- */
@@ -370,24 +375,7 @@ export async function getNotificationCentre({
 /*                       NOTIFICATION PREFERENCES                             */
 /* -------------------------------------------------------------------------- */
 
-const notificationCategories:
-  NotificationCategory[] = [
-    "ASSESSMENT",
 
-    "REPORT_CARD",
-
-    "ATTENDANCE",
-
-    "ACADEMIC",
-
-    "FINANCE",
-
-    "ANNOUNCEMENT",
-
-    "SYSTEM",
-
-    "GENERAL",
-  ];
 
 export async function getUserNotificationPreferences() {
   const {
@@ -433,7 +421,7 @@ export async function getUserNotificationPreferences() {
       ),
     );
 
-  return notificationCategories.map(
+  return NOTIFICATION_CATEGORIES.map(
     (
       category,
     ) => {

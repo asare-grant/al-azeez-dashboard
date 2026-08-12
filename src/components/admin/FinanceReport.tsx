@@ -476,124 +476,186 @@ const FinanceReport = () => {
       {/* -------------------------------------------------------------- */}
 
       {selectedReminder ? (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:items-center sm:p-6">
-          <button
-            type="button"
-            aria-label="Close individual reminder confirmation"
-            onClick={() => {
-              if (!isPending) {
-                setSelectedReminder(null);
-              }
-            }}
-            className="absolute inset-0"
-          />
+        <div className="fixed inset-0 z-[110] overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-sm sm:p-6">
+          <div className="flex min-h-full items-end justify-center sm:items-center">
+            <button
+              type="button"
+              aria-label="Close individual reminder confirmation"
+              onClick={() => {
+                if (!isPending) {
+                  setSelectedReminder(null);
+                }
+              }}
+              className="absolute inset-0"
+            />
 
-          <section className="relative z-10 w-full max-w-md overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.30)]">
-            {/* HEADER */}
-            <div className="relative overflow-hidden bg-slate-950 p-6 text-white">
-              <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-400/15 blur-3xl" />
+            <section className="relative z-10 my-3 w-full max-w-md overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.30)] sm:my-6">
+              {/* HEADER */}
+              <div className="relative overflow-hidden bg-slate-950 p-6 text-white">
+                <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-400/15 blur-3xl" />
 
-              <div className="relative">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-                  <BellRing className="h-5 w-5" />
-                </div>
-
-                <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-                  Individual Fee Reminder
-                </p>
-
-                <h3 className="mt-2 text-2xl font-black">Remind Parent?</h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-300">
-                  The linked parent will receive an in-app notification with the
-                  student's current outstanding fee balance.
-                </p>
-              </div>
-            </div>
-
-            {/* CONTENT */}
-            <div className="p-5 sm:p-6">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">
-                  Student
-                </p>
-
-                <p className="mt-1 font-black text-slate-950">
-                  {selectedReminder.student}
-                </p>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <ConfirmMetric
-                  label="Outstanding"
-                  value={`GHS ${selectedReminder.balance.toFixed(2)}`}
-                />
-
-                <ConfirmMetric label="Delivery" value="In-App" />
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                <div className="flex gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-                    <BellRing className="h-4 w-4" />
+                <div className="relative">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
+                    <BellRing className="h-5 w-5" />
                   </div>
 
-                  <div>
-                    <p className="text-xs font-black text-blue-950">
-                      Parent Notification Centre
-                    </p>
+                  <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+                    Individual Fee Reminder
+                  </p>
 
-                    <p className="mt-1 text-xs leading-5 text-blue-700">
-                      The reminder will appear in the parent's notification bell
-                      and link directly to this student's fee invoice.
-                    </p>
-                  </div>
+                  <h3 className="mt-2 text-2xl font-black">Remind Parent?</h3>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    The linked parent will receive an in-app notification
+                    immediately, while a WhatsApp reminder will be securely
+                    queued for delivery to the parent's registered contact
+                    number.
+                  </p>
                 </div>
               </div>
 
-              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => setSelectedReminder(null)}
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
+              {/* CONTENT */}
+              <div className="p-5 sm:p-6">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">
+                    Student
+                  </p>
 
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleSendSingleReminder}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 text-xs font-black text-white shadow-[0_10px_25px_rgba(245,158,11,0.18)] transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      Send Reminder
-                    </>
-                  )}
-                </button>
+                  <p className="mt-1 font-black text-slate-950">
+                    {selectedReminder.student}
+                  </p>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <ConfirmMetric
+                    label="Outstanding"
+                    value={`GHS ${selectedReminder.balance.toFixed(2)}`}
+                  />
+
+                  <ConfirmMetric label="Delivery" value="2 Channels" />
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/70">
+                  <div className="p-4">
+                    <div className="flex gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                        <BellRing className="h-4 w-4" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-blue-950">
+                          Multi-channel parent reminder
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-blue-700">
+                          The reminder will be delivered through the school's
+                          notification centre and queued for WhatsApp delivery.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DELIVERY CHANNELS */}
+                  <div className="grid grid-cols-2 gap-px border-t border-blue-100 bg-blue-100">
+                    <div className="bg-white/80 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+
+                        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
+                          In-App
+                        </p>
+                      </div>
+
+                      <p className="mt-1 text-xs font-black text-slate-900">
+                        Immediate
+                      </p>
+                    </div>
+
+                    <div className="bg-white/80 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-amber-500" />
+
+                        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
+                          WhatsApp
+                        </p>
+                      </div>
+
+                      <p className="mt-1 text-xs font-black text-slate-900">
+                        Queued
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setSelectedReminder(null)}
+                    className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleSendSingleReminder}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 text-xs font-black text-white shadow-[0_10px_25px_rgba(245,158,11,0.18)] transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating Reminder...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Send Parent Reminder
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       ) : null}
     </>
   );
 };
 
-const Stat = ({ label, value }: any) => (
-  <div className="bg-slate-50 p-3 rounded-md border">
-    <p className="text-gray-500">{label}</p>
-    <p className="font-semibold">{value}</p>
-  </div>
-);
+function Stat({
+  label,
+  value,
+  warning = false,
+}: {
+  label: string;
+
+  value: string;
+
+  warning?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${
+        warning
+          ? "border-amber-200 bg-amber-50/70"
+          : "border-slate-200 bg-slate-50"
+      }`}
+    >
+      <p
+        className={`text-[10px] font-black uppercase tracking-[0.11em] ${
+          warning ? "text-amber-700" : "text-slate-400"
+        }`}
+      >
+        {label}
+      </p>
+
+      <p className="mt-2 text-lg font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
 
 function ConfirmMetric({
   label,
