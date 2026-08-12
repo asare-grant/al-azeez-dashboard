@@ -15,6 +15,11 @@ import {
   NOTIFICATION_CATEGORIES,
 } from "./constants";
 
+import {
+  getNotificationSystemSettings,
+  getNotificationUserSettings,
+} from "./settings";
+
 
 /* -------------------------------------------------------------------------- */
 /*                          USER NOTIFICATIONS                                */
@@ -406,6 +411,12 @@ export async function getUserNotificationPreferences() {
 
         pushEnabled:
           true,
+        
+        whatsAppEnabled:
+          true,
+
+        smsEnabled:
+          true,
       },
     });
 
@@ -432,7 +443,7 @@ export async function getUserNotificationPreferences() {
 
       return (
         preference ?? {
-          category,
+           category,
 
           inAppEnabled:
             true,
@@ -442,8 +453,74 @@ export async function getUserNotificationPreferences() {
 
           pushEnabled:
             false,
+
+          whatsAppEnabled:
+            false,
+
+          smsEnabled:
+            false,
         }
       );
     },
   );
+}
+
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                   NOTIFICATION DELIVERY SETTINGS                           */
+/* -------------------------------------------------------------------------- */
+
+export async function getUserNotificationDeliverySettings() {
+  const {
+    userId,
+  } =
+    await auth();
+
+  if (
+    !userId
+  ) {
+    throw new Error(
+      "UNAUTHENTICATED",
+    );
+  }
+
+  const [
+    userSettings,
+    systemSettings,
+  ] =
+    await Promise.all([
+      getNotificationUserSettings({
+        userId,
+      }),
+
+      getNotificationSystemSettings(),
+    ]);
+
+  return {
+    user:
+      userSettings,
+
+    system: {
+      inAppEnabled:
+        systemSettings.inAppEnabled,
+
+      emailEnabled:
+        systemSettings.emailEnabled,
+
+      pushEnabled:
+        systemSettings.pushEnabled,
+
+      whatsAppEnabled:
+        systemSettings.whatsAppEnabled,
+
+      smsEnabled:
+        systemSettings.smsEnabled,
+
+      quietHoursEnabled:
+        systemSettings.quietHoursEnabled,
+    },
+  };
 }

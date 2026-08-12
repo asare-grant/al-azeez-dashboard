@@ -836,10 +836,12 @@ model NotificationPreference {
 
   category NotificationCategory
 
-  /**
-   * We are building in-app notifications first.
-   * Email and push can be activated later
-   * without redesigning the preference system.
+  /*
+   * Per-category delivery channels.
+   *
+   * Only in-app is active right now.
+   * The other channels remain disabled until
+   * their transports are enabled globally.
    */
   inAppEnabled Boolean @default(true)
 
@@ -847,10 +849,16 @@ model NotificationPreference {
 
   pushEnabled Boolean @default(false)
 
+  whatsAppEnabled Boolean @default(false)
+
+  smsEnabled Boolean @default(false)
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, category])
+
   @@index([userId])
 }
 
@@ -1108,8 +1116,8 @@ model NotificationUserSettings {
 
   quietHoursEnabled Boolean @default(false)
 
-  quietHoursStart String?
-  quietHoursEnd   String?
+  quietHoursStartMinute Int?
+  quietHoursEndMinute   Int?
 
   timezone String @default("Africa/Accra")
 
@@ -1119,9 +1127,22 @@ model NotificationUserSettings {
   @@index([userId])
 }
 
+
 model NotificationSystemSettings {
+  /*
+   * Singleton configuration record.
+   *
+   * The application always reads/writes ID 1.
+   */
   id Int @id @default(1)
 
+  /*
+   * Global channel availability.
+   *
+   * A user's preference can enable a channel,
+   * but delivery is still impossible when the
+   * system-level channel is disabled.
+   */
   inAppEnabled Boolean @default(true)
 
   emailEnabled Boolean @default(false)
@@ -1132,7 +1153,20 @@ model NotificationSystemSettings {
 
   smsEnabled Boolean @default(false)
 
-  quietHoursSupported Boolean @default(true)
+  /*
+   * Allows administrators to disable the quiet
+   * hours feature globally without deleting
+   * individual user configurations.
+   */
+  quietHoursEnabled Boolean @default(true)
+
+  /*
+   * Used later for operational policy display
+   * and audit context.
+   */
+  updatedBy String?
+
+  createdAt DateTime @default(now())
 
   updatedAt DateTime @default(now()) @updatedAt
 }

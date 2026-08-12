@@ -43,6 +43,12 @@ type Preference = {
 
   pushEnabled:
     boolean;
+
+  whatsAppEnabled:
+    boolean;
+
+  smsEnabled:
+    boolean;
 };
 
 const categoryDetails = {

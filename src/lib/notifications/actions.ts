@@ -19,6 +19,11 @@ import {
   NOTIFICATION_CATEGORY_SET,
 } from "./constants";
 
+import {
+  isValidMinuteOfDay,
+  parseTimeToMinuteOfDay,
+} from "./settings";
+
 /* -------------------------------------------------------------------------- */
 /*                            MARK AS READ                                    */
 /* -------------------------------------------------------------------------- */
@@ -478,5 +483,185 @@ export async function updateNotificationPreference({
 
     message:
       "Notification preference updated.",
+  };
+}
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                     UPDATE USER DELIVERY SETTINGS                          */
+/* -------------------------------------------------------------------------- */
+
+export async function updateNotificationUserSettings({
+  quietHoursEnabled,
+  quietHoursStart,
+  quietHoursEnd,
+  timezone,
+}: {
+  quietHoursEnabled:
+    boolean;
+
+  quietHoursStart:
+    string;
+
+  quietHoursEnd:
+    string;
+
+  timezone:
+    string;
+}) {
+  const {
+    userId,
+  } =
+    await auth();
+
+  if (
+    !userId
+  ) {
+    return {
+      success:
+        false,
+
+      message:
+        "You must be signed in.",
+    };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*                              TIMEZONE                                  */
+  /* ---------------------------------------------------------------------- */
+
+  const normalizedTimezone =
+    timezone.trim() ||
+    "Africa/Accra";
+
+  try {
+    /*
+     * Validate the IANA timezone by asking
+     * Intl to construct a formatter with it.
+     */
+    new Intl.DateTimeFormat(
+      "en-GB",
+      {
+        timeZone:
+          normalizedTimezone,
+      },
+    );
+  } catch {
+    return {
+      success:
+        false,
+
+      message:
+        "Select a valid timezone.",
+    };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*                          QUIET HOURS                                   */
+  /* ---------------------------------------------------------------------- */
+
+  let startMinute:
+    number | null =
+    null;
+
+  let endMinute:
+    number | null =
+    null;
+
+  if (
+    quietHoursEnabled
+  ) {
+    startMinute =
+      parseTimeToMinuteOfDay(
+        quietHoursStart,
+      );
+
+    endMinute =
+      parseTimeToMinuteOfDay(
+        quietHoursEnd,
+      );
+
+    if (
+      startMinute ===
+        null ||
+      endMinute ===
+        null ||
+      !isValidMinuteOfDay(
+        startMinute,
+      ) ||
+      !isValidMinuteOfDay(
+        endMinute,
+      )
+    ) {
+      return {
+        success:
+          false,
+
+        message:
+          "Enter valid quiet-hour start and end times.",
+      };
+    }
+
+    if (
+      startMinute ===
+      endMinute
+    ) {
+      return {
+        success:
+          false,
+
+        message:
+          "Quiet-hour start and end times must be different.",
+      };
+    }
+  }
+
+  await prisma.notificationUserSettings.upsert({
+    where: {
+      userId,
+    },
+
+    update: {
+      quietHoursEnabled,
+
+      quietHoursStartMinute:
+        startMinute,
+
+      quietHoursEndMinute:
+        endMinute,
+
+      timezone:
+        normalizedTimezone,
+    },
+
+    create: {
+      userId,
+
+      quietHoursEnabled,
+
+      quietHoursStartMinute:
+        startMinute,
+
+      quietHoursEndMinute:
+        endMinute,
+
+      timezone:
+        normalizedTimezone,
+    },
+  });
+
+  revalidatePath(
+    "/notifications/settings",
+  );
+
+  return {
+    success:
+      true,
+
+    message:
+      quietHoursEnabled
+        ? "Quiet hours updated successfully."
+        : "Quiet hours have been disabled.",
   };
 }

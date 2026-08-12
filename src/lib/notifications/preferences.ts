@@ -1,28 +1,23 @@
 import "server-only";
 
-import type {
-  NotificationCategory,
-  Prisma,
-} from "@prisma/client";
+import type { NotificationCategory, Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 
-type NotificationDb =
-  | typeof prisma
-  | Prisma.TransactionClient;
+type NotificationDb = typeof prisma | Prisma.TransactionClient;
 
 export type NotificationPreferenceState = {
-  category:
-    NotificationCategory;
+  category: NotificationCategory;
 
-  inAppEnabled:
-    boolean;
+  inAppEnabled: boolean;
 
-  emailEnabled:
-    boolean;
+  emailEnabled: boolean;
 
-  pushEnabled:
-    boolean;
+  pushEnabled: boolean;
+
+  whatsAppEnabled: boolean;
+
+  smsEnabled: boolean;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -35,19 +30,15 @@ export function getDefaultNotificationPreference(
   return {
     category,
 
-    /*
-     * Existing behavior remains unchanged:
-     * notifications are enabled unless the user
-     * explicitly disables a category.
-     */
-    inAppEnabled:
-      true,
+    inAppEnabled: true,
 
-    emailEnabled:
-      false,
+    emailEnabled: false,
 
-    pushEnabled:
-      false,
+    pushEnabled: false,
+
+    whatsAppEnabled: false,
+
+    smsEnabled: false,
   };
 }
 
@@ -60,54 +51,40 @@ export async function getUserNotificationPreference({
   category,
   tx,
 }: {
-  userId:
-    string;
+  userId: string;
 
-  category:
-    NotificationCategory;
+  category: NotificationCategory;
 
-  tx?:
-    Prisma.TransactionClient;
+  tx?: Prisma.TransactionClient;
 }): Promise<NotificationPreferenceState> {
-  const db: NotificationDb =
-    tx ??
-    prisma;
+  const db: NotificationDb = tx ?? prisma;
 
-  const preference =
-    await db.notificationPreference.findUnique({
-      where: {
-        userId_category: {
-          userId,
+  const preference = await db.notificationPreference.findUnique({
+    where: {
+      userId_category: {
+        userId,
 
-          category,
-        },
+        category,
       },
+    },
 
-      select: {
-        category:
-          true,
+    select: {
+      category: true,
 
-        inAppEnabled:
-          true,
+      inAppEnabled: true,
 
-        emailEnabled:
-          true,
+      emailEnabled: true,
 
-        pushEnabled:
-          true,
-      },
-    });
+      pushEnabled: true,
 
-  return (
-    preference ??
-    getDefaultNotificationPreference(
-      category,
-    )
-  );
+      whatsAppEnabled: true,
+
+      smsEnabled: true,
+    },
+  });
+
+  return preference ?? getDefaultNotificationPreference(category);
 }
-
-
-
 
 /* -------------------------------------------------------------------------- */
 /*                  FILTER RECIPIENTS BY IN-APP PREFERENCE                    */
@@ -122,47 +99,27 @@ export async function filterRecipientsByInAppPreference<
   category,
   tx,
 }: {
-  recipients:
-    T[];
+  recipients: T[];
 
-  category:
-    NotificationCategory;
+  category: NotificationCategory;
 
-  tx?:
-    Prisma.TransactionClient;
+  tx?: Prisma.TransactionClient;
 }): Promise<T[]> {
-  if (
-    recipients.length ===
-    0
-  ) {
+  if (recipients.length === 0) {
     return [];
   }
 
-  const db:
-    NotificationDb =
-    tx ??
-    prisma;
+  const db: NotificationDb = tx ?? prisma;
 
-  const userIds =
-    Array.from(
-      new Set(
-        recipients
-          .map(
-            (
-              recipient,
-            ) =>
-              recipient.recipientId.trim(),
-          )
-          .filter(
-            Boolean,
-          ),
-      ),
-    );
+  const userIds = Array.from(
+    new Set(
+      recipients
+        .map((recipient) => recipient.recipientId.trim())
+        .filter(Boolean),
+    ),
+  );
 
-  if (
-    userIds.length ===
-    0
-  ) {
+  if (userIds.length === 0) {
     return [];
   }
 
@@ -176,49 +133,29 @@ export async function filterRecipientsByInAppPreference<
    * because notifications are enabled
    * by default.
    */
-  const preferences =
-    await db.notificationPreference.findMany({
-      where: {
-        userId: {
-          in:
-            userIds,
-        },
-
-        category,
+  const preferences = await db.notificationPreference.findMany({
+    where: {
+      userId: {
+        in: userIds,
       },
 
-      select: {
-        userId:
-          true,
+      category,
+    },
 
-        inAppEnabled:
-          true,
-      },
-    });
+    select: {
+      userId: true,
 
-  const disabledUserIds =
-    new Set(
-      preferences
-        .filter(
-          (
-            preference,
-          ) =>
-            !preference.inAppEnabled,
-        )
-        .map(
-          (
-            preference,
-          ) =>
-            preference.userId,
-        ),
-    );
+      inAppEnabled: true,
+    },
+  });
+
+  const disabledUserIds = new Set(
+    preferences
+      .filter((preference) => !preference.inAppEnabled)
+      .map((preference) => preference.userId),
+  );
 
   return recipients.filter(
-    (
-      recipient,
-    ) =>
-      !disabledUserIds.has(
-        recipient.recipientId,
-      ),
+    (recipient) => !disabledUserIds.has(recipient.recipientId),
   );
 }
