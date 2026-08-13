@@ -665,3 +665,183 @@ export async function updateNotificationUserSettings({
         : "Quiet hours have been disabled.",
   };
 }
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                  UPDATE GLOBAL NOTIFICATION SETTINGS                       */
+/* -------------------------------------------------------------------------- */
+
+export async function updateNotificationSystemSettings({
+  emailEnabled,
+  pushEnabled,
+  whatsAppEnabled,
+  smsEnabled,
+  quietHoursEnabled,
+}: {
+  emailEnabled:
+    boolean;
+
+  pushEnabled:
+    boolean;
+
+  whatsAppEnabled:
+    boolean;
+
+  smsEnabled:
+    boolean;
+
+  quietHoursEnabled:
+    boolean;
+}) {
+  const {
+    userId,
+    sessionClaims,
+  } =
+    await auth();
+
+  if (
+    !userId
+  ) {
+    return {
+      success:
+        false,
+
+      message:
+        "You must be signed in.",
+    };
+  }
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (
+    role !==
+    "admin"
+  ) {
+    return {
+      success:
+        false,
+
+      message:
+        "Only administrators can change global notification settings.",
+    };
+  }
+
+  try {
+    const settings =
+      await prisma.notificationSystemSettings.upsert({
+        where: {
+          id:
+            1,
+        },
+
+        update: {
+          /*
+           * In-app remains intentionally protected.
+           */
+          inAppEnabled:
+            true,
+
+          emailEnabled,
+
+          pushEnabled,
+
+          whatsAppEnabled,
+
+          smsEnabled,
+
+          quietHoursEnabled,
+
+          updatedBy:
+            userId,
+        },
+
+        create: {
+          id:
+            1,
+
+          inAppEnabled:
+            true,
+
+          emailEnabled,
+
+          pushEnabled,
+
+          whatsAppEnabled,
+
+          smsEnabled,
+
+          quietHoursEnabled,
+
+          updatedBy:
+            userId,
+        },
+
+        select: {
+          id:
+            true,
+
+          inAppEnabled:
+            true,
+
+          emailEnabled:
+            true,
+
+          pushEnabled:
+            true,
+
+          whatsAppEnabled:
+            true,
+
+          smsEnabled:
+            true,
+
+          quietHoursEnabled:
+            true,
+
+          updatedBy:
+            true,
+
+          updatedAt:
+            true,
+        },
+      });
+
+    revalidatePath(
+      "/list/notification-operations",
+    );
+
+    revalidatePath(
+      "/notifications/settings",
+    );
+
+    return {
+      success:
+        true,
+
+      message:
+        "Global notification policy updated successfully.",
+
+      settings,
+    };
+  } catch (
+    error
+  ) {
+    console.error(
+      "UPDATE NOTIFICATION SYSTEM SETTINGS ERROR:",
+      error,
+    );
+
+    return {
+      success:
+        false,
+
+      message:
+        "Global notification settings could not be updated.",
+    };
+  }
+}

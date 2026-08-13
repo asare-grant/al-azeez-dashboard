@@ -3,6 +3,7 @@ import "server-only";
 
 import type {
   NotificationCategory,
+  NotificationDispatchSource,
   NotificationEntityType,
   NotificationPriority,
   NotificationType,
@@ -13,9 +14,7 @@ import prisma from "@/lib/prisma";
 
 import { isMandatoryNotification } from "./policy";
 
-import {
-  filterRecipientsByInAppPreference,
-} from "./preferences";
+import { filterRecipientsByInAppPreference } from "./preferences";
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
@@ -55,6 +54,10 @@ export type CreateNotificationEventInput = {
   metadata?: Prisma.InputJsonValue | null;
 
   recipients: NotificationRecipient[];
+
+  source?: NotificationDispatchSource;
+
+  sourceKey?: string | null;
 };
 
 export type NotificationDispatchResult = {
@@ -108,6 +111,33 @@ function normalizeRecipients(recipients: NotificationRecipient[]) {
   return Array.from(unique.values());
 }
 
+function resolveDispatchSource(
+  input: CreateNotificationEventInput,
+): NotificationDispatchSource {
+  if (input.source) {
+    return input.source;
+  }
+
+  /*
+   * Safe compatibility fallback for all existing
+   * domain services that have not yet explicitly
+   * supplied a dispatch source.
+   */
+  if (input.actorRole === "system") {
+    return "SYSTEM";
+  }
+
+  if (input.actorRole === "admin") {
+    return "USER_ACTION";
+  }
+
+  if (input.actorId) {
+    return "USER_ACTION";
+  }
+
+  return "UNKNOWN";
+}
+
 /* -------------------------------------------------------------------------- */
 /*                         CORE DISPATCH FUNCTION                             */
 /* -------------------------------------------------------------------------- */
@@ -154,18 +184,29 @@ export async function createNotificationEvent({
    */
   const mandatory = isMandatoryNotification(input.type);
 
-  const recipients =
-  mandatory
+  const dispatchSource = resolveDispatchSource(input);
+
+  const recipients = mandatory
     ? resolvedRecipients
     : await filterRecipientsByInAppPreference({
-        recipients:
-          resolvedRecipients,
+        recipients: resolvedRecipients,
 
-        category:
-          input.category,
+        category: input.category,
 
         tx,
       });
+
+  const intendedRecipientCount = resolvedRecipients.length;
+
+  const eligibleRecipientCount = recipients.length;
+
+  const suppressedRecipientCount = Math.max(
+    0,
+
+    intendedRecipientCount - eligibleRecipientCount,
+  );
+
+  const suppressedByPreferenceCount = mandatory ? 0 : suppressedRecipientCount;
 
   /*
    * The event had intended recipients, but all
@@ -176,12 +217,54 @@ export async function createNotificationEvent({
    * will be no deliveries.
    */
   if (recipients.length === 0) {
+    await db.notificationDispatchAudit.create({
+      data: {
+        eventId: null,
+
+        type: input.type,
+
+        category: input.category,
+
+        priority: input.priority ?? "NORMAL",
+
+        source: dispatchSource,
+
+        sourceKey: normalizeText(input.sourceKey),
+
+        mandatory,
+
+        intendedRecipientCount,
+
+        eligibleRecipientCount: 0,
+
+        deliveredRecipientCount: 0,
+
+        suppressedRecipientCount,
+
+        suppressedByPreferenceCount,
+
+        suppressedBySystemPolicyCount: 0,
+
+        reusedExistingEvent: false,
+
+        actorId: normalizeText(input.actorId),
+
+        actorRole: normalizeText(input.actorRole),
+
+        actorName: normalizeText(input.actorName),
+
+        entityType: input.entityType ?? null,
+
+        entityId: normalizeEntityId(input.entityId),
+      },
+    });
+
     return {
       eventId: 0,
 
       createdEvent: false,
 
-      recipientCount: resolvedRecipients.length,
+      recipientCount: intendedRecipientCount,
 
       deliveredCount: 0,
     };
@@ -215,6 +298,10 @@ export async function createNotificationEvent({
           category: input.category,
 
           priority: input.priority ?? "NORMAL",
+
+          source: dispatchSource,
+
+          sourceKey: normalizeText(input.sourceKey),
 
           title,
 
@@ -261,6 +348,77 @@ export async function createNotificationEvent({
 
     skipDuplicates: true,
   });
+
+  
+  await db.notificationDispatchAudit.create({
+  data: {
+    eventId:
+      event.id,
+
+    type:
+      input.type,
+
+    category:
+      input.category,
+
+    priority:
+      input.priority ??
+      "NORMAL",
+
+    source:
+      dispatchSource,
+
+    sourceKey:
+      normalizeText(
+        input.sourceKey,
+      ),
+
+    mandatory,
+
+    intendedRecipientCount,
+
+    eligibleRecipientCount,
+
+    deliveredRecipientCount:
+      delivery.count,
+
+    suppressedRecipientCount,
+
+    suppressedByPreferenceCount,
+
+    suppressedBySystemPolicyCount:
+      0,
+
+    reusedExistingEvent:
+      Boolean(
+        existingEvent,
+      ),
+
+    actorId:
+      normalizeText(
+        input.actorId,
+      ),
+
+    actorRole:
+      normalizeText(
+        input.actorRole,
+      ),
+
+    actorName:
+      normalizeText(
+        input.actorName,
+      ),
+
+    entityType:
+      input.entityType ??
+      null,
+
+    entityId:
+      normalizeEntityId(
+        input.entityId,
+      ),
+  },
+});
 
   return {
     eventId: event.id,

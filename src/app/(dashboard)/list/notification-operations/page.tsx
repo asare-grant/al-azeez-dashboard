@@ -14,185 +14,122 @@ import {
 } from "lucide-react";
 
 import {
+  getAdminNotificationSystemSettings,
   getNotificationOperationsData,
   type NotificationOperationsHealth,
 } from "@/lib/notifications/admin-dashboard";
 
-export const dynamic =
-  "force-dynamic";
+import NotificationSystemPolicy from "@/components/notifications/admin/NotificationSystemPolicy";
 
-export const revalidate =
-  0;
+import {
+  getNotificationAnalytics,
+  type NotificationAnalyticsRange,
+} from "@/lib/notifications/analytics";
+
+import NotificationAnalytics from "@/components/notifications/admin/NotificationAnalytics";
+
+export const dynamic = "force-dynamic";
+
+export const revalidate = 0;
 
 /* -------------------------------------------------------------------------- */
 /*                               HELPERS                                      */
 /* -------------------------------------------------------------------------- */
 
-function formatDuration(
-  durationMs:
-    number | null,
-) {
-  if (
-    durationMs ===
-    null
-  ) {
+function formatDuration(durationMs: number | null) {
+  if (durationMs === null) {
     return "—";
   }
 
-  if (
-    durationMs <
-    1000
-  ) {
+  if (durationMs < 1000) {
     return `${durationMs} ms`;
   }
 
-  return `${(
-    durationMs /
-    1000
-  ).toFixed(
-    2,
-  )} s`;
+  return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
-function formatDateTime(
-  value:
-    Date | null,
-) {
-  if (
-    !value
-  ) {
+function formatDateTime(value: Date | null) {
+  if (!value) {
     return "—";
   }
 
-  return new Intl.DateTimeFormat(
-    "en-GH",
-    {
-      day:
-        "2-digit",
+  return new Intl.DateTimeFormat("en-GH", {
+    day: "2-digit",
 
-      month:
-        "short",
+    month: "short",
 
-      year:
-        "numeric",
+    year: "numeric",
 
-      hour:
-        "2-digit",
+    hour: "2-digit",
 
-      minute:
-        "2-digit",
-    },
-  ).format(
-    value,
-  );
+    minute: "2-digit",
+  }).format(value);
 }
 
-function scannerLabel(
-  scannerKey:
-    string,
-) {
-  const labels:
-    Record<
-      string,
-      string
-    > = {
-      "assessment-due-soon":
-        "Assessment Due Soon",
+function scannerLabel(scannerKey: string) {
+  const labels: Record<string, string> = {
+    "assessment-due-soon": "Assessment Due Soon",
 
-      "attendance-absence":
-        "Attendance Absence",
+    "attendance-absence": "Attendance Absence",
 
-      "attendance-completeness":
-        "Attendance Completeness",
+    "attendance-completeness": "Attendance Completeness",
 
-      "fee-balance-reminders":
-        "Fee Balance Reminders",
+    "fee-balance-reminders": "Fee Balance Reminders",
 
-      "upcoming-events":
-        "Upcoming Academic Events",
-    };
+    "upcoming-events": "Upcoming Academic Events",
+  };
 
-  return (
-    labels[
-      scannerKey
-    ] ??
-    scannerKey
-  );
+  return labels[scannerKey] ?? scannerKey;
 }
 
-function healthConfig(
-  health:
-    NotificationOperationsHealth,
-) {
-  if (
-    health ===
-    "HEALTHY"
-  ) {
+function healthConfig(health: NotificationOperationsHealth) {
+  if (health === "HEALTHY") {
     return {
-      label:
-        "All Systems Healthy",
+      label: "All Systems Healthy",
 
       description:
         "The latest scheduled notification cycle completed successfully.",
 
-      icon:
-        ShieldCheck,
+      icon: ShieldCheck,
 
-      className:
-        "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+      className: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
     };
   }
 
-  if (
-    health ===
-    "WARNING"
-  ) {
+  if (health === "WARNING") {
     return {
-      label:
-        "Attention Required",
+      label: "Attention Required",
 
       description:
         "One or more notification scanners reported a partial failure.",
 
-      icon:
-        TriangleAlert,
+      icon: TriangleAlert,
 
-      className:
-        "border-amber-400/20 bg-amber-400/10 text-amber-200",
+      className: "border-amber-400/20 bg-amber-400/10 text-amber-200",
     };
   }
 
-  if (
-    health ===
-    "CRITICAL"
-  ) {
+  if (health === "CRITICAL") {
     return {
-      label:
-        "Scheduler Problem",
+      label: "Scheduler Problem",
 
       description:
         "The most recent notification cycle failed and should be reviewed.",
 
-      icon:
-        CircleAlert,
+      icon: CircleAlert,
 
-      className:
-        "border-red-400/20 bg-red-400/10 text-red-200",
+      className: "border-red-400/20 bg-red-400/10 text-red-200",
     };
   }
 
   return {
-    label:
-      "Awaiting Scheduler Data",
+    label: "Awaiting Scheduler Data",
 
-    description:
-      "No completed scheduler run is available yet.",
+    description: "No completed scheduler run is available yet.",
 
-    icon:
-      Clock3,
+    icon: Clock3,
 
-    className:
-      "border-slate-400/20 bg-white/10 text-slate-200",
+    className: "border-slate-400/20 bg-white/10 text-slate-200",
   };
 }
 
@@ -200,17 +137,33 @@ function healthConfig(
 /*                                  PAGE                                      */
 /* -------------------------------------------------------------------------- */
 
-export default async function NotificationOperationsPage() {
-  const data =
-    await getNotificationOperationsData();
+export default async function NotificationOperationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    analyticsRange?: string;
+  }>;
+}) {
+  const params = await searchParams;
 
-  const health =
-    healthConfig(
-      data.health,
-    );
+  const analyticsRange: NotificationAnalyticsRange =
+    params.analyticsRange === "today" || params.analyticsRange === "30d"
+      ? params.analyticsRange
+      : "7d";
 
-  const HealthIcon =
-    health.icon;
+  const [data, systemSettings, analytics] = await Promise.all([
+    getNotificationOperationsData(),
+
+    getAdminNotificationSystemSettings(),
+
+    getNotificationAnalytics({
+      range: analyticsRange,
+    }),
+  ]);
+
+  const health = healthConfig(data.health);
+
+  const HealthIcon = health.icon;
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
@@ -228,7 +181,6 @@ export default async function NotificationOperationsPage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-blue-200">
                 <ServerCog className="h-3.5 w-3.5" />
-
                 Notification Operations
               </div>
 
@@ -248,9 +200,7 @@ export default async function NotificationOperationsPage() {
                 <HealthIcon className="mt-0.5 h-5 w-5 shrink-0" />
 
                 <div>
-                  <p className="text-sm font-black">
-                    {health.label}
-                  </p>
+                  <p className="text-sm font-black">{health.label}</p>
 
                   <p className="mt-1 text-xs opacity-80">
                     {health.description}
@@ -261,43 +211,27 @@ export default async function NotificationOperationsPage() {
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
               <HeroMetric
-                icon={
-                  BellRing
-                }
+                icon={BellRing}
                 label="Events Today"
-                value={
-                  data.today.eventsCreated
-                }
+                value={data.today.eventsCreated}
               />
 
               <HeroMetric
-                icon={
-                  Inbox
-                }
+                icon={Inbox}
                 label="Deliveries Today"
-                value={
-                  data.today.deliveriesCreated
-                }
+                value={data.today.deliveriesCreated}
               />
 
               <HeroMetric
-                icon={
-                  Activity
-                }
+                icon={Activity}
                 label="Runs / 24h"
-                value={
-                  data.last24Hours.runs
-                }
+                value={data.last24Hours.runs}
               />
 
               <HeroMetric
-                icon={
-                  Gauge
-                }
+                icon={Gauge}
                 label="Healthy Runs"
-                value={
-                  data.last24Hours.successfulRuns
-                }
+                value={data.last24Hours.successfulRuns}
               />
             </div>
           </div>
@@ -309,15 +243,12 @@ export default async function NotificationOperationsPage() {
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            icon={
-              AlarmClockCheck
-            }
+            icon={AlarmClockCheck}
             label="Last Scheduler Run"
             value={
               data.latestRun
                 ? formatDateTime(
-                    data.latestRun.completedAt ??
-                      data.latestRun.startedAt,
+                    data.latestRun.completedAt ?? data.latestRun.startedAt,
                   )
                 : "No runs yet"
             }
@@ -329,44 +260,30 @@ export default async function NotificationOperationsPage() {
           />
 
           <SummaryCard
-            icon={
-              TimerReset
-            }
+            icon={TimerReset}
             label="Average Runtime"
-            value={
-              formatDuration(
-                data.last24Hours.averageDurationMs,
-              )
-            }
+            value={formatDuration(data.last24Hours.averageDurationMs)}
             helper="Last 24 hours"
           />
 
           <SummaryCard
-            icon={
-              Inbox
-            }
+            icon={Inbox}
             label="Unread Today"
-            value={
-              String(
-                data.today.unread,
-              )
-            }
+            value={String(data.today.unread)}
             helper={`${data.today.unseen} currently unseen`}
           />
 
           <SummaryCard
-            icon={
-              TriangleAlert
-            }
+            icon={TriangleAlert}
             label="Failed Runs"
-            value={
-              String(
-                data.last24Hours.failedRuns,
-              )
-            }
+            value={String(data.last24Hours.failedRuns)}
             helper={`${data.last24Hours.partialRuns} partial in last 24h`}
           />
         </section>
+
+        <div className="mt-6">
+          <NotificationSystemPolicy settings={systemSettings} />
+        </div>
 
         {/* -------------------------------------------------------------- */}
         {/* CURRENT SCANNER HEALTH                                         */}
@@ -396,9 +313,7 @@ export default async function NotificationOperationsPage() {
                 </p>
 
                 <p className="mt-1 text-lg font-black text-slate-950">
-                  {formatDuration(
-                    data.latestRun.durationMs,
-                  )}
+                  {formatDuration(data.latestRun.durationMs)}
                 </p>
               </div>
             ) : null}
@@ -410,20 +325,9 @@ export default async function NotificationOperationsPage() {
             </div>
           ) : (
             <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-5 sm:p-6">
-              {data.latestRun.scanners.map(
-                (
-                  scanner,
-                ) => (
-                  <ScannerCard
-                    key={
-                      scanner.id
-                    }
-                    scanner={
-                      scanner
-                    }
-                  />
-                ),
-              )}
+              {data.latestRun.scanners.map((scanner) => (
+                <ScannerCard key={scanner.id} scanner={scanner} />
+              ))}
             </div>
           )}
         </section>
@@ -433,18 +337,12 @@ export default async function NotificationOperationsPage() {
         {/* -------------------------------------------------------------- */}
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
-          <RecentRuns
-            runs={
-              data.recentRuns
-            }
-          />
+          <RecentRuns runs={data.recentRuns} />
 
-          <RecentFailures
-            failures={
-              data.recentFailures
-            }
-          />
+          <RecentFailures failures={data.recentFailures} />
         </div>
+
+        <NotificationAnalytics data={analytics} />
       </div>
     </main>
   );
@@ -459,22 +357,17 @@ function HeroMetric({
   label,
   value,
 }: {
-  icon:
-    typeof BellRing;
+  icon: typeof BellRing;
 
-  label:
-    string;
+  label: string;
 
-  value:
-    number;
+  value: number;
 }) {
   return (
     <div className="min-w-0 rounded-[22px] border border-white/10 bg-white/10 p-4 backdrop-blur-xl">
       <Icon className="h-5 w-5 text-blue-300" />
 
-      <p className="mt-3 text-2xl font-black">
-        {value}
-      </p>
+      <p className="mt-3 text-2xl font-black">{value}</p>
 
       <p className="mt-1 text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">
         {label}
@@ -489,17 +382,13 @@ function SummaryCard({
   value,
   helper,
 }: {
-  icon:
-    typeof BellRing;
+  icon: typeof BellRing;
 
-  label:
-    string;
+  label: string;
 
-  value:
-    string;
+  value: string;
 
-  helper:
-    string;
+  helper: string;
 }) {
   return (
     <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)]">
@@ -511,13 +400,9 @@ function SummaryCard({
         {label}
       </p>
 
-      <p className="mt-2 text-xl font-black text-slate-950">
-        {value}
-      </p>
+      <p className="mt-2 text-xl font-black text-slate-950">{value}</p>
 
-      <p className="mt-1 text-xs text-slate-500">
-        {helper}
-      </p>
+      <p className="mt-1 text-xs text-slate-500">{helper}</p>
     </article>
   );
 }
@@ -526,50 +411,29 @@ function ScannerCard({
   scanner,
 }: {
   scanner: {
-    scannerKey:
-      string;
+    scannerKey: string;
 
-    status:
-      string;
+    status: string;
 
-    durationMs:
-      number | null;
+    durationMs: number | null;
 
-    errorMessage:
-      string | null;
+    errorMessage: string | null;
 
-    result:
-      unknown;
+    result: unknown;
   };
 }) {
-  const healthy =
-    scanner.status ===
-    "SUCCEEDED";
+  const healthy = scanner.status === "SUCCEEDED";
 
   const result =
     scanner.result &&
-    typeof scanner.result ===
-      "object" &&
-    !Array.isArray(
-      scanner.result,
-    )
-      ? (
-          scanner.result as Record<
-            string,
-            unknown
-          >
-        )
+    typeof scanner.result === "object" &&
+    !Array.isArray(scanner.result)
+      ? (scanner.result as Record<string, unknown>)
       : null;
 
-  const skipped =
-    result?.skipped ===
-    true;
+  const skipped = result?.skipped === true;
 
-  const reason =
-    typeof result?.reason ===
-    "string"
-      ? result.reason
-      : null;
+  const reason = typeof result?.reason === "string" ? result.reason : null;
 
   return (
     <article className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
@@ -597,34 +461,23 @@ function ScannerCard({
                 : "bg-red-50 text-red-700"
           }`}
         >
-          {skipped
-            ? "Skipped"
-            : scanner.status}
+          {skipped ? "Skipped" : scanner.status}
         </span>
       </div>
 
       <h3 className="mt-4 text-sm font-black leading-5 text-slate-950">
-        {scannerLabel(
-          scanner.scannerKey,
-        )}
+        {scannerLabel(scanner.scannerKey)}
       </h3>
 
       <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-slate-400">
         <Clock3 className="h-3.5 w-3.5" />
 
-        {formatDuration(
-          scanner.durationMs,
-        )}
+        {formatDuration(scanner.durationMs)}
       </div>
 
       {reason ? (
         <p className="mt-3 break-words text-[11px] leading-5 text-amber-700">
-          {reason
-            .toLowerCase()
-            .replace(
-              /_/g,
-              " ",
-            )}
+          {reason.toLowerCase().replace(/_/g, " ")}
         </p>
       ) : null}
 
@@ -641,32 +494,23 @@ function RecentRuns({
   runs,
 }: {
   runs: {
-    id:
-      number;
+    id: number;
 
-    trigger:
-      string;
+    trigger: string;
 
-    status:
-      string;
+    status: string;
 
-    scannerCount:
-      number;
+    scannerCount: number;
 
-    succeededCount:
-      number;
+    succeededCount: number;
 
-    failedCount:
-      number;
+    failedCount: number;
 
-    startedAt:
-      Date;
+    startedAt: Date;
 
-    completedAt:
-      Date | null;
+    completedAt: Date | null;
 
-    durationMs:
-      number | null;
+    durationMs: number | null;
   }[];
 }) {
   return (
@@ -685,91 +529,52 @@ function RecentRuns({
         <table className="w-full min-w-[680px] text-sm">
           <thead className="bg-slate-50 text-left text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">
             <tr>
-              <th className="px-5 py-3">
-                Run
-              </th>
+              <th className="px-5 py-3">Run</th>
 
-              <th className="px-5 py-3">
-                Started
-              </th>
+              <th className="px-5 py-3">Started</th>
 
-              <th className="px-5 py-3">
-                Status
-              </th>
+              <th className="px-5 py-3">Status</th>
 
-              <th className="px-5 py-3">
-                Scanners
-              </th>
+              <th className="px-5 py-3">Scanners</th>
 
-              <th className="px-5 py-3">
-                Runtime
-              </th>
+              <th className="px-5 py-3">Runtime</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-100">
-            {runs.map(
-              (
-                run,
-              ) => (
-                <tr
-                  key={
-                    run.id
-                  }
-                  className="transition hover:bg-slate-50"
-                >
-                  <td className="px-5 py-4 font-black text-slate-950">
-                    #{run.id}
-                  </td>
+            {runs.map((run) => (
+              <tr key={run.id} className="transition hover:bg-slate-50">
+                <td className="px-5 py-4 font-black text-slate-950">
+                  #{run.id}
+                </td>
 
-                  <td className="px-5 py-4 text-slate-500">
-                    {formatDateTime(
-                      run.startedAt,
-                    )}
-                  </td>
+                <td className="px-5 py-4 text-slate-500">
+                  {formatDateTime(run.startedAt)}
+                </td>
 
-                  <td className="px-5 py-4">
-                    <RunStatusBadge
-                      status={
-                        run.status
-                      }
-                    />
-                  </td>
+                <td className="px-5 py-4">
+                  <RunStatusBadge status={run.status} />
+                </td>
 
-                  <td className="px-5 py-4">
-                    <span className="font-black text-emerald-600">
-                      {
-                        run.succeededCount
-                      }
+                <td className="px-5 py-4">
+                  <span className="font-black text-emerald-600">
+                    {run.succeededCount}
+                  </span>
+
+                  <span className="text-slate-400"> / {run.scannerCount}</span>
+
+                  {run.failedCount > 0 ? (
+                    <span className="ml-2 font-bold text-red-600">
+                      {run.failedCount} failed
                     </span>
+                  ) : null}
+                </td>
 
-                    <span className="text-slate-400">
-                      {" "}
-                      /{" "}
-                      {
-                        run.scannerCount
-                      }
-                    </span>
-
-                    {run.failedCount >
-                    0 ? (
-                      <span className="ml-2 font-bold text-red-600">
-                        {
-                          run.failedCount
-                        }{" "}
-                        failed
-                      </span>
-                    ) : null}
-                  </td>
-
-                  <td className="px-5 py-4 font-bold text-slate-500">
-                    {formatDuration(
-                      run.durationMs,
-                    )}
-                  </td>
-                </tr>
-              ),
-            )}
+                <td className="px-5 py-4 font-bold text-slate-500">
+                  {formatDuration(run.durationMs)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -781,20 +586,15 @@ function RecentFailures({
   failures,
 }: {
   failures: {
-    id:
-      number;
+    id: number;
 
-    runId:
-      number;
+    runId: number;
 
-    scannerKey:
-      string;
+    scannerKey: string;
 
-    errorMessage:
-      string | null;
+    errorMessage: string | null;
 
-    startedAt:
-      Date;
+    startedAt: Date;
   }[];
 }) {
   return (
@@ -810,8 +610,7 @@ function RecentFailures({
       </div>
 
       <div className="p-5 sm:p-6">
-        {failures.length ===
-        0 ? (
+        {failures.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 p-7 text-center">
             <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-500" />
 
@@ -825,46 +624,30 @@ function RecentFailures({
           </div>
         ) : (
           <div className="space-y-3">
-            {failures.map(
-              (
-                failure,
-              ) => (
-                <article
-                  key={
-                    failure.id
-                  }
-                  className="rounded-2xl border border-red-100 bg-red-50/50 p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+            {failures.map((failure) => (
+              <article
+                key={failure.id}
+                className="rounded-2xl border border-red-100 bg-red-50/50 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
 
-                    <div className="min-w-0">
-                      <p className="font-black text-slate-950">
-                        {scannerLabel(
-                          failure.scannerKey,
-                        )}
-                      </p>
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-950">
+                      {scannerLabel(failure.scannerKey)}
+                    </p>
 
-                      <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                        Run #
-                        {
-                          failure.runId
-                        }{" "}
-                        ·{" "}
-                        {formatDateTime(
-                          failure.startedAt,
-                        )}
-                      </p>
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Run #{failure.runId} · {formatDateTime(failure.startedAt)}
+                    </p>
 
-                      <p className="mt-3 break-words text-xs leading-5 text-red-700">
-                        {failure.errorMessage ??
-                          "No error message was recorded."}
-                      </p>
-                    </div>
+                    <p className="mt-3 break-words text-xs leading-5 text-red-700">
+                      {failure.errorMessage ?? "No error message was recorded."}
+                    </p>
                   </div>
-                </article>
-              ),
-            )}
+                </div>
+              </article>
+            ))}
           </div>
         )}
       </div>
@@ -872,21 +655,13 @@ function RecentFailures({
   );
 }
 
-function RunStatusBadge({
-  status,
-}: {
-  status:
-    string;
-}) {
+function RunStatusBadge({ status }: { status: string }) {
   const className =
-    status ===
-    "SUCCEEDED"
+    status === "SUCCEEDED"
       ? "bg-emerald-50 text-emerald-700"
-      : status ===
-          "PARTIAL"
+      : status === "PARTIAL"
         ? "bg-amber-50 text-amber-700"
-        : status ===
-            "FAILED"
+        : status === "FAILED"
           ? "bg-red-50 text-red-700"
           : "bg-blue-50 text-blue-700";
 

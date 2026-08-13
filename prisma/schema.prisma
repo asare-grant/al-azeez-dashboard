@@ -16,6 +16,8 @@ datasource db {
 model Admin {
   id       String @id
   username String @unique
+
+  img String?
 }
 
 model Student {
@@ -86,6 +88,7 @@ model Parent {
   email     String?   @unique
   phone     String    @unique
   address   String
+  img String?
   createdAt DateTime  @default(now())
   students  Student[]
 }
@@ -730,6 +733,11 @@ model NotificationEvent {
   actorRole String?
   actorName String?
 
+
+  source NotificationDispatchSource @default(UNKNOWN)
+
+  sourceKey String?
+
   /**
    * Flexible event payload for future modules.
    * Example:
@@ -753,12 +761,15 @@ model NotificationEvent {
 
   notifications Notification[]
 
+  dispatchAudits NotificationDispatchAudit[]
+
   createdAt DateTime @default(now())
 
   @@index([type, createdAt])
   @@index([category, createdAt])
   @@index([entityType, entityId])
   @@index([actorId])
+  @@index([source, createdAt])
 }
 
 model Notification {
@@ -1170,6 +1181,96 @@ model NotificationSystemSettings {
 
   updatedAt DateTime @default(now()) @updatedAt
 }
+
+
+enum NotificationDispatchSource {
+  USER_ACTION
+  SCHEDULED
+  SYSTEM
+  ADMIN_ACTION
+  UNKNOWN
+}
+
+
+model NotificationDispatchAudit {
+  id Int @id @default(autoincrement())
+
+  /*
+   * The logical NotificationEvent.
+   *
+   * Nullable because a dispatch can be completely
+   * suppressed before an event is created.
+   */
+  eventId Int?
+
+  event NotificationEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  type NotificationType
+
+  category NotificationCategory
+
+  priority NotificationPriority
+
+  source NotificationDispatchSource @default(UNKNOWN)
+
+  sourceKey String?
+
+  /*
+   * Was this notification protected from
+   * ordinary user preference suppression?
+   */
+  mandatory Boolean @default(false)
+
+  /*
+   * Recipient accounting.
+   */
+  intendedRecipientCount Int @default(0)
+
+  eligibleRecipientCount Int @default(0)
+
+  deliveredRecipientCount Int @default(0)
+
+  suppressedRecipientCount Int @default(0)
+
+  /*
+   * Reasons why intended recipients did not
+   * receive an in-app delivery.
+   */
+  suppressedByPreferenceCount Int @default(0)
+
+  /*
+   * Useful once broader policy enforcement
+   * is attached to in-app fan-out.
+   */
+  suppressedBySystemPolicyCount Int @default(0)
+
+  /*
+   * Retry/deduplication intelligence.
+   */
+  reusedExistingEvent Boolean @default(false)
+
+  /*
+   * Optional audit context.
+   */
+  actorId   String?
+  actorRole String?
+  actorName String?
+
+  entityType NotificationEntityType?
+  entityId   String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([category, createdAt])
+  @@index([type, createdAt])
+  @@index([source, createdAt])
+  @@index([mandatory, createdAt])
+  @@index([eventId])
+}
+
 
 
 model AcademicWeighting {

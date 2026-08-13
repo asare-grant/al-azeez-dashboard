@@ -610,3 +610,103 @@ export async function getNotificationOperationsData(): Promise<NotificationOpera
     recentFailures,
   };
 }
+
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                    ADMIN NOTIFICATION SYSTEM SETTINGS                      */
+/* -------------------------------------------------------------------------- */
+
+export async function getAdminNotificationSystemSettings() {
+  const {
+    userId,
+    sessionClaims,
+  } =
+    await auth();
+
+  const role = (
+    sessionClaims?.metadata as {
+      role?: string;
+    }
+  )?.role;
+
+  if (
+    !userId ||
+    role !==
+      "admin"
+  ) {
+    throw new Error(
+      "Unauthorized",
+    );
+  }
+
+  const settings =
+    await prisma.notificationSystemSettings.findUnique({
+      where: {
+        id:
+          1,
+      },
+
+      select: {
+        id:
+          true,
+
+        inAppEnabled:
+          true,
+
+        emailEnabled:
+          true,
+
+        pushEnabled:
+          true,
+
+        whatsAppEnabled:
+          true,
+
+        smsEnabled:
+          true,
+
+        quietHoursEnabled:
+          true,
+
+        updatedBy:
+          true,
+
+        updatedAt:
+          true,
+      },
+    });
+
+  return (
+    settings ?? {
+      id:
+        1,
+
+      inAppEnabled:
+        true,
+
+      emailEnabled:
+        false,
+
+      pushEnabled:
+        false,
+
+      whatsAppEnabled:
+        false,
+
+      smsEnabled:
+        false,
+
+      quietHoursEnabled:
+        true,
+
+      updatedBy:
+        null,
+
+      updatedAt:
+        null,
+    }
+  );
+}
