@@ -108,6 +108,13 @@ import UserMoreActions from "@/components/access-control/UserMoreActions";
 
 import EditUserDrawer from "@/components/access-control/EditUserDrawer";
 
+import ResetPasswordDialog from "@/components/access-control/ResetPasswordDialog";
+
+import {
+  canActorManageTarget,
+  getCurrentAccessActor,
+} from "@/lib/access-control";
+
 export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
@@ -298,6 +305,7 @@ export default async function UserDetailPage({
     notFound();
   }
 
+  const accessActor = await getCurrentAccessActor();
   /* -------------------------------------------------------------------------- */
   /* LINKED SCHOOL RECORDS                                                      */
   /* -------------------------------------------------------------------------- */
@@ -648,7 +656,77 @@ export default async function UserDetailPage({
       })
     : null;
 
-  /* -------------------------------------------------------------------------- */
+  
+
+  const canEditUser = accessActor?.can("users.update") ?? false;
+
+  const canManageStatus = accessActor?.can("users.manage_status") ?? false;
+
+  const canResetPassword = accessActor?.can("users.reset_password") ?? false;
+
+  const editHierarchy =
+  accessActor
+    ? canActorManageTarget({
+        actor:
+          accessActor.actor,
+
+        target:
+          user,
+
+        action:
+          "EDIT_USER",
+      })
+    : null;
+
+const resetHierarchy =
+  accessActor
+    ? canActorManageTarget({
+        actor:
+          accessActor.actor,
+
+        target:
+          user,
+
+        action:
+          "RESET_PASSWORD",
+      })
+    : null;
+
+const statusHierarchy =
+  accessActor
+    ? canActorManageTarget({
+        actor:
+          accessActor.actor,
+
+        target:
+          user,
+
+        action:
+          "MANAGE_STATUS",
+      })
+    : null;
+
+
+  const canEditThisUser =
+  canEditUser &&
+  Boolean(
+    editHierarchy?.allowed,
+  );
+
+const canResetThisUserPassword =
+  canResetPassword &&
+  Boolean(
+    resetHierarchy?.allowed,
+  );
+
+const canManageThisUserStatus =
+  canManageStatus &&
+  Boolean(
+    statusHierarchy?.allowed,
+  );
+
+  /* 
+  -------------------------------------------------------------------------- */
   /* AUDIT SUMMARY                                                              */
   /* -------------------------------------------------------------------------- */
   const [
@@ -911,39 +989,83 @@ export default async function UserDetailPage({
           </Link>
 
           <div className="flex flex-wrap gap-2">
-            <EditUserDrawer
-              user={{
-                id: user.id,
+            {/* ============================================================ */}
+            {/* EDIT USER                                                    */}
+            {/* ============================================================ */}
 
-                displayName: user.displayName,
+            {canEditThisUser ? (
+              <EditUserDrawer
+                user={{
+                  id: user.id,
+                  displayName: user.displayName,
+                  username: user.username,
+                  email: user.email,
+                  phone: user.phone,
+                  legacyRole: user.legacyRole,
+                  status: user.status,
+                }}
+                assignedRoleCount={assignedRoleCount}
+                linkedRecordKind={linkedRecordKind}
+              />
+            ) : (
+               <RestrictedAction
+                label="Edit User"
+                permission={
+                  !canEditUser
+                    ? "users.update"
+                    : editHierarchy?.reason ??
+                      "Protected account hierarchy"
+                }
+              />
+            )}
 
-                username: user.username,
+            {/* ============================================================ */}
+            {/* RESET PASSWORD                                               */}
+            {/* ============================================================ */}
 
-                email: user.email,
+            {canResetThisUserPassword ? (
+              <ResetPasswordDialog
+                user={{
+                  id: user.id,
+                  displayName: user.displayName,
+                  username: user.username,
+                  email: user.email,
+                  status: user.status,
+                }}
+              />
+            ) : (
+               <RestrictedAction
+                label="Reset Password"
+                permission={
+                  !canResetPassword
+                    ? "users.reset_password"
+                    : resetHierarchy?.reason ??
+                      "Protected account hierarchy"
+                }
+              />
+            )}
 
-                phone: user.phone,
+            {/* ============================================================ */}
+            {/* ACCOUNT LIFECYCLE                                            */}
+            {/* ============================================================ */}
 
-                legacyRole: user.legacyRole,
-
-                status: user.status,
-              }}
-              assignedRoleCount={assignedRoleCount}
-              linkedRecordKind={linkedRecordKind}
-            />
-
-            <button
-              type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Reset Password
-            </button>
-
-            <UserMoreActions
-              userId={user.id}
-              displayName={user.displayName ?? "User"}
-              status={user.status}
-            />
+            {canManageThisUserStatus ? (
+              <UserMoreActions
+                userId={user.id}
+                displayName={user.displayName ?? "User"}
+                status={user.status}
+              />
+            ) : (
+              <RestrictedAction
+                label="More Actions"
+                permission={
+                  !canManageStatus
+                    ? "users.manage_status"
+                    : statusHierarchy?.reason ??
+                      "Protected account hierarchy"
+                }
+              />
+            )}
           </div>
         </div>
 
@@ -8599,6 +8721,17 @@ function getAuditActivityConfig(action: string) {
         iconClass: "bg-violet-100 text-violet-600",
       };
 
+    case AccessAuditAction.PASSWORD_RESET_REQUIRED:
+      return {
+        title: "Password reset required",
+
+        icon: KeyRound,
+
+        iconClass: "bg-violet-100 text-violet-700",
+
+        badgeClass: "bg-violet-50 text-violet-700",
+      };
+
     default:
       return {
         title: formatAuditAction(action),
@@ -8641,6 +8774,9 @@ function getAuditActivityDescription(
 
     case "USER_UPDATED":
       return "The user's account information was updated.";
+
+    case AccessAuditAction.PASSWORD_RESET_REQUIRED:
+      return `${displayName} was required to reset their authentication password through Clerk.`;
 
     default:
       return "An access-control activity was recorded for this account.";
@@ -11235,6 +11371,45 @@ function FamilyRelationshipStage({
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+
+
+function RestrictedAction({
+  label,
+  permission,
+}: {
+  label: string;
+  permission: string;
+}) {
+  return (
+    <div
+      title={`Requires permission: ${permission}`}
+      className="group relative inline-flex h-11 cursor-not-allowed items-center gap-2 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-300"
+    >
+      <LockKeyhole className="h-4 w-4" />
+
+      <span>{label}</span>
+
+      {/* TOOLTIP */}
+
+      <div className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-50 hidden w-[230px] rounded-[14px] border border-slate-200 bg-slate-950 px-3 py-2.5 text-left shadow-xl group-hover:block">
+        <p className="text-[9px] font-black uppercase tracking-[0.08em] text-slate-400">
+          Restricted Action
+        </p>
+
+        <p className="mt-1 text-[10px] font-semibold leading-4 text-white">
+          Your current access does not allow this action.
+        </p>
+
+        <div className="mt-2 rounded-lg bg-white/5 px-2 py-1.5">
+          <code className="text-[9px] font-bold text-blue-300">
+            {permission}
+          </code>
+        </div>
+      </div>
     </div>
   );
 }

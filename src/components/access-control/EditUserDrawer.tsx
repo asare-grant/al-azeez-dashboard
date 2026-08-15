@@ -209,7 +209,8 @@ export default function EditUserDrawer({
     if (!displayName) {
       nextErrors.displayName = "Display name is required.";
     } else if (displayName.length < 2) {
-      nextErrors.displayName = "Display name must contain at least 2 characters.";
+      nextErrors.displayName =
+        "Display name must contain at least 2 characters.";
     } else if (displayName.length > 100) {
       nextErrors.displayName =
         "Display name cannot contain more than 100 characters.";
@@ -237,10 +238,7 @@ export default function EditUserDrawer({
         "Username may contain letters, numbers, periods, underscores and hyphens only.";
     }
 
-    if (
-      email &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-    ) {
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       nextErrors.email = "Enter a valid email address.";
     }
 
@@ -248,8 +246,7 @@ export default function EditUserDrawer({
      * Parent.phone is non-nullable in your schema.
      */
     if (isParent && !phone) {
-      nextErrors.phone =
-        "Phone number is required for a linked Parent record.";
+      nextErrors.phone = "Phone number is required for a linked Parent record.";
     }
 
     if (phone.length > 40) {
@@ -311,9 +308,7 @@ export default function EditUserDrawer({
         );
       }
 
-      setSuccess(
-        payload.message ?? "User information updated successfully.",
-      );
+      setSuccess(payload.message ?? "User information updated successfully.");
 
       window.setTimeout(() => {
         setOpen(false);
@@ -344,7 +339,6 @@ export default function EditUserDrawer({
         className="inline-flex h-11 items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
       >
         <Pencil className="h-4 w-4" />
-
         Edit User
       </button>
 
@@ -493,9 +487,7 @@ export default function EditUserDrawer({
                     error={errors.displayName}
                     required
                     placeholder="Enter display name"
-                    onChange={(value) =>
-                      updateField("displayName", value)
-                    }
+                    onChange={(value) => updateField("displayName", value)}
                   />
 
                   <EditField
@@ -511,9 +503,7 @@ export default function EditUserDrawer({
                         ? "This value will also be synchronized to the linked school-domain record."
                         : "Optional for universal-only accounts."
                     }
-                    onChange={(value) =>
-                      updateField("username", value)
-                    }
+                    onChange={(value) => updateField("username", value)}
                   />
 
                   <EditField
@@ -724,7 +714,6 @@ export default function EditUserDrawer({
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="inline-flex items-center gap-2 text-[9px] text-slate-400">
                   <Activity className="h-3.5 w-3.5" />
-
                   Successful changes are written to Access Audit.
                 </div>
 
@@ -808,9 +797,7 @@ function EditField({
 
         {label}
 
-        {required ? (
-          <span className="text-rose-500">*</span>
-        ) : null}
+        {required ? <span className="text-rose-500">*</span> : null}
       </label>
 
       <input
@@ -827,13 +814,9 @@ function EditField({
       />
 
       {error ? (
-        <p className="mt-1.5 text-[9px] font-semibold text-rose-600">
-          {error}
-        </p>
+        <p className="mt-1.5 text-[9px] font-semibold text-rose-600">{error}</p>
       ) : helper ? (
-        <p className="mt-1.5 text-[9px] leading-4 text-slate-400">
-          {helper}
-        </p>
+        <p className="mt-1.5 text-[9px] leading-4 text-slate-400">{helper}</p>
       ) : null}
     </div>
   );
@@ -871,20 +854,12 @@ function ProtectedField({
         {value}
       </p>
 
-      <p className="mt-1 text-[9px] leading-4 text-slate-400">
-        {description}
-      </p>
+      <p className="mt-1 text-[9px] leading-4 text-slate-400">{description}</p>
     </div>
   );
 }
 
-function MiniIdentityValue({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function MiniIdentityValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[13px] border border-slate-100 bg-white p-3">
       <p className="text-[7px] font-black uppercase tracking-[0.08em] text-slate-400">

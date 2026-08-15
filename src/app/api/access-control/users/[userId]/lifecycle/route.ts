@@ -1,11 +1,19 @@
-import { auth } from "@clerk/nextjs/server";
+// src/app/api/access-control/users/[userId]/lifecycle/route.ts
 import {
-  AccessAuditAction,
-  Prisma,
-} from "@prisma/client";
+  clerkClient,
+} from "@clerk/nextjs/server";
+
+import { AccessAuditAction, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
+
+import {
+  canActorManageTarget,
+  getCurrentAccessActor,
+  requireReverificationIfNeeded,
+  shouldRequireSensitiveReverification,
+} from "@/lib/access-control";
 
 type RouteContext = {
   params: Promise<{
@@ -20,34 +28,10 @@ type LifecycleBody = {
   reason?: string | null;
 };
 
-const allowedActions: LifecycleAction[] = [
-  "SUSPEND",
-  "ACTIVATE",
-  "DISABLE",
-];
+const allowedActions: LifecycleAction[] = ["SUSPEND", "ACTIVATE", "DISABLE"];
 
-export async function PATCH(
-  request: Request,
-  { params }: RouteContext,
-) {
+export async function PATCH(request: Request, { params }: RouteContext) {
   try {
-    /* ---------------------------------------------------------------------- */
-    /* AUTHENTICATION                                                         */
-    /* ---------------------------------------------------------------------- */
-
-    const { userId: actorId } = await auth();
-
-    if (!actorId) {
-      return NextResponse.json(
-        {
-          error: "You must be signed in to perform this action.",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
     const { userId: targetUserId } = await params;
 
     /* ---------------------------------------------------------------------- */
@@ -59,9 +43,7 @@ export async function PATCH(
     const action = body.action;
 
     const reason =
-      typeof body.reason === "string"
-        ? body.reason.trim().slice(0, 500)
-        : null;
+      typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : null;
 
     if (!action || !allowedActions.includes(action)) {
       return NextResponse.json(
@@ -75,63 +57,23 @@ export async function PATCH(
     }
 
     /* ---------------------------------------------------------------------- */
-    /* ACTOR ACCOUNT + AUTHORIZATION                                          */
+    /* ACTOR AUTHORIZATION                                                    */
     /* ---------------------------------------------------------------------- */
 
-    const actorAccount = await prisma.userAccount.findUnique({
-      where: {
-        id: actorId,
-      },
+    const accessActor = await getCurrentAccessActor();
 
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: {
-                    permission: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!actorAccount) {
+    if (!accessActor) {
       return NextResponse.json(
         {
-          error:
-            "Your authenticated identity does not have a local UserAccount record.",
+          error: "You must be signed in to manage account status.",
         },
         {
-          status: 403,
+          status: 401,
         },
       );
     }
 
-    const actorPermissions = new Set(
-      actorAccount.roles.flatMap((assignment) =>
-        assignment.role.permissions.map(
-          (rolePermission) => rolePermission.permission.key,
-        ),
-      ),
-    );
-
-    /*
-     * Administrators remain authorized during the transition to full
-     * permission-level lifecycle management.
-     *
-     * "users.manage_status" becomes the delegated RBAC permission for
-     * non-admin administrative roles.
-     */
-    const canManageLifecycle =
-      actorAccount.legacyRole?.toLowerCase() === "admin" ||
-      actorPermissions.has("users.manage_status");
-
-    if (!canManageLifecycle) {
+    if (!accessActor.can("users.manage_status")) {
       return NextResponse.json(
         {
           error:
@@ -143,6 +85,9 @@ export async function PATCH(
       );
     }
 
+    const actorAccount = accessActor.actor;
+
+
     /* ---------------------------------------------------------------------- */
     /* TARGET ACCOUNT                                                         */
     /* ---------------------------------------------------------------------- */
@@ -152,13 +97,12 @@ export async function PATCH(
         id: targetUserId,
       },
 
-      select: {
-        id: true,
-        displayName: true,
-        username: true,
-        email: true,
-        legacyRole: true,
-        status: true,
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
 
@@ -174,20 +118,26 @@ export async function PATCH(
     }
 
     /* ---------------------------------------------------------------------- */
-    /* SELF-PROTECTION                                                        */
+    /* PROTECTED ACCOUNT HIERARCHY                                            */
     /* ---------------------------------------------------------------------- */
 
-    if (
-      actorId === targetUserId &&
-      (action === "SUSPEND" || action === "DISABLE")
-    ) {
+    const hierarchy = canActorManageTarget({
+      actor: actorAccount,
+
+      target: targetUser,
+
+      action: "MANAGE_STATUS",
+    });
+
+    if (!hierarchy.allowed) {
       return NextResponse.json(
         {
-          error:
-            "You cannot suspend or disable your own administrative account.",
+          error: hierarchy.reason,
+
+          code: hierarchy.code,
         },
         {
-          status: 409,
+          status: 403,
         },
       );
     }
@@ -228,59 +178,276 @@ export async function PATCH(
     const previousStatus = targetUser.status;
 
     /* ---------------------------------------------------------------------- */
+    /* RESOLVE SENSITIVE ACTION                                               */
+    /* ---------------------------------------------------------------------- */
+
+    const sensitiveAction =
+      action === "SUSPEND"
+        ? "SUSPEND_ACCOUNT"
+        : action === "DISABLE"
+          ? "DISABLE_ACCOUNT"
+          : "ACTIVATE_ACCOUNT";
+
+    /* ---------------------------------------------------------------------- */
+    /* SENSITIVE-ACTION REVERIFICATION                                        */
+    /* ---------------------------------------------------------------------- */
+
+    const requiresReverification = shouldRequireSensitiveReverification({
+      target: targetUser,
+
+      action: sensitiveAction,
+    });
+
+    const reverificationResponse = await requireReverificationIfNeeded({
+      required: requiresReverification,
+
+      preset: "strict",
+    });
+
+    if (reverificationResponse) {
+      return reverificationResponse;
+    }
+
+
+    /* ---------------------------------------------------------------------- */
+/* CLERK AUTHENTICATION STATE                                             */
+/* ---------------------------------------------------------------------- */
+
+const client =
+  await clerkClient();
+
+let clerkStateChanged =
+  false;
+
+try {
+  if (
+    action === "SUSPEND" ||
+    action === "DISABLE"
+  ) {
+    /*
+     * Prevent future sign-ins and revoke existing
+     * Clerk sessions.
+     */
+    await client.users.banUser(
+      targetUserId,
+    );
+
+    clerkStateChanged =
+      true;
+  }
+
+  if (
+    action === "ACTIVATE"
+  ) {
+    /*
+     * Restore Clerk sign-in capability.
+     */
+    await client.users.unbanUser(
+      targetUserId,
+    );
+
+    clerkStateChanged =
+      true;
+  }
+} catch (clerkError) {
+  console.error(
+    "[USER_LIFECYCLE_CLERK]",
+    clerkError,
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        action === "ACTIVATE"
+          ? "The authentication account could not be reactivated."
+          : "The authentication account could not be restricted.",
+    },
+    {
+      status: 502,
+    },
+  );
+}
+
+    /* ---------------------------------------------------------------------- */
     /* TRANSACTION: STATUS + AUDIT                                            */
     /* ---------------------------------------------------------------------- */
 
-    const updatedUser = await prisma.$transaction(async (tx) => {
-      const updated = await tx.userAccount.update({
-        where: {
-          id: targetUserId,
-        },
+    let updatedUser;
 
-        data: {
-          status: nextStatus,
-        },
-      });
+try {
+  updatedUser =
+    await prisma.$transaction(
+      async (tx) => {
+        const updated =
+          await tx.userAccount.update({
+            where: {
+              id:
+                targetUserId,
+            },
 
-      await tx.accessAuditLog.create({
-        data: {
-          action: auditAction,
+            data: {
+              status:
+                nextStatus,
+            },
+          });
 
-          targetUserId: targetUser.id,
+        await tx.accessAuditLog.create({
+          data: {
+            action:
+              auditAction,
 
-          actorId: actorAccount.id,
+            targetUserId:
+              targetUser.id,
 
-          actorName:
-            actorAccount.displayName ??
-            actorAccount.username ??
-            actorAccount.email ??
-            "Administrator",
+            actorId:
+              actorAccount.id,
 
-          actorRole: actorAccount.legacyRole,
+            actorName:
+              actorAccount.displayName ??
+              actorAccount.username ??
+              actorAccount.email ??
+              "Administrator",
 
-          metadata: {
-            source: "USER_DETAIL_MORE_ACTIONS",
+            actorRole:
+              actorAccount.legacyRole,
 
-            lifecycleAction: action,
+            metadata: {
+              source:
+                "USER_DETAIL_MORE_ACTIONS",
 
-            previousStatus,
+              lifecycleAction:
+                action,
 
-            newStatus: nextStatus,
+              previousStatus,
 
-            reason: reason || null,
+              newStatus:
+                nextStatus,
 
-            target: {
-              id: targetUser.id,
-              displayName: targetUser.displayName,
-              username: targetUser.username,
-              legacyRole: targetUser.legacyRole,
+              reason:
+                reason || null,
+
+              authenticationProvider:
+                "CLERK",
+
+              clerkAccessState:
+                action === "ACTIVATE"
+                  ? "UNBANNED"
+                  : "BANNED",
+
+              target: {
+                id:
+                  targetUser.id,
+
+                displayName:
+                  targetUser.displayName,
+
+                username:
+                  targetUser.username,
+
+                legacyRole:
+                  targetUser.legacyRole,
+              },
             },
           },
-        },
-      });
+        });
 
-      return updated;
-    });
+        return updated;
+      },
+    );
+} catch (databaseError) {
+  console.error(
+    "[USER_LIFECYCLE_DATABASE]",
+    databaseError,
+  );
+
+  /*
+   * Clerk succeeded but Prisma failed.
+   *
+   * Attempt to restore Clerk to the authentication
+   * state that corresponds to the previous local state.
+   */
+  if (
+    clerkStateChanged
+  ) {
+    try {
+      if (
+        previousStatus ===
+          "SUSPENDED" ||
+        previousStatus ===
+          "DISABLED"
+      ) {
+        await client.users.banUser(
+          targetUserId,
+        );
+      } else {
+        await client.users.unbanUser(
+          targetUserId,
+        );
+      }
+    } catch (
+      compensationError
+    ) {
+      console.error(
+        "[USER_LIFECYCLE_COMPENSATION_FAILURE]",
+        compensationError,
+      );
+    }
+  }
+
+  throw databaseError;
+}
+
+
+    // const updatedUser = await prisma.$transaction(async (tx) => {
+    //   const updated = await tx.userAccount.update({
+    //     where: {
+    //       id: targetUserId,
+    //     },
+
+    //     data: {
+    //       status: nextStatus,
+    //     },
+    //   });
+
+    //   await tx.accessAuditLog.create({
+    //     data: {
+    //       action: auditAction,
+
+    //       targetUserId: targetUser.id,
+
+    //       actorId: actorAccount.id,
+
+    //       actorName:
+    //         actorAccount.displayName ??
+    //         actorAccount.username ??
+    //         actorAccount.email ??
+    //         "Administrator",
+
+    //       actorRole: actorAccount.legacyRole,
+
+    //       metadata: {
+    //         source: "USER_DETAIL_MORE_ACTIONS",
+
+    //         lifecycleAction: action,
+
+    //         previousStatus,
+
+    //         newStatus: nextStatus,
+
+    //         reason: reason || null,
+
+    //         target: {
+    //           id: targetUser.id,
+    //           displayName: targetUser.displayName,
+    //           username: targetUser.username,
+    //           legacyRole: targetUser.legacyRole,
+    //         },
+    //       },
+    //     },
+    //   });
+
+    //   return updated;
+    // });
 
     /* ---------------------------------------------------------------------- */
     /* RESPONSE                                                               */
@@ -308,8 +475,7 @@ export async function PATCH(
 
     return NextResponse.json(
       {
-        error:
-          "The account lifecycle action could not be completed.",
+        error: "The account lifecycle action could not be completed.",
       },
       {
         status: 500,

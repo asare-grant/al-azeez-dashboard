@@ -1,13 +1,15 @@
-import { auth } from "@clerk/nextjs/server";
+// src/app/api/access-control/users/[userId]/profile/route.ts
 
-import {
-  AccessAuditAction,
-  Prisma,
-} from "@prisma/client";
+import { AccessAuditAction, Prisma } from "@prisma/client";
 
 import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
+
+import {
+  canActorManageTarget,
+  getCurrentAccessActor,
+} from "@/lib/access-control";
 
 type RouteContext = {
   params: Promise<{
@@ -29,21 +31,18 @@ type NormalizedUpdate = {
   phone: string | null;
 };
 
-export async function PATCH(
-  request: Request,
-  { params }: RouteContext,
-) {
+export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     /* ---------------------------------------------------------------------- */
-    /* AUTHENTICATION                                                         */
+    /* ACTOR AUTHORIZATION                                                    */
     /* ---------------------------------------------------------------------- */
 
-    const { userId: actorId } = await auth();
+    const accessActor = await getCurrentAccessActor();
 
-    if (!actorId) {
+    if (!accessActor) {
       return NextResponse.json(
         {
-          error: "You must be signed in to edit a user.",
+          error: "You must be signed in to edit users.",
         },
         {
           status: 401,
@@ -51,77 +50,24 @@ export async function PATCH(
       );
     }
 
+    if (!accessActor.can("users.update")) {
+      return NextResponse.json(
+        {
+          error: "You do not have permission to edit user identities.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    const actorAccount = accessActor.actor;
+
+    /* ---------------------------------------------------------------------- */
+    /* TARGET ID                                                              */
+    /* ---------------------------------------------------------------------- */
+
     const { userId: targetUserId } = await params;
-
-    /* ---------------------------------------------------------------------- */
-    /* ACTOR + PERMISSIONS                                                    */
-    /* ---------------------------------------------------------------------- */
-
-    const actorAccount = await prisma.userAccount.findUnique({
-      where: {
-        id: actorId,
-      },
-
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: {
-                    permission: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!actorAccount) {
-      return NextResponse.json(
-        {
-          error:
-            "Your authenticated identity does not have a local UserAccount.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
-
-    const actorPermissions = new Set(
-      actorAccount.roles
-        .filter((assignment) => assignment.role.isActive)
-        .flatMap((assignment) =>
-          assignment.role.permissions
-            .filter(
-              (rolePermission) =>
-                rolePermission.permission.isActive,
-            )
-            .map(
-              (rolePermission) =>
-                rolePermission.permission.key,
-            ),
-        ),
-    );
-
-    const canEditUsers =
-      actorAccount.legacyRole?.toLowerCase() === "admin" ||
-      actorPermissions.has("users.update");
-
-    if (!canEditUsers) {
-      return NextResponse.json(
-        {
-          error:
-            "You do not have permission to edit user identities.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
 
     /* ---------------------------------------------------------------------- */
     /* TARGET                                                                 */
@@ -132,22 +78,12 @@ export async function PATCH(
         id: targetUserId,
       },
 
-      select: {
-        id: true,
-
-        displayName: true,
-
-        username: true,
-
-        email: true,
-
-        phone: true,
-
-        imageUrl: true,
-
-        status: true,
-
-        legacyRole: true,
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
 
@@ -162,6 +98,26 @@ export async function PATCH(
       );
     }
 
+    const hierarchy = canActorManageTarget({
+      actor: actorAccount,
+
+      target: targetUser,
+
+      action: "EDIT_USER",
+    });
+
+    if (!hierarchy.allowed) {
+      return NextResponse.json(
+        {
+          error: hierarchy.reason,
+
+          code: hierarchy.code,
+        },
+        {
+          status: 403,
+        },
+      );
+    }
     /* ---------------------------------------------------------------------- */
     /* BODY                                                                   */
     /* ---------------------------------------------------------------------- */
@@ -170,10 +126,7 @@ export async function PATCH(
 
     const normalized = normalizeBody(body);
 
-    const validationError = validateUpdate(
-      normalized,
-      targetUser.legacyRole,
-    );
+    const validationError = validateUpdate(normalized, targetUser.legacyRole);
 
     if (validationError) {
       return NextResponse.json(
@@ -226,8 +179,7 @@ export async function PATCH(
     /* DOMAIN TYPE                                                            */
     /* ---------------------------------------------------------------------- */
 
-    const legacyRole =
-      targetUser.legacyRole?.trim().toLowerCase() ?? null;
+    const legacyRole = targetUser.legacyRole?.trim().toLowerCase() ?? null;
 
     const domainBacked =
       legacyRole === "student" ||
@@ -460,8 +412,7 @@ export async function PATCH(
 
     return NextResponse.json(
       {
-        error:
-          "The user identity could not be updated.",
+        error: "The user identity could not be updated.",
       },
       {
         status: 500,
@@ -477,25 +428,20 @@ export async function PATCH(
 function normalizeBody(body: UpdateBody): NormalizedUpdate {
   return {
     displayName:
-      typeof body.displayName === "string"
-        ? body.displayName.trim()
-        : "",
+      typeof body.displayName === "string" ? body.displayName.trim() : "",
 
     username:
-      typeof body.username === "string" &&
-      body.username.trim()
+      typeof body.username === "string" && body.username.trim()
         ? body.username.trim()
         : null,
 
     email:
-      typeof body.email === "string" &&
-      body.email.trim()
+      typeof body.email === "string" && body.email.trim()
         ? body.email.trim().toLowerCase()
         : null,
 
     phone:
-      typeof body.phone === "string" &&
-      body.phone.trim()
+      typeof body.phone === "string" && body.phone.trim()
         ? body.phone.trim()
         : null,
   };
@@ -505,23 +451,16 @@ function normalizeBody(body: UpdateBody): NormalizedUpdate {
 /* VALIDATION                                                                 */
 /* ========================================================================== */
 
-function validateUpdate(
-  value: NormalizedUpdate,
-  legacyRole: string | null,
-) {
+function validateUpdate(value: NormalizedUpdate, legacyRole: string | null) {
   if (!value.displayName) {
     return "Display name is required.";
   }
 
-  if (
-    value.displayName.length < 2 ||
-    value.displayName.length > 100
-  ) {
+  if (value.displayName.length < 2 || value.displayName.length > 100) {
     return "Display name must contain between 2 and 100 characters.";
   }
 
-  const normalizedRole =
-    legacyRole?.trim().toLowerCase() ?? null;
+  const normalizedRole = legacyRole?.trim().toLowerCase() ?? null;
 
   const domainBacked =
     normalizedRole === "student" ||
@@ -534,10 +473,7 @@ function validateUpdate(
   }
 
   if (value.username) {
-    if (
-      value.username.length < 3 ||
-      value.username.length > 60
-    ) {
+    if (value.username.length < 3 || value.username.length > 60) {
       return "Username must contain between 3 and 60 characters.";
     }
 
@@ -546,10 +482,7 @@ function validateUpdate(
     }
   }
 
-  if (
-    value.email &&
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)
-  ) {
+  if (value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)) {
     return "Enter a valid email address.";
   }
 

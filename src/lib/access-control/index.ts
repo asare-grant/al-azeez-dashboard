@@ -37,3 +37,10 @@ export type {
   AccessContext,
   AccessRoleSummary,
 } from "./types";
+
+
+export * from "./current-actor";
+
+export * from "./account-hierarchy";
+
+export * from "./reverification";

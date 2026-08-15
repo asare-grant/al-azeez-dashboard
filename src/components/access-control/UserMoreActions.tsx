@@ -19,7 +19,21 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  useReverification,
+} from "@clerk/nextjs";
+
+import {
+  isReverificationCancelledError,
+} from "@clerk/nextjs/errors";
+
 type LifecycleAction = "SUSPEND" | "ACTIVATE" | "DISABLE";
+
+type LifecycleResponse = {
+  success?: boolean;
+  message?: string;
+  error?: string;
+};
 
 type UserMoreActionsProps = {
   userId: string;
@@ -87,8 +101,9 @@ export default function UserMoreActions({
 
   const [open, setOpen] = useState(false);
 
-  const [selectedAction, setSelectedAction] =
-    useState<LifecycleAction | null>(null);
+  const [selectedAction, setSelectedAction] = useState<LifecycleAction | null>(
+    null,
+  );
 
   const [reason, setReason] = useState("");
 
@@ -151,15 +166,15 @@ export default function UserMoreActions({
   /* -------------------------------------------------------------------------- */
 
   const availableActions: LifecycleAction[] =
-  normalizedStatus === "ACTIVE"
-    ? ["SUSPEND", "DISABLE"]
-    : normalizedStatus === "PENDING"
-      ? ["ACTIVATE", "DISABLE"]
-      : normalizedStatus === "SUSPENDED"
+    normalizedStatus === "ACTIVE"
+      ? ["SUSPEND", "DISABLE"]
+      : normalizedStatus === "PENDING"
         ? ["ACTIVATE", "DISABLE"]
-        : normalizedStatus === "DISABLED"
-          ? ["ACTIVATE"]
-          : [];
+        : normalizedStatus === "SUSPENDED"
+          ? ["ACTIVATE", "DISABLE"]
+          : normalizedStatus === "DISABLED"
+            ? ["ACTIVATE"]
+            : [];
 
   function openAction(action: LifecycleAction) {
     setOpen(false);
@@ -180,41 +195,34 @@ export default function UserMoreActions({
     setSuccess(null);
   }
 
-  /* -------------------------------------------------------------------------- */
-  /* SUBMIT                                                                     */
-  /* -------------------------------------------------------------------------- */
-
-  async function submitLifecycleAction() {
-    if (!selectedAction) {
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
+const performLifecycleRequest =
+  useReverification(
+    async ({
+      action,
+      reason,
+    }: {
+      action: LifecycleAction;
+      reason: string | null;
+    }) => {
       const response = await fetch(
         `/api/access-control/users/${userId}/lifecycle`,
         {
           method: "PATCH",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
 
           body: JSON.stringify({
-            action: selectedAction,
-            reason: reason.trim() || null,
+            action,
+            reason,
           }),
         },
       );
 
-      const payload = (await response.json()) as {
-        success?: boolean;
-        message?: string;
-        error?: string;
-      };
+      const payload =
+        (await response.json()) as LifecycleResponse;
 
       if (!response.ok) {
         throw new Error(
@@ -224,35 +232,77 @@ export default function UserMoreActions({
         );
       }
 
-      setSuccess(
-        payload.message ?? "The account status was updated successfully.",
-      );
+      return payload;
+    },
+  );
+  /* -------------------------------------------------------------------------- */
+  /* SUBMIT                                                                     */
+  /* -------------------------------------------------------------------------- */
 
-      /*
-       * Give the user a short confirmation state before refreshing
-       * the server-rendered profile.
-       */
-      window.setTimeout(() => {
-        setSelectedAction(null);
-        setReason("");
-        setSuccess(null);
-
-        router.refresh();
-      }, 700);
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Something went wrong while updating the account.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  async function submitLifecycleAction() {
+  if (!selectedAction) {
+    return;
   }
 
-  const selectedConfig = selectedAction
-    ? actionConfigs[selectedAction]
-    : null;
+  setSubmitting(true);
+
+  setError(null);
+
+  setSuccess(null);
+
+  try {
+    const payload =
+      await performLifecycleRequest({
+        action:
+          selectedAction,
+
+        reason:
+          reason.trim() ||
+          null,
+      });
+
+    setSuccess(
+      payload.message ??
+        "The account status was updated successfully.",
+    );
+
+    /*
+     * Give the administrator a short success confirmation
+     * before refreshing the server-rendered profile.
+     */
+    window.setTimeout(() => {
+      setSelectedAction(null);
+
+      setReason("");
+
+      setSuccess(null);
+
+      router.refresh();
+    }, 700);
+  } catch (caughtError) {
+    /*
+     * Closing Clerk's reverification UI is not an
+     * application failure.
+     */
+    if (
+      isReverificationCancelledError(
+        caughtError,
+      )
+    ) {
+      return;
+    }
+
+    setError(
+      caughtError instanceof Error
+        ? caughtError.message
+        : "Something went wrong while updating the account.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+}
+
+  const selectedConfig = selectedAction ? actionConfigs[selectedAction] : null;
 
   return (
     <>
@@ -267,15 +317,11 @@ export default function UserMoreActions({
           aria-haspopup="menu"
           aria-expanded={open}
           className={`inline-flex h-11 items-center gap-2 rounded-[14px] px-5 text-sm font-black text-white shadow-[0_10px_25px_rgba(37,99,235,0.20)] transition ${
-            open
-              ? "bg-blue-700"
-              : "bg-blue-600 hover:bg-blue-700"
+            open ? "bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
           <MoreHorizontal className="h-4 w-4" />
-
           More Actions
-
           <ChevronDown
             className={`h-3.5 w-3.5 transition-transform duration-200 ${
               open ? "rotate-180" : ""
@@ -661,24 +707,33 @@ function LifecycleDialogIcon({ config }: { config: ActionConfig }) {
 
 function AccountStateBadge({ status }: { status: string }) {
   const config =
-    status === "ACTIVE"
+  status === "ACTIVE"
+    ? {
+        className:
+          "border-emerald-100 bg-emerald-50 text-emerald-700",
+        dot: "bg-emerald-500",
+      }
+    : status === "PENDING"
       ? {
           className:
-            "border-emerald-100 bg-emerald-50 text-emerald-700",
-          dot: "bg-emerald-500",
+            "border-blue-100 bg-blue-50 text-blue-700",
+          dot: "bg-blue-500",
         }
       : status === "SUSPENDED"
         ? {
-            className: "border-amber-100 bg-amber-50 text-amber-700",
+            className:
+              "border-amber-100 bg-amber-50 text-amber-700",
             dot: "bg-amber-500",
           }
         : status === "DISABLED"
           ? {
-              className: "border-rose-100 bg-rose-50 text-rose-700",
+              className:
+                "border-rose-100 bg-rose-50 text-rose-700",
               dot: "bg-rose-500",
             }
           : {
-              className: "border-slate-200 bg-slate-50 text-slate-600",
+              className:
+                "border-slate-200 bg-slate-50 text-slate-600",
               dot: "bg-slate-400",
             };
 

@@ -23,11 +23,27 @@ export default async function TeacherListPage(props: {
 
   const columns = [
     { header: "Info", accessor: "info" },
-    { header: "Teacher ID", accessor: "teacherId", className: "hidden md:table-cell" },
-    { header: "Subjects", accessor: "subjects", className: "hidden md:table-cell" },
-    { header: "Classes", accessor: "classes", className: "hidden md:table-cell" },
+    {
+      header: "Teacher ID",
+      accessor: "teacherId",
+      className: "hidden md:table-cell",
+    },
+    {
+      header: "Subjects",
+      accessor: "subjects",
+      className: "hidden md:table-cell",
+    },
+    {
+      header: "Classes",
+      accessor: "classes",
+      className: "hidden md:table-cell",
+    },
     { header: "Phone", accessor: "phone", className: "hidden lg:table-cell" },
-    { header: "Address", accessor: "address", className: "hidden lg:table-cell" },
+    {
+      header: "Address",
+      accessor: "address",
+      className: "hidden lg:table-cell",
+    },
     ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
   ];
 
@@ -46,8 +62,12 @@ export default async function TeacherListPage(props: {
           className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
         />
         <div className="flex flex-col">
-          <h3 className="font-semibold">{item.name} {item.surname}</h3>
-          <p className="hidden md:table-cell text-xs text-gray-500">{item?.email}</p>
+          <h3 className="font-semibold">
+            {item.name} {item.surname}
+          </h3>
+          <p className="hidden md:table-cell text-xs text-gray-500">
+            {item?.email}
+          </p>
         </div>
       </td>
       <td className="hidden md:table-cell">{item.username}</td>
@@ -87,7 +107,7 @@ export default async function TeacherListPage(props: {
       switch (key) {
         case "classId":
           query.lessons = { some: { classId: parseInt(value as string) } };
-          break; 
+          break;
         case "search":
           query.name = { contains: value as string, mode: "insensitive" };
           break;
