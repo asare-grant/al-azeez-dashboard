@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AccessAuditAction" ADD VALUE 'PASSWORD_RESET_REQUIRED';

@@ -333,6 +333,15 @@ export default function AppSidebarClient({
 
       visible: ["admin"],
     },
+    {
+      icon: <ShieldCheck size={18} className="text-violet-600" />,
+
+      label: "Access Control",
+
+      href: "/list/access-control",
+
+      visible: ["admin"],
+    },
   ];
 
   const { signOut } = useClerk();
