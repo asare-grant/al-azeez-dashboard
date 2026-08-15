@@ -21,7 +21,8 @@ export type AccountHierarchyUser = {
 export type ProtectedAction =
   | "EDIT_USER"
   | "RESET_PASSWORD"
-  | "MANAGE_STATUS";
+  | "MANAGE_STATUS"
+  | "MANAGE_ROLES";
 
 /* ========================================================================== */
 /* ROLE TRUST LEVELS                                                          */
@@ -55,72 +56,59 @@ const ROLE_TRUST_LEVEL: Record<string, number> = {
 };
 
 /* ========================================================================== */
+/* ROLE TRUST                                                                 */
+/* ========================================================================== */
+
+export function getRoleTrustLevel(
+  role:
+    | string
+    | {
+        key: string;
+      },
+) {
+  const key = typeof role === "string" ? role : role.key;
+
+  return ROLE_TRUST_LEVEL[key.trim().toLowerCase()] ?? 0;
+}
+
+/* ========================================================================== */
 /* TRUST RESOLUTION                                                           */
 /* ========================================================================== */
 
-function getActiveAssignments(
-  user: AccountHierarchyUser,
-) {
+function getActiveAssignments(user: AccountHierarchyUser) {
   const now = new Date();
 
   return user.roles.filter(
     (assignment) =>
       assignment.role.isActive &&
-      (
-        !assignment.expiresAt ||
-        assignment.expiresAt > now
-      ),
+      (!assignment.expiresAt || assignment.expiresAt > now),
   );
 }
 
-export function getAccountTrustLevel(
-  user: AccountHierarchyUser,
-) {
-  const activeAssignments =
-    getActiveAssignments(user);
+export function getAccountTrustLevel(user: AccountHierarchyUser) {
+  const activeAssignments = getActiveAssignments(user);
 
-  const roleLevels =
-    activeAssignments.map(
-      (assignment) =>
-        ROLE_TRUST_LEVEL[
-          assignment.role.key
-        ] ?? 0,
-    );
+  const roleLevels = activeAssignments.map((assignment) =>
+    getRoleTrustLevel(assignment.role),
+  );
 
   /*
    * Transitional fallback for legacy identities.
    */
-  if (
-    roleLevels.length === 0 &&
-    user.legacyRole
-  ) {
-    roleLevels.push(
-      ROLE_TRUST_LEVEL[
-        user.legacyRole
-          .trim()
-          .toLowerCase()
-      ] ?? 0,
-    );
+  if (roleLevels.length === 0 && user.legacyRole) {
+    roleLevels.push(getRoleTrustLevel(user.legacyRole));
   }
 
-  return Math.max(
-    0,
-    ...roleLevels,
-  );
+  return Math.max(0, ...roleLevels);
 }
 
 /* ========================================================================== */
 /* PROTECTED ROLE DETECTION                                                   */
 /* ========================================================================== */
 
-export function hasProtectedAccessRole(
-  user: AccountHierarchyUser,
-) {
-  return getActiveAssignments(
-    user,
-  ).some(
-    (assignment) =>
-      assignment.role.isProtected,
+export function hasProtectedAccessRole(user: AccountHierarchyUser) {
+  return getActiveAssignments(user).some(
+    (assignment) => assignment.role.isProtected,
   );
 }
 
@@ -137,39 +125,31 @@ export function canActorManageTarget({
   target: AccountHierarchyUser;
   action: ProtectedAction;
 }) {
-  const actorTrust =
-    getAccountTrustLevel(actor);
+  const actorTrust = getAccountTrustLevel(actor);
 
-  const targetTrust =
-    getAccountTrustLevel(target);
+  const targetTrust = getAccountTrustLevel(target);
 
-  const targetProtected =
-    hasProtectedAccessRole(
-      target,
-    );
+  const targetProtected = hasProtectedAccessRole(target);
 
   /* ------------------------------------------------------------------------ */
   /* SELF MANAGEMENT                                                         */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    actor.id === target.id
-  ) {
+  if (actor.id === target.id) {
     if (
-      action ===
-        "RESET_PASSWORD" ||
-      action ===
-        "MANAGE_STATUS"
+      action === "RESET_PASSWORD" ||
+      action === "MANAGE_STATUS" ||
+      action === "MANAGE_ROLES"
     ) {
       return {
         allowed: false,
         reason:
-          action ===
-          "RESET_PASSWORD"
+          action === "RESET_PASSWORD"
             ? "Use your personal account security settings to reset your own password."
-            : "You cannot suspend, disable or otherwise change your own administrative lifecycle state.",
-        code:
-          "SELF_PROTECTED" as const,
+            : action === "MANAGE_ROLES"
+              ? "You cannot change your own administrative role assignments through this workflow."
+              : "You cannot suspend, disable or otherwise change your own administrative lifecycle state.",
+        code: "SELF_PROTECTED" as const,
         actorTrust,
         targetTrust,
         targetProtected,
@@ -186,16 +166,12 @@ export function canActorManageTarget({
   /* HIGHER PRIVILEGE TARGET                                                 */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    targetTrust >
-    actorTrust
-  ) {
+  if (targetTrust > actorTrust) {
     return {
       allowed: false,
       reason:
         "This account has a higher security authority than your current account.",
-      code:
-        "TARGET_HIGHER_PRIVILEGE" as const,
+      code: "TARGET_HIGHER_PRIVILEGE" as const,
       actorTrust,
       targetTrust,
       targetProtected,
@@ -206,19 +182,12 @@ export function canActorManageTarget({
   /* EQUAL PRIVILEGE TARGET                                                  */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    targetTrust ===
-      actorTrust &&
-    actor.id !==
-      target.id &&
-    targetTrust > 0
-  ) {
+  if (targetTrust === actorTrust && actor.id !== target.id && targetTrust > 0) {
     return {
       allowed: false,
       reason:
         "Accounts at the same security authority level cannot perform this sensitive action against each other.",
-      code:
-        "TARGET_EQUAL_PRIVILEGE" as const,
+      code: "TARGET_EQUAL_PRIVILEGE" as const,
       actorTrust,
       targetTrust,
       targetProtected,
@@ -229,17 +198,12 @@ export function canActorManageTarget({
   /* PROTECTED TARGET ROLE                                                   */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    targetProtected &&
-    actorTrust <=
-      targetTrust
-  ) {
+  if (targetProtected && actorTrust <= targetTrust) {
     return {
       allowed: false,
       reason:
         "This account contains a protected system role and cannot be managed by your current authority level.",
-      code:
-        "TARGET_PROTECTED" as const,
+      code: "TARGET_PROTECTED" as const,
       actorTrust,
       targetTrust,
       targetProtected,
@@ -249,16 +213,98 @@ export function canActorManageTarget({
   return {
     allowed: true,
     reason: null,
-    code:
-      "ALLOWED" as const,
+    code: "ALLOWED" as const,
     actorTrust,
     targetTrust,
     targetProtected,
   };
 }
 
+/* ========================================================================== */
+/* ROLE ASSIGNMENT AUTHORITY                                                  */
+/* ========================================================================== */
 
+export type ManageableRole = {
+  key: string;
+  isActive: boolean;
+  isProtected: boolean;
+};
 
+export function canActorAssignRole({
+  actor,
+  role,
+}: {
+  actor: AccountHierarchyUser;
+  role: ManageableRole;
+}) {
+  const actorTrust = getAccountTrustLevel(actor);
+
+  const roleTrust = getRoleTrustLevel(role);
+
+  if (!role.isActive) {
+    return {
+      allowed: false,
+      code: "ROLE_INACTIVE" as const,
+      reason: "Inactive roles cannot be assigned.",
+      actorTrust,
+      roleTrust,
+    };
+  }
+
+  /*
+   * An administrator may not manufacture authority
+   * equal to or greater than their own.
+   */
+  if (roleTrust >= actorTrust && roleTrust > 0) {
+    return {
+      allowed: false,
+      code: "ROLE_AUTHORITY_TOO_HIGH" as const,
+      reason:
+        "You cannot assign a role at or above your own security authority.",
+      actorTrust,
+      roleTrust,
+    };
+  }
+
+  return {
+    allowed: true,
+    code: "ALLOWED" as const,
+    reason: null,
+    actorTrust,
+    roleTrust,
+  };
+}
+
+export function canActorRemoveRole({
+  actor,
+  role,
+}: {
+  actor: AccountHierarchyUser;
+  role: ManageableRole;
+}) {
+  const actorTrust = getAccountTrustLevel(actor);
+
+  const roleTrust = getRoleTrustLevel(role);
+
+  if (roleTrust >= actorTrust && roleTrust > 0) {
+    return {
+      allowed: false,
+      code: "ROLE_AUTHORITY_TOO_HIGH" as const,
+      reason:
+        "You cannot remove a role at or above your own security authority.",
+      actorTrust,
+      roleTrust,
+    };
+  }
+
+  return {
+    allowed: true,
+    code: "ALLOWED" as const,
+    reason: null,
+    actorTrust,
+    roleTrust,
+  };
+}
 
 /* ========================================================================== */
 /* SENSITIVE ACTION REVERIFICATION                                            */
@@ -274,13 +320,8 @@ export function canActorManageTarget({
  */
 export const HIGH_TRUST_ACCOUNT_LEVEL = 800;
 
-export function isHighTrustAccount(
-  user: AccountHierarchyUser,
-) {
-  return (
-    getAccountTrustLevel(user) >=
-    HIGH_TRUST_ACCOUNT_LEVEL
-  );
+export function isHighTrustAccount(user: AccountHierarchyUser) {
+  return getAccountTrustLevel(user) >= HIGH_TRUST_ACCOUNT_LEVEL;
 }
 
 export function shouldRequireSensitiveReverification({
@@ -297,8 +338,7 @@ export function shouldRequireSensitiveReverification({
     | "EDIT_USER"
     | "PRIVILEGED_ROLE_CHANGE";
 }) {
-  const highTrust =
-    isHighTrustAccount(target);
+  const highTrust = isHighTrustAccount(target);
 
   switch (action) {
     /*

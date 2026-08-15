@@ -7,7 +7,9 @@ import prisma from "@/lib/prisma";
 export type AccessControlPermissionKey =
   | "users.update"
   | "users.manage_status"
-  | "users.reset_password";
+  | "users.reset_password"
+  | "roles.assign"
+  | "roles.remove";
 
 export async function getCurrentAccessActor() {
   const {

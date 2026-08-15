@@ -110,8 +110,14 @@ import EditUserDrawer from "@/components/access-control/EditUserDrawer";
 
 import ResetPasswordDialog from "@/components/access-control/ResetPasswordDialog";
 
+import AssignUserRoleDialog from "@/components/access-control/AssignUserRoleDialog";
+
+import RemoveUserRoleButton from "@/components/access-control/RemoveUserRoleButton";
+
 import {
+  canActorAssignRole,
   canActorManageTarget,
+  canActorRemoveRole,
   getCurrentAccessActor,
 } from "@/lib/access-control";
 
@@ -306,6 +312,42 @@ export default async function UserDetailPage({
   }
 
   const accessActor = await getCurrentAccessActor();
+
+  const availableAccessRoles = await prisma.accessRole.findMany({
+    where: {
+      isActive: true,
+    },
+
+    include: {
+      permissions: {
+        where: {
+          permission: {
+            isActive: true,
+          },
+        },
+
+        include: {
+          permission: true,
+        },
+      },
+
+      _count: {
+        select: {
+          assignments: true,
+        },
+      },
+    },
+
+    orderBy: [
+      {
+        type: "asc",
+      },
+
+      {
+        name: "asc",
+      },
+    ],
+  });
   /* -------------------------------------------------------------------------- */
   /* LINKED SCHOOL RECORDS                                                      */
   /* -------------------------------------------------------------------------- */
@@ -656,74 +698,113 @@ export default async function UserDetailPage({
       })
     : null;
 
-  
-
   const canEditUser = accessActor?.can("users.update") ?? false;
+
+  const canAssignRoles = accessActor?.can("roles.assign") ?? false;
+
+  const canRemoveRoles = accessActor?.can("roles.remove") ?? false;
+
+  const roleManagementHierarchy = accessActor
+    ? canActorManageTarget({
+        actor: accessActor.actor,
+
+        target: user,
+
+        action: "MANAGE_ROLES",
+      })
+    : null;
+
+  const canManageThisUsersRoles = Boolean(roleManagementHierarchy?.allowed);
 
   const canManageStatus = accessActor?.can("users.manage_status") ?? false;
 
   const canResetPassword = accessActor?.can("users.reset_password") ?? false;
 
-  const editHierarchy =
-  accessActor
+  const editHierarchy = accessActor
     ? canActorManageTarget({
-        actor:
-          accessActor.actor,
+        actor: accessActor.actor,
 
-        target:
-          user,
+        target: user,
 
-        action:
-          "EDIT_USER",
+        action: "EDIT_USER",
       })
     : null;
 
-const resetHierarchy =
-  accessActor
+  const resetHierarchy = accessActor
     ? canActorManageTarget({
-        actor:
-          accessActor.actor,
+        actor: accessActor.actor,
 
-        target:
-          user,
+        target: user,
 
-        action:
-          "RESET_PASSWORD",
+        action: "RESET_PASSWORD",
       })
     : null;
 
-const statusHierarchy =
-  accessActor
+  const statusHierarchy = accessActor
     ? canActorManageTarget({
-        actor:
-          accessActor.actor,
+        actor: accessActor.actor,
 
-        target:
-          user,
+        target: user,
 
-        action:
-          "MANAGE_STATUS",
+        action: "MANAGE_STATUS",
       })
     : null;
 
+  const canEditThisUser = canEditUser && Boolean(editHierarchy?.allowed);
 
-  const canEditThisUser =
-  canEditUser &&
-  Boolean(
-    editHierarchy?.allowed,
+  const canResetThisUserPassword =
+    canResetPassword && Boolean(resetHierarchy?.allowed);
+
+  const canManageThisUserStatus =
+    canManageStatus && Boolean(statusHierarchy?.allowed);
+
+  const assignedRoleIds = new Set(
+    user.roles.map((assignment) => assignment.roleId),
   );
 
-const canResetThisUserPassword =
-  canResetPassword &&
-  Boolean(
-    resetHierarchy?.allowed,
-  );
+  const roleOptions = availableAccessRoles.map((role) => {
+    const assignAuthority = accessActor
+      ? canActorAssignRole({
+          actor: accessActor.actor,
 
-const canManageThisUserStatus =
-  canManageStatus &&
-  Boolean(
-    statusHierarchy?.allowed,
-  );
+          role,
+        })
+      : null;
+
+    return {
+      id: role.id,
+
+      key: role.key,
+
+      name: role.name,
+
+      description: role.description,
+
+      type: role.type,
+
+      isProtected: role.isProtected,
+
+      permissionCount: role.permissions.length,
+
+      assignedUserCount: role._count.assignments,
+
+      alreadyAssigned: assignedRoleIds.has(role.id),
+
+      canAssign: Boolean(
+        canAssignRoles && canManageThisUsersRoles && assignAuthority?.allowed,
+      ),
+
+      restrictionReason: !canAssignRoles
+        ? "Requires roles.assign permission."
+        : !canManageThisUsersRoles
+          ? (roleManagementHierarchy?.reason ??
+            "Target account hierarchy prevents role management.")
+          : !assignAuthority?.allowed
+            ? (assignAuthority?.reason ??
+              "Your authority does not permit this role.")
+            : null,
+    };
+  });
 
   /* 
   -------------------------------------------------------------------------- */
@@ -1008,13 +1089,12 @@ const canManageThisUserStatus =
                 linkedRecordKind={linkedRecordKind}
               />
             ) : (
-               <RestrictedAction
+              <RestrictedAction
                 label="Edit User"
                 permission={
                   !canEditUser
                     ? "users.update"
-                    : editHierarchy?.reason ??
-                      "Protected account hierarchy"
+                    : (editHierarchy?.reason ?? "Protected account hierarchy")
                 }
               />
             )}
@@ -1034,13 +1114,12 @@ const canManageThisUserStatus =
                 }}
               />
             ) : (
-               <RestrictedAction
+              <RestrictedAction
                 label="Reset Password"
                 permission={
                   !canResetPassword
                     ? "users.reset_password"
-                    : resetHierarchy?.reason ??
-                      "Protected account hierarchy"
+                    : (resetHierarchy?.reason ?? "Protected account hierarchy")
                 }
               />
             )}
@@ -1061,8 +1140,7 @@ const canManageThisUserStatus =
                 permission={
                   !canManageStatus
                     ? "users.manage_status"
-                    : statusHierarchy?.reason ??
-                      "Protected account hierarchy"
+                    : (statusHierarchy?.reason ?? "Protected account hierarchy")
                 }
               />
             )}
@@ -1909,12 +1987,34 @@ const canManageThisUserStatus =
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500 shadow-sm">
                         <Layers3 className="h-3 w-3" />
                         {user.roles.length}{" "}
                         {user.roles.length === 1 ? "Assignment" : "Assignments"}
                       </span>
+
+                      <AssignUserRoleDialog
+                        user={{
+                          id: user.id,
+
+                          displayName: user.displayName,
+
+                          username: user.username,
+
+                          email: user.email,
+                        }}
+                        roles={roleOptions}
+                        allowed={canAssignRoles && canManageThisUsersRoles}
+                        restrictionReason={
+                          !canAssignRoles
+                            ? "Requires roles.assign permission."
+                            : !canManageThisUsersRoles
+                              ? (roleManagementHierarchy?.reason ??
+                                "Protected account hierarchy prevents role assignment.")
+                              : null
+                        }
+                      />
                     </div>
                   </div>
 
@@ -1927,16 +2027,47 @@ const canManageThisUserStatus =
 
                         const permissionCount = role.permissions.length;
 
-                        const requiredRoleKey =
-                          user.legacyRole === "account"
-                            ? "accountant"
-                            : user.legacyRole;
+                        const required = role.key === expectedAccessRoleKey;
 
-                        const required = role.key === requiredRoleKey;
+                        /* ---------------------------------------------------------- */
+                        /* ROLE REMOVAL AUTHORITY                                     */
+                        /* ---------------------------------------------------------- */
+
+                        const removeAuthority = accessActor
+                          ? canActorRemoveRole({
+                              actor: accessActor.actor,
+
+                              role,
+                            })
+                          : null;
+
+                        const canRemoveThisRole = Boolean(
+                          canRemoveRoles &&
+                          canManageThisUsersRoles &&
+                          !required &&
+                          removeAuthority?.allowed,
+                        );
+
+                        const removeRestrictionReason = required
+                          ? "This is the user's required primary RBAC role and cannot be removed through normal role management."
+                          : !canRemoveRoles
+                            ? "Requires roles.remove permission."
+                            : !canManageThisUsersRoles
+                              ? (roleManagementHierarchy?.reason ??
+                                "Protected account hierarchy prevents role management.")
+                              : !removeAuthority?.allowed
+                                ? (removeAuthority?.reason ??
+                                  "Your authority does not permit this role to be removed.")
+                                : null;
 
                         return (
                           <AssignedRoleCard
                             key={assignment.id}
+                            userId={user.id}
+                            userDisplayName={
+                              user.displayName ?? user.username ?? "User"
+                            }
+                            roleId={role.id}
                             roleName={role.name}
                             roleKey={role.key}
                             description={role.description}
@@ -1947,6 +2078,8 @@ const canManageThisUserStatus =
                             assignedAt={assignment.assignedAt}
                             assignedBy={assignment.assignedBy}
                             source={assignment.source}
+                            canRemove={canRemoveThisRole}
+                            removeRestrictionReason={removeRestrictionReason}
                           />
                         );
                       })
@@ -8887,6 +9020,9 @@ function AccessSummaryCard({
 }
 
 function AssignedRoleCard({
+  userId,
+  userDisplayName,
+  roleId,
   roleName,
   roleKey,
   description,
@@ -8897,8 +9033,16 @@ function AssignedRoleCard({
   assignedAt,
   assignedBy,
   source,
+  canRemove,
+  removeRestrictionReason,
 }: {
   roleName: string;
+
+  userId: string;
+
+  userDisplayName: string;
+
+  roleId: number;
 
   roleKey: string;
 
@@ -8917,6 +9061,10 @@ function AssignedRoleCard({
   assignedBy: string | null;
 
   source: string;
+
+  canRemove: boolean;
+
+  removeRestrictionReason: string | null;
 }) {
   const custom = roleType === "CUSTOM";
 
@@ -9023,6 +9171,32 @@ function AssignedRoleCard({
         />
 
         <RoleMetaItem label="Status" value="Active" positive />
+      </div>
+      {/* ROLE MANAGEMENT */}
+
+      <div className="relative mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+        <div className="min-w-0">
+          <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+            Assignment Control
+          </p>
+
+          <p className="mt-1 text-[10px] leading-4 text-slate-400">
+            {required
+              ? "Required by the user's primary application identity."
+              : "Remove this direct RBAC role from the account."}
+          </p>
+        </div>
+
+        <RemoveUserRoleButton
+          userId={userId}
+          displayName={userDisplayName}
+          roleId={roleId}
+          roleName={roleName}
+          roleKey={roleKey}
+          required={required}
+          allowed={canRemove}
+          restrictionReason={removeRestrictionReason}
+        />
       </div>
     </article>
   );
@@ -11374,8 +11548,6 @@ function FamilyRelationshipStage({
     </div>
   );
 }
-
-
 
 function RestrictedAction({
   label,
