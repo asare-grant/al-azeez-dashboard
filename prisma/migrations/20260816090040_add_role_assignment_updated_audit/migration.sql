@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AccessAuditAction" ADD VALUE 'ROLE_ASSIGNMENT_UPDATED';

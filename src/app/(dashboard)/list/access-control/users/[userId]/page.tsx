@@ -114,6 +114,8 @@ import AssignUserRoleDialog from "@/components/access-control/AssignUserRoleDial
 
 import RemoveUserRoleButton from "@/components/access-control/RemoveUserRoleButton";
 
+import ManageRoleExpiryDialog from "@/components/access-control/ManageRoleExpiryDialog";
+
 import {
   canActorAssignRole,
   canActorManageTarget,
@@ -704,6 +706,8 @@ export default async function UserDetailPage({
 
   const canRemoveRoles = accessActor?.can("roles.remove") ?? false;
 
+  const canManageRoleExpiry = accessActor?.can("roles.manage_expiry") ?? false;
+
   const roleManagementHierarchy = accessActor
     ? canActorManageTarget({
         actor: accessActor.actor,
@@ -758,8 +762,38 @@ export default async function UserDetailPage({
   const canManageThisUserStatus =
     canManageStatus && Boolean(statusHierarchy?.allowed);
 
-  const assignedRoleIds = new Set(
-    user.roles.map((assignment) => assignment.roleId),
+  /* -------------------------------------------------------------------------- */
+  /* CURRENT ROLE ASSIGNMENT STATE                                              */
+  /* -------------------------------------------------------------------------- */
+
+  const accessNow = new Date();
+
+  /*
+   * A role contributes authorization only when:
+   *
+   * 1. the role definition itself is active, and
+   * 2. the assignment has not expired.
+   */
+  const activeRoleAssignments = user.roles.filter(
+    (assignment) =>
+      assignment.role.isActive &&
+      (!assignment.expiresAt || assignment.expiresAt > accessNow),
+  );
+
+  const expiredRoleAssignments = user.roles.filter((assignment) =>
+    Boolean(assignment.expiresAt && assignment.expiresAt <= accessNow),
+  );
+
+  const inactiveRoleAssignments = user.roles.filter(
+    (assignment) => !assignment.role.isActive,
+  );
+
+  const activeAssignedRoleIds = new Set(
+    activeRoleAssignments.map((assignment) => assignment.roleId),
+  );
+
+  const expiredAssignedRoleIds = new Set(
+    expiredRoleAssignments.map((assignment) => assignment.roleId),
   );
 
   const roleOptions = availableAccessRoles.map((role) => {
@@ -788,7 +822,9 @@ export default async function UserDetailPage({
 
       assignedUserCount: role._count.assignments,
 
-      alreadyAssigned: assignedRoleIds.has(role.id),
+      alreadyAssigned: activeAssignedRoleIds.has(role.id),
+
+      previouslyExpired: expiredAssignedRoleIds.has(role.id),
 
       canAssign: Boolean(
         canAssignRoles && canManageThisUsersRoles && assignAuthority?.allowed,
@@ -958,19 +994,37 @@ export default async function UserDetailPage({
   /* RBAC ACCESS SUMMARY                                                        */
   /* -------------------------------------------------------------------------- */
 
+  /* -------------------------------------------------------------------------- */
+  /* RBAC ACCESS SUMMARY                                                        */
+  /* -------------------------------------------------------------------------- */
+
+  /*
+   * Only ACTIVE + UNEXPIRED roles contribute effective
+   * permissions.
+   *
+   * Inactive Permission records are also excluded.
+   */
   const effectivePermissionKeys = Array.from(
     new Set(
-      user.roles.flatMap((assignment) =>
-        assignment.role.permissions.map(
-          (rolePermission) => rolePermission.permission.key,
-        ),
+      activeRoleAssignments.flatMap((assignment) =>
+        assignment.role.permissions
+          .filter((rolePermission) => rolePermission.permission.isActive)
+          .map((rolePermission) => rolePermission.permission.key),
       ),
     ),
   );
 
   const groupedEffectivePermissions = groupPermissions(effectivePermissionKeys);
 
-  const assignedRoleCount = user.roles.length;
+  /*
+   * "assignedRoleCount" now means roles actively contributing
+   * to authorization.
+   */
+  const assignedRoleCount = activeRoleAssignments.length;
+
+  const recordedRoleCount = user.roles.length;
+
+  const expiredRoleCount = expiredRoleAssignments.length;
 
   const effectivePermissionCount = effectivePermissionKeys.length;
 
@@ -980,16 +1034,23 @@ export default async function UserDetailPage({
     ? formatLegacyRole(user.legacyRole)
     : "Not assigned";
 
-  const primaryRole = user.roles[0]?.role;
+  const expectedAccessRoleKey = resolveLegacyAccessRole(user.legacyRole);
+
+  const primaryRoleAssignment = expectedAccessRoleKey
+    ? (activeRoleAssignments.find(
+        (assignment) => assignment.role.key === expectedAccessRoleKey,
+      ) ?? null)
+    : null;
+
+  const primaryRole =
+    primaryRoleAssignment?.role ?? activeRoleAssignments[0]?.role;
 
   /* -------------------------------------------------------------------------- */
   /* PROVISIONING / RBAC SYNCHRONIZATION                                       */
   /* -------------------------------------------------------------------------- */
 
-  const expectedAccessRoleKey = resolveLegacyAccessRole(user.legacyRole);
-
   const expectedRoleAssignment = expectedAccessRoleKey
-    ? (user.roles.find(
+    ? (activeRoleAssignments.find(
         (assignment) => assignment.role.key === expectedAccessRoleKey,
       ) ?? null)
     : null;
@@ -1000,11 +1061,7 @@ export default async function UserDetailPage({
 
   const permissionReady = effectivePermissionCount > 0;
 
-  const activeRoleAssignments = user.roles.filter(
-    (assignment) => assignment.role.isActive,
-  );
-
-  const allAssignedRolesActive =
+  const allCurrentAssignmentsEffective =
     user.roles.length > 0 && activeRoleAssignments.length === user.roles.length;
 
   const assignmentSources = Array.from(
@@ -1037,8 +1094,10 @@ export default async function UserDetailPage({
     synchronizationIssues.push("No RBAC roles are currently assigned.");
   }
 
-  if (user.roles.length > 0 && !allAssignedRolesActive) {
-    synchronizationIssues.push("One or more assigned RBAC roles are inactive.");
+  if (user.roles.length > 0 && !allCurrentAssignmentsEffective) {
+    synchronizationIssues.push(
+      "One or more recorded RBAC assignments are inactive or expired.",
+    );
   }
 
   if (!permissionReady) {
@@ -2048,6 +2107,31 @@ export default async function UserDetailPage({
                           removeAuthority?.allowed,
                         );
 
+                        const temporary = Boolean(
+                          assignment.expiresAt &&
+                          assignment.expiresAt > accessNow,
+                        );
+
+                        const canManageThisRoleExpiry = Boolean(
+                          temporary &&
+                          canManageRoleExpiry &&
+                          canManageThisUsersRoles &&
+                          !required &&
+                          removeAuthority?.allowed,
+                        );
+
+                        const expiryRestrictionReason = required
+                          ? "The required primary role must remain permanent."
+                          : !canManageRoleExpiry
+                            ? "Requires roles.manage_expiry permission."
+                            : !canManageThisUsersRoles
+                              ? (roleManagementHierarchy?.reason ??
+                                "Protected account hierarchy prevents expiry management.")
+                              : !removeAuthority?.allowed
+                                ? (removeAuthority?.reason ??
+                                  "Your authority does not permit this role assignment to be modified.")
+                                : null;
+
                         const removeRestrictionReason = required
                           ? "This is the user's required primary RBAC role and cannot be removed through normal role management."
                           : !canRemoveRoles
@@ -2080,6 +2164,10 @@ export default async function UserDetailPage({
                             source={assignment.source}
                             canRemove={canRemoveThisRole}
                             removeRestrictionReason={removeRestrictionReason}
+                            canManageExpiry={canManageThisRoleExpiry}
+                            expiryRestrictionReason={expiryRestrictionReason}
+                            expiresAt={assignment.expiresAt}
+                            roleActive={role.isActive}
                           />
                         );
                       })
@@ -9035,6 +9123,10 @@ function AssignedRoleCard({
   source,
   canRemove,
   removeRestrictionReason,
+  canManageExpiry,
+  expiryRestrictionReason,
+  expiresAt,
+  roleActive,
 }: {
   roleName: string;
 
@@ -9065,8 +9157,32 @@ function AssignedRoleCard({
   canRemove: boolean;
 
   removeRestrictionReason: string | null;
+
+  canManageExpiry: boolean;
+
+  expiryRestrictionReason: string | null;
+
+  expiresAt: Date | null;
+
+  roleActive: boolean;
 }) {
   const custom = roleType === "CUSTOM";
+
+  const now = new Date();
+
+  const expired = Boolean(expiresAt && expiresAt <= now);
+
+  const temporary = Boolean(expiresAt && expiresAt > now);
+
+  const assignmentStatus = !roleActive
+    ? "Role Inactive"
+    : expired
+      ? "Expired"
+      : temporary
+        ? "Temporary"
+        : "Active";
+
+  const assignmentPositive = roleActive && !expired;
 
   return (
     <article className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_38px_rgba(15,23,42,0.045)] transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_22px_50px_rgba(15,23,42,0.075)] sm:p-6">
@@ -9170,7 +9286,75 @@ function AssignedRoleCard({
           value={assignedBy ? shortenIdentifier(assignedBy) : "System"}
         />
 
-        <RoleMetaItem label="Status" value="Active" positive />
+        <RoleMetaItem
+          label="Status"
+          value={assignmentStatus}
+          positive={assignmentPositive}
+        />
+      </div>
+
+      {/* ASSIGNMENT LIFETIME */}
+
+      <div
+        className={`relative mt-4 rounded-[14px] border px-3 py-3 ${
+          expired
+            ? "border-slate-200 bg-slate-50"
+            : temporary
+              ? "border-amber-100 bg-amber-50/60"
+              : "border-emerald-100 bg-emerald-50/50"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <CalendarClock
+            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
+              expired
+                ? "text-slate-400"
+                : temporary
+                  ? "text-amber-600"
+                  : "text-emerald-600"
+            }`}
+          />
+
+          <div>
+            <p
+              className={`text-[8px] font-black uppercase tracking-[0.09em] ${
+                expired
+                  ? "text-slate-500"
+                  : temporary
+                    ? "text-amber-700"
+                    : "text-emerald-700"
+              }`}
+            >
+              {expired
+                ? "Assignment Expired"
+                : temporary
+                  ? "Temporary Delegation"
+                  : "Permanent Assignment"}
+            </p>
+
+            {temporary && expiresAt ? (
+              <p className="mt-1 text-sm font-black text-amber-800">
+                {formatExpiryCountdown(expiresAt)}
+              </p>
+            ) : null}
+
+            <p
+              className={`mt-1 text-[10px] font-semibold leading-4 ${
+                expired
+                  ? "text-slate-500"
+                  : temporary
+                    ? "text-amber-700"
+                    : "text-emerald-700"
+              }`}
+            >
+              {expiresAt
+                ? expired
+                  ? `Expired ${formatDateTime(expiresAt)}. This role no longer contributes permissions.`
+                  : `Access automatically expires ${formatDateTime(expiresAt)}.`
+                : "This role remains effective until it is manually removed or the role is retired."}
+            </p>
+          </div>
+        </div>
       </div>
       {/* ROLE MANAGEMENT */}
 
@@ -9183,20 +9367,37 @@ function AssignedRoleCard({
           <p className="mt-1 text-[10px] leading-4 text-slate-400">
             {required
               ? "Required by the user's primary application identity."
-              : "Remove this direct RBAC role from the account."}
+              : temporary
+                ? "Manage this temporary delegation or revoke the role immediately."
+                : expired
+                  ? "This expired assignment is retained for history and can be removed."
+                  : "Remove this direct RBAC role from the account."}
           </p>
         </div>
 
-        <RemoveUserRoleButton
-          userId={userId}
-          displayName={userDisplayName}
-          roleId={roleId}
-          roleName={roleName}
-          roleKey={roleKey}
-          required={required}
-          allowed={canRemove}
-          restrictionReason={removeRestrictionReason}
-        />
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {temporary && expiresAt ? (
+            <ManageRoleExpiryDialog
+              userId={userId}
+              roleId={roleId}
+              roleName={roleName}
+              expiresAt={expiresAt.toISOString()}
+              allowed={canManageExpiry}
+              restrictionReason={expiryRestrictionReason}
+            />
+          ) : null}
+
+          <RemoveUserRoleButton
+            userId={userId}
+            displayName={userDisplayName}
+            roleId={roleId}
+            roleName={roleName}
+            roleKey={roleKey}
+            required={required}
+            allowed={canRemove}
+            restrictionReason={removeRestrictionReason}
+          />
+        </div>
       </div>
     </article>
   );
@@ -11584,4 +11785,73 @@ function RestrictedAction({
       </div>
     </div>
   );
+}
+
+function formatExpiryCountdown(expiresAt: Date) {
+  const milliseconds = expiresAt.getTime() - Date.now();
+
+  if (milliseconds <= 0) {
+    return "Expired";
+  }
+
+  const minutes = Math.ceil(milliseconds / 60_000);
+
+  if (minutes < 60) {
+    return `Expires in ${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  }
+
+  const hours = Math.ceil(milliseconds / 3_600_000);
+
+  if (hours < 24) {
+    return `Expires in ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  }
+
+  const days = Math.ceil(milliseconds / 86_400_000);
+
+  if (days < 31) {
+    return `Expires in ${days} ${days === 1 ? "day" : "days"}`;
+  }
+
+  const months = Math.ceil(days / 30);
+
+  return `Expires in ${months} ${months === 1 ? "month" : "months"}`;
+}
+
+function getRoleAssignmentStatus({
+  expiresAt,
+  roleActive,
+}: {
+  expiresAt: Date | null;
+
+  roleActive: boolean;
+}) {
+  if (!roleActive) {
+    return {
+      label: "Role Inactive",
+
+      tone: "slate" as const,
+    };
+  }
+
+  if (expiresAt && expiresAt <= new Date()) {
+    return {
+      label: "Expired",
+
+      tone: "slate" as const,
+    };
+  }
+
+  if (expiresAt) {
+    return {
+      label: "Temporary",
+
+      tone: "amber" as const,
+    };
+  }
+
+  return {
+    label: "Active",
+
+    tone: "emerald" as const,
+  };
 }

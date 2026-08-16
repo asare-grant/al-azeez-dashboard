@@ -5,7 +5,7 @@ import {
   Check,
   ChevronRight,
   KeyRound,
-  Layers3,
+  CalendarClock,
   Loader2,
   LockKeyhole,
   Search,
@@ -16,26 +16,15 @@ import {
   X,
 } from "lucide-react";
 
-import {
-  useReverification,
-} from "@clerk/nextjs";
+import { useReverification } from "@clerk/nextjs";
 
-import {
-  isReverificationCancelledError,
-} from "@clerk/nextjs/errors";
+import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 
-import {
-  useMemo,
-  useState,
-} from "react";
+import { useMemo, useState } from "react";
 
-import {
-  useRouter,
-} from "next/navigation";
+import { useRouter } from "next/navigation";
 
-import {
-  createPortal,
-} from "react-dom";
+import { createPortal } from "react-dom";
 
 /* ========================================================================== */
 /* TYPES                                                                      */
@@ -48,42 +37,33 @@ type RoleOption = {
 
   name: string;
 
-  description:
-    string | null;
+  description: string | null;
 
-  type:
-    "SYSTEM" | "CUSTOM";
+  type: "SYSTEM" | "CUSTOM";
 
-  isProtected:
-    boolean;
+  isProtected: boolean;
 
-  permissionCount:
-    number;
+  permissionCount: number;
 
-  assignedUserCount:
-    number;
+  assignedUserCount: number;
 
-  alreadyAssigned:
-    boolean;
+  alreadyAssigned: boolean;
 
-  canAssign:
-    boolean;
+  previouslyExpired: boolean;
 
-  restrictionReason:
-    string | null;
+  canAssign: boolean;
+
+  restrictionReason: string | null;
 };
 
 type TargetUser = {
   id: string;
 
-  displayName:
-    string | null;
+  displayName: string | null;
 
-  username:
-    string | null;
+  username: string | null;
 
-  email:
-    string | null;
+  email: string | null;
 };
 
 type RoleMutationResponse = {
@@ -104,6 +84,14 @@ type RoleMutationResponse = {
   };
 };
 
+type ExpiryPreset =
+  | "PERMANENT"
+  | "1_DAY"
+  | "7_DAYS"
+  | "14_DAYS"
+  | "30_DAYS"
+  | "CUSTOM";
+
 /* ========================================================================== */
 /* COMPONENT                                                                  */
 /* ========================================================================== */
@@ -114,267 +102,180 @@ export default function AssignUserRoleDialog({
   allowed,
   restrictionReason,
 }: {
-  user:
-    TargetUser;
+  user: TargetUser;
 
-  roles:
-    RoleOption[];
+  roles: RoleOption[];
 
-  allowed:
-    boolean;
+  allowed: boolean;
 
-  restrictionReason?:
-    string | null;
+  restrictionReason?: string | null;
 }) {
-  const router =
-    useRouter();
+  const router = useRouter();
 
-  const [
-    open,
-    setOpen,
-  ] =
-    useState(
-      false,
-    );
+  const [open, setOpen] = useState(false);
 
-  const [
-    search,
-    setSearch,
-  ] =
-    useState(
-      "",
-    );
+  const [search, setSearch] = useState("");
 
-  const [
-    selectedRoleId,
-    setSelectedRoleId,
-  ] =
-    useState<
-      number | null
-    >(
-      null,
-    );
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
 
-  const [
-    reason,
-    setReason,
-  ] =
-    useState(
-      "",
-    );
+  const [reason, setReason] = useState("");
 
-  const [
-    submitting,
-    setSubmitting,
-  ] =
-    useState(
-      false,
-    );
+  const [submitting, setSubmitting] = useState(false);
 
-  const [
-    error,
-    setError,
-  ] =
-    useState<
-      string | null
-    >(
-      null,
-    );
+  const [error, setError] = useState<string | null>(null);
 
-  const [
-    success,
-    setSuccess,
-  ] =
-    useState<
-      string | null
-    >(
-      null,
-    );
+  const [success, setSuccess] = useState<string | null>(null);
 
+  const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("PERMANENT");
+
+  const [customExpiry, setCustomExpiry] = useState("");
+
+  function resolveExpiryIso() {
+    const now = new Date();
+
+    switch (expiryPreset) {
+      case "PERMANENT":
+        return null;
+
+      case "1_DAY":
+        return new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString();
+
+      case "7_DAYS":
+        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      case "14_DAYS":
+        return new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+      case "30_DAYS":
+        return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      case "CUSTOM": {
+        if (!customExpiry) {
+          return null;
+        }
+
+        const parsed = new Date(customExpiry);
+
+        if (Number.isNaN(parsed.getTime())) {
+          return null;
+        }
+
+        return parsed.toISOString();
+      }
+    }
+  }
   /* ======================================================================== */
   /* DERIVED DATA                                                             */
   /* ======================================================================== */
 
-  const selectedRole =
-    roles.find(
-      (
-        role,
-      ) =>
-        role.id ===
-        selectedRoleId,
-    ) ??
-    null;
+  const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null;
 
-  const filteredRoles =
-    useMemo(
-      () => {
-        const query =
-          search
-            .trim()
-            .toLowerCase();
+  const filteredRoles = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-        if (
-          !query
-        ) {
-          return roles;
-        }
+    if (!query) {
+      return roles;
+    }
 
-        return roles.filter(
-          (
-            role,
-          ) =>
-            role.name
-              .toLowerCase()
-              .includes(
-                query,
-              ) ||
-            role.key
-              .toLowerCase()
-              .includes(
-                query,
-              ) ||
-            role.description
-              ?.toLowerCase()
-              .includes(
-                query,
-              ),
-        );
-      },
-      [
-        roles,
-        search,
-      ],
+    return roles.filter(
+      (role) =>
+        role.name.toLowerCase().includes(query) ||
+        role.key.toLowerCase().includes(query) ||
+        role.description?.toLowerCase().includes(query),
     );
+  }, [roles, search]);
 
   /* ======================================================================== */
   /* REVERIFICATION-AWARE REQUEST                                             */
   /* ======================================================================== */
 
-  const performAssignment =
-    useReverification(
-      async ({
-        roleId,
-        reason,
-      }: {
-        roleId:
-          number;
+  const performAssignment = useReverification(
+    async ({
+      roleId,
+      reason,
+      expiresAt,
+    }: {
+      roleId: number;
+      reason: string | null;
+      expiresAt: string | null;
+    }) => {
+      const response = await fetch(
+        `/api/access-control/users/${user.id}/roles`,
+        {
+          method: "POST",
 
-        reason:
-          string | null;
-      }) => {
-        const response =
-          await fetch(
-            `/api/access-control/users/${user.id}/roles`,
-            {
-              method:
-                "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+          body: JSON.stringify({
+            roleId,
+            reason,
+            expiresAt,
+          }),
+        },
+      );
 
-              body:
-                JSON.stringify({
-                  roleId,
-                  reason,
-                }),
-            },
-          );
+      const payload = (await response.json()) as RoleMutationResponse;
 
-        const payload =
-          (await response.json()) as RoleMutationResponse;
+      if (!response.ok) {
+        throw new Error(
+          payload.error ??
+            payload.message ??
+            "The access role could not be assigned.",
+        );
+      }
 
-        if (
-          !response.ok
-        ) {
-          throw new Error(
-            payload.error ??
-              payload.message ??
-              "The access role could not be assigned.",
-          );
-        }
-
-        return payload;
-      },
-    );
+      return payload;
+    },
+  );
 
   /* ======================================================================== */
   /* HELPERS                                                                  */
   /* ======================================================================== */
 
   function closeDialog() {
-    if (
-      submitting
-    ) {
+    if (submitting) {
       return;
     }
 
-    setOpen(
-      false,
-    );
+    setOpen(false);
 
-    window.setTimeout(
-      () => {
-        setSearch(
-          "",
-        );
+    window.setTimeout(() => {
+      setSearch("");
 
-        setSelectedRoleId(
-          null,
-        );
+      setSelectedRoleId(null);
 
-        setReason(
-          "",
-        );
+      setReason("");
 
-        setError(
-          null,
-        );
+      setError(null);
 
-        setSuccess(
-          null,
-        );
-      },
-      150,
-    );
+      setSuccess(null);
+
+      setExpiryPreset("PERMANENT");
+
+      setCustomExpiry("");
+    }, 150);
   }
 
-  function selectRole(
-    role:
-      RoleOption,
-  ) {
-    if (
-      role.alreadyAssigned ||
-      !role.canAssign ||
-      submitting
-    ) {
+  function selectRole(role: RoleOption) {
+    if (role.alreadyAssigned || !role.canAssign || submitting) {
       return;
     }
 
-    setSelectedRoleId(
-      role.id,
-    );
+    setSelectedRoleId(role.id);
 
-    setError(
-      null,
-    );
+    setError(null);
   }
 
   async function submitAssignment() {
-    if (
-      !selectedRole
-    ) {
-      setError(
-        "Select an access role before continuing.",
-      );
+    if (!selectedRole) {
+      setError("Select an access role before continuing.");
 
       return;
     }
 
-    if (
-      !selectedRole.canAssign
-    ) {
+    if (!selectedRole.canAssign) {
       setError(
         selectedRole.restrictionReason ??
           "Your current authority does not allow this role to be assigned.",
@@ -383,73 +284,58 @@ export default function AssignUserRoleDialog({
       return;
     }
 
-    setSubmitting(
-      true,
-    );
+    if (expiryPreset === "CUSTOM" && !customExpiry) {
+      setError("Choose a custom expiry date and time.");
 
-    setError(
-      null,
-    );
+      return;
+    }
 
-    setSuccess(
-      null,
-    );
+    const expiresAt = resolveExpiryIso();
+
+    if (expiryPreset === "CUSTOM" && !expiresAt) {
+      setError("The selected expiry date is invalid.");
+
+      return;
+    }
+
+    setSubmitting(true);
+
+    setError(null);
+
+    setSuccess(null);
 
     try {
-      const payload =
-        await performAssignment({
-          roleId:
-            selectedRole.id,
+      const payload = await performAssignment({
+        roleId: selectedRole.id,
 
-          reason:
-            reason
-              .trim()
-              .slice(
-                0,
-                500,
-              ) ||
-            null,
-        });
+        reason: reason.trim().slice(0, 500) || null,
+
+        expiresAt,
+      });
 
       setSuccess(
-        payload.message ??
-          `${selectedRole.name} was assigned successfully.`,
+        payload.message ?? `${selectedRole.name} was assigned successfully.`,
       );
 
-      window.setTimeout(
-        () => {
-          setOpen(
-            false,
-          );
+      window.setTimeout(() => {
+        setOpen(false);
 
-          setSelectedRoleId(
-            null,
-          );
+        setSelectedRoleId(null);
 
-          setReason(
-            "",
-          );
+        setReason("");
 
-          setSearch(
-            "",
-          );
+        setSearch("");
 
-          setSuccess(
-            null,
-          );
+        setSuccess(null);
 
-          router.refresh();
-        },
-        850,
-      );
-    } catch (
-      caughtError
-    ) {
-      if (
-        isReverificationCancelledError(
-          caughtError,
-        )
-      ) {
+        setExpiryPreset("PERMANENT");
+
+        setCustomExpiry("");
+
+        router.refresh();
+      }, 850);
+    } catch (caughtError) {
+      if (isReverificationCancelledError(caughtError)) {
         return;
       }
 
@@ -459,9 +345,7 @@ export default function AssignUserRoleDialog({
           : "Something went wrong while assigning the role.",
       );
     } finally {
-      setSubmitting(
-        false,
-      );
+      setSubmitting(false);
     }
   }
 
@@ -474,34 +358,25 @@ export default function AssignUserRoleDialog({
       {allowed ? (
         <button
           type="button"
-          onClick={() =>
-            setOpen(
-              true,
-            )
-          }
+          onClick={() => setOpen(true)}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-blue-600 px-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-blue-700"
         >
           <ShieldPlus className="h-4 w-4" />
-
           Assign Role
         </button>
       ) : (
         <div
           title={
-            restrictionReason ??
-            "You do not have permission to assign roles."
+            restrictionReason ?? "You do not have permission to assign roles."
           }
           className="inline-flex h-11 cursor-not-allowed items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-300"
         >
           <LockKeyhole className="h-4 w-4" />
-
           Assign Role
         </div>
       )}
 
-      {open &&
-      typeof document !==
-        "undefined"
+      {open && typeof document !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[3px] sm:p-5">
               <div className="flex max-h-[92vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_40px_140px_rgba(15,23,42,0.38)]">
@@ -528,20 +403,16 @@ export default function AssignUserRoleDialog({
                         </h2>
 
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Extend this account&apos;s effective permissions through
-                          an existing RBAC role.
+                          Extend this account&apos;s effective permissions
+                          through an existing RBAC role.
                         </p>
                       </div>
                     </div>
 
                     <button
                       type="button"
-                      disabled={
-                        submitting
-                      }
-                      onClick={
-                        closeDialog
-                      }
+                      disabled={submitting}
+                      onClick={closeDialog}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <X className="h-4 w-4" />
@@ -568,16 +439,13 @@ export default function AssignUserRoleDialog({
                         </p>
 
                         <p className="mt-1 truncate text-sm font-black text-slate-900">
-                          {user.displayName ??
-                            user.username ??
-                            "User"}
+                          {user.displayName ?? user.username ?? "User"}
                         </p>
 
                         <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400">
                           {user.username
                             ? `@${user.username}`
-                            : user.email ??
-                              user.id}
+                            : (user.email ?? user.id)}
                         </p>
                       </div>
                     </div>
@@ -608,173 +476,136 @@ export default function AssignUserRoleDialog({
 
                       <input
                         type="search"
-                        value={
-                          search
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setSearch(
-                            event.target
-                              .value,
-                          )
-                        }
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
                         placeholder="Search role name, key or description..."
                         className="h-11 w-full rounded-[14px] border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
                       />
                     </div>
 
                     <div className="mt-3 space-y-2">
-                      {filteredRoles.length >
-                      0 ? (
-                        filteredRoles.map(
-                          (
-                            role,
-                          ) => {
-                            const selected =
-                              selectedRoleId ===
-                              role.id;
+                      {filteredRoles.length > 0 ? (
+                        filteredRoles.map((role) => {
+                          const selected = selectedRoleId === role.id;
 
-                            const blocked =
-                              role.alreadyAssigned ||
-                              !role.canAssign;
+                          const blocked =
+                            role.alreadyAssigned || !role.canAssign;
 
-                            return (
-                              <button
-                                key={
-                                  role.id
-                                }
-                                type="button"
-                                disabled={
-                                  blocked ||
-                                  submitting
-                                }
-                                onClick={() =>
-                                  selectRole(
-                                    role,
-                                  )
-                                }
-                                className={`group w-full rounded-[18px] border p-4 text-left transition ${
-                                  selected
-                                    ? "border-blue-300 bg-blue-50/70 ring-4 ring-blue-50"
-                                    : blocked
-                                      ? "cursor-not-allowed border-slate-200 bg-slate-50/70 opacity-70"
-                                      : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/30"
-                                }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div
-                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] ${
-                                      selected
-                                        ? "bg-blue-600 text-white"
-                                        : role.type ===
-                                            "CUSTOM"
-                                          ? "bg-violet-50 text-violet-600"
-                                          : "bg-blue-50 text-blue-600"
-                                    }`}
-                                  >
-                                    {blocked ? (
-                                      <LockKeyhole className="h-4 w-4" />
-                                    ) : selected ? (
-                                      <Check className="h-4 w-4" />
-                                    ) : (
-                                      <ShieldCheck className="h-4 w-4" />
-                                    )}
-                                  </div>
+                          return (
+                            <button
+                              key={role.id}
+                              type="button"
+                              disabled={blocked || submitting}
+                              onClick={() => selectRole(role)}
+                              className={`group w-full rounded-[18px] border p-4 text-left transition ${
+                                selected
+                                  ? "border-blue-300 bg-blue-50/70 ring-4 ring-blue-50"
+                                  : blocked
+                                    ? "cursor-not-allowed border-slate-200 bg-slate-50/70 opacity-70"
+                                    : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/30"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] ${
+                                    selected
+                                      ? "bg-blue-600 text-white"
+                                      : role.type === "CUSTOM"
+                                        ? "bg-violet-50 text-violet-600"
+                                        : "bg-blue-50 text-blue-600"
+                                  }`}
+                                >
+                                  {blocked ? (
+                                    <LockKeyhole className="h-4 w-4" />
+                                  ) : selected ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    <ShieldCheck className="h-4 w-4" />
+                                  )}
+                                </div>
 
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <p className="text-sm font-black text-slate-900">
-                                        {
-                                          role.name
-                                        }
-                                      </p>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-black text-slate-900">
+                                      {role.name}
+                                    </p>
 
-                                      <span
-                                        className={`rounded-md px-2 py-1 text-[7px] font-black uppercase tracking-wider ${
-                                          role.type ===
-                                          "CUSTOM"
-                                            ? "bg-violet-50 text-violet-700"
-                                            : "bg-blue-50 text-blue-700"
-                                        }`}
-                                      >
-                                        {
-                                          role.type
-                                        }
-                                      </span>
-
-                                      {role.isProtected ? (
-                                        <span className="rounded-md bg-amber-50 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-amber-700">
-                                          Protected
-                                        </span>
-                                      ) : null}
-
-                                      {role.alreadyAssigned ? (
-                                        <span className="rounded-md bg-emerald-50 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-emerald-700">
-                                          Already Assigned
-                                        </span>
-                                      ) : null}
-                                    </div>
-
-                                    <code className="mt-1.5 block text-[9px] font-bold text-slate-400">
-                                      {
-                                        role.key
-                                      }
-                                    </code>
-
-                                    {role.description ? (
-                                      <p className="mt-2 text-[10px] leading-5 text-slate-500">
-                                        {
-                                          role.description
-                                        }
-                                      </p>
-                                    ) : null}
-
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      <span className="rounded-lg bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-500">
-                                        {
-                                          role.permissionCount
-                                        }{" "}
-                                        permissions
-                                      </span>
-
-                                      <span className="rounded-lg bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-500">
-                                        {
-                                          role.assignedUserCount
-                                        }{" "}
-                                        users
-                                      </span>
-                                    </div>
-
-                                    {blocked &&
-                                    !role.alreadyAssigned &&
-                                    role.restrictionReason ? (
-                                      <div className="mt-3 flex items-start gap-2 rounded-[12px] border border-amber-100 bg-amber-50 px-3 py-2">
-                                        <LockKeyhole className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
-
-                                        <p className="text-[9px] font-semibold leading-4 text-amber-700">
-                                          {
-                                            role.restrictionReason
-                                          }
-                                        </p>
-                                      </div>
-                                    ) : null}
-                                  </div>
-
-                                  {!blocked ? (
-                                    <ChevronRight
-                                      className={`mt-3 h-4 w-4 shrink-0 transition ${
-                                        selected
-                                          ? "text-blue-600"
-                                          : "text-slate-300 group-hover:text-blue-500"
+                                    <span
+                                      className={`rounded-md px-2 py-1 text-[7px] font-black uppercase tracking-wider ${
+                                        role.type === "CUSTOM"
+                                          ? "bg-violet-50 text-violet-700"
+                                          : "bg-blue-50 text-blue-700"
                                       }`}
-                                    />
+                                    >
+                                      {role.type}
+                                    </span>
+
+                                    {role.isProtected ? (
+                                      <span className="rounded-md bg-amber-50 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-amber-700">
+                                        Protected
+                                      </span>
+                                    ) : null}
+
+                                    {role.alreadyAssigned ? (
+                                      <span className="rounded-md bg-emerald-50 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-emerald-700">
+                                        Already Assigned
+                                      </span>
+                                    ) : null}
+
+                                    {role.previouslyExpired &&
+                                    !role.alreadyAssigned ? (
+                                      <span className="rounded-md bg-amber-50 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-amber-700">
+                                        Expired · Can Renew
+                                      </span>
+                                    ) : null}
+                                  </div>
+
+                                  <code className="mt-1.5 block text-[9px] font-bold text-slate-400">
+                                    {role.key}
+                                  </code>
+
+                                  {role.description ? (
+                                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                                      {role.description}
+                                    </p>
+                                  ) : null}
+
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <span className="rounded-lg bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-500">
+                                      {role.permissionCount} permissions
+                                    </span>
+
+                                    <span className="rounded-lg bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-500">
+                                      {role.assignedUserCount} users
+                                    </span>
+                                  </div>
+
+                                  {blocked &&
+                                  !role.alreadyAssigned &&
+                                  role.restrictionReason ? (
+                                    <div className="mt-3 flex items-start gap-2 rounded-[12px] border border-amber-100 bg-amber-50 px-3 py-2">
+                                      <LockKeyhole className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+
+                                      <p className="text-[9px] font-semibold leading-4 text-amber-700">
+                                        {role.restrictionReason}
+                                      </p>
+                                    </div>
                                   ) : null}
                                 </div>
-                              </button>
-                            );
-                          },
-                        )
+
+                                {!blocked ? (
+                                  <ChevronRight
+                                    className={`mt-3 h-4 w-4 shrink-0 transition ${
+                                      selected
+                                        ? "text-blue-600"
+                                        : "text-slate-300 group-hover:text-blue-500"
+                                    }`}
+                                  />
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })
                       ) : (
                         <div className="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
                           <KeyRound className="mx-auto h-5 w-5 text-slate-300" />
@@ -800,54 +631,152 @@ export default function AssignUserRoleDialog({
                           </p>
 
                           <p className="mt-1 text-sm font-black text-blue-950">
-                            {
-                              selectedRole.name
-                            }
+                            {selectedRole.name}
                           </p>
 
                           <p className="mt-1 text-[10px] leading-5 text-blue-700">
                             This assignment will add{" "}
                             <span className="font-black">
-                              {
-                                selectedRole.permissionCount
-                              }
+                              {selectedRole.permissionCount}
                             </span>{" "}
                             role permissions to the user&apos;s RBAC sources.
-                            Effective permissions are automatically deduplicated.
+                            Effective permissions are automatically
+                            deduplicated.
                           </p>
                         </div>
                       </div>
                     </div>
                   ) : null}
 
+                  {/* ================================================================ */}
+                  {/* ASSIGNMENT DURATION                                               */}
+                  {/* ================================================================ */}
+
+                  <div className="mt-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-violet-50 text-violet-600">
+                        <CalendarClock className="h-4 w-4" />
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-black text-slate-700">
+                          Assignment duration
+                        </p>
+
+                        <p className="mt-1 text-[10px] leading-4 text-slate-400">
+                          Choose permanent access or automatically expire this
+                          delegated role.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {[
+                        {
+                          key: "PERMANENT",
+                          label: "Permanent",
+                        },
+                        {
+                          key: "1_DAY",
+                          label: "24 Hours",
+                        },
+                        {
+                          key: "7_DAYS",
+                          label: "7 Days",
+                        },
+                        {
+                          key: "14_DAYS",
+                          label: "14 Days",
+                        },
+                        {
+                          key: "30_DAYS",
+                          label: "30 Days",
+                        },
+                        {
+                          key: "CUSTOM",
+                          label: "Custom",
+                        },
+                      ].map((option) => {
+                        const selected = expiryPreset === option.key;
+
+                        return (
+                          <button
+                            key={option.key}
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => {
+                              setExpiryPreset(option.key as ExpiryPreset);
+
+                              setError(null);
+                            }}
+                            className={`rounded-[14px] border px-3 py-3 text-[10px] font-black transition ${
+                              selected
+                                ? "border-violet-300 bg-violet-50 text-violet-700 ring-4 ring-violet-50"
+                                : "border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:bg-violet-50/30"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {expiryPreset === "CUSTOM" ? (
+                      <div className="mt-3 rounded-[16px] border border-violet-100 bg-violet-50/40 p-4">
+                        <label className="text-[9px] font-black uppercase tracking-[0.1em] text-violet-700">
+                          Access expires
+                        </label>
+
+                        <input
+                          type="datetime-local"
+                          value={customExpiry}
+                          onChange={(event) =>
+                            setCustomExpiry(event.target.value)
+                          }
+                          className="mt-2 h-11 w-full rounded-[13px] border border-violet-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                        />
+
+                        <p className="mt-2 text-[9px] leading-4 text-violet-600">
+                          The selected local time will be converted to an exact
+                          UTC expiry timestamp before being stored.
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div
+                      className={`mt-3 rounded-[14px] border p-3 ${
+                        expiryPreset === "PERMANENT"
+                          ? "border-slate-200 bg-slate-50"
+                          : "border-amber-100 bg-amber-50/70"
+                      }`}
+                    >
+                      <p
+                        className={`text-[9px] font-semibold leading-4 ${
+                          expiryPreset === "PERMANENT"
+                            ? "text-slate-500"
+                            : "text-amber-700"
+                        }`}
+                      >
+                        {expiryPreset === "PERMANENT"
+                          ? "This role remains active until an authorized administrator removes it."
+                          : "This is temporary delegated access. Once the expiry time passes, the role remains in history but stops contributing permissions automatically."}
+                      </p>
+                    </div>
+                  </div>
+
                   {/* REASON */}
 
                   <div className="mt-5">
                     <label className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
                       Administrative Reason{" "}
-                      <span className="text-slate-300">
-                        (optional)
-                      </span>
+                      <span className="text-slate-300">(optional)</span>
                     </label>
 
                     <textarea
-                      rows={
-                        4
-                      }
-                      maxLength={
-                        500
-                      }
-                      value={
-                        reason
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setReason(
-                          event.target
-                            .value,
-                        )
-                      }
+                      rows={4}
+                      maxLength={500}
+                      value={reason}
+                      onChange={(event) => setReason(event.target.value)}
                       placeholder="Example: Additional role required for delegated academic administration."
                       className="mt-2 w-full resize-none rounded-[16px] border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700 outline-none transition placeholder:text-slate-300 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
                     />
@@ -858,9 +787,7 @@ export default function AssignUserRoleDialog({
                       </p>
 
                       <p className="text-[9px] font-black text-slate-300">
-                        {
-                          reason.length
-                        }
+                        {reason.length}
                         /500
                       </p>
                     </div>
@@ -885,9 +812,7 @@ export default function AssignUserRoleDialog({
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
 
                       <p className="text-[10px] font-semibold leading-5 text-rose-700">
-                        {
-                          error
-                        }
+                        {error}
                       </p>
                     </div>
                   ) : null}
@@ -897,9 +822,7 @@ export default function AssignUserRoleDialog({
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
 
                       <p className="text-[10px] font-semibold leading-5 text-emerald-700">
-                        {
-                          success
-                        }
+                        {success}
                       </p>
                     </div>
                   ) : null}
@@ -913,12 +836,8 @@ export default function AssignUserRoleDialog({
                   <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <button
                       type="button"
-                      disabled={
-                        submitting
-                      }
-                      onClick={
-                        closeDialog
-                      }
+                      disabled={submitting}
+                      onClick={closeDialog}
                       className="h-11 rounded-[14px] border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Cancel
@@ -926,13 +845,8 @@ export default function AssignUserRoleDialog({
 
                     <button
                       type="button"
-                      disabled={
-                        submitting ||
-                        !selectedRole
-                      }
-                      onClick={
-                        submitAssignment
-                      }
+                      disabled={submitting || !selectedRole}
+                      onClick={submitAssignment}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-blue-600 px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                     >
                       {submitting ? (
@@ -941,9 +855,7 @@ export default function AssignUserRoleDialog({
                         <ShieldPlus className="h-4 w-4" />
                       )}
 
-                      {submitting
-                        ? "Assigning..."
-                        : "Assign Role"}
+                      {submitting ? "Assigning..." : "Assign Role"}
                     </button>
                   </div>
                 </div>

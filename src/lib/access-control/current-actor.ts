@@ -9,7 +9,8 @@ export type AccessControlPermissionKey =
   | "users.manage_status"
   | "users.reset_password"
   | "roles.assign"
-  | "roles.remove";
+  | "roles.remove"
+  | "roles.manage_expiry";
 
 export async function getCurrentAccessActor() {
   const {
