@@ -44,3 +44,11 @@ export * from "./current-actor";
 export * from "./account-hierarchy";
 
 export * from "./reverification";
+
+export * from "./delegated-access";
+
+export * from "./access-review-campaigns";
+
+export * from "./access-review-analytics";
+
+export * from "./access-review-compliance-report";

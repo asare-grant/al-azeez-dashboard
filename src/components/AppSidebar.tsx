@@ -1,23 +1,41 @@
 // // src/components/AppSidebar.tsx
-// import { currentUser } from "@clerk/nextjs/server";
 // import AppSidebarClient from "./AppSidebarClient";
 
+// import {
+//   getCurrentSchoolProfile,
+// } from "@/lib/users/current-school-profile";
+
 // export default async function AppSidebar() {
-//   const user = await currentUser();
+//   const profile =
+//     await getCurrentSchoolProfile();
 
-//   const role = (user?.publicMetadata.role as string) || "guest";
-//   const name = user?.firstName
-//     ? `${user.firstName} ${user.lastName || ""}`.trim()
-//     : user?.username || "Unknown User";
-//   const imageUrl = user?.imageUrl || "/noAvatar.png"; // fallback avatar
+//   if (!profile) {
+//     return null;
+//   }
 
-//   // return <AppSidebarClient role={role} name={name} />;
-//   return <AppSidebarClient role={role} name={name} imageUrl={imageUrl} />;
+//   return (
+//     <AppSidebarClient
+//       role={
+//         profile.role
+//       }
+//       name={
+//         profile.name
+//       }
+//       username={
+//         profile.username
+//       }
+//       imageUrl={
+//         profile.imageUrl
+//       }
+//     />
+//   );
 // }
 
 
 
 
+
+// src/components/AppSidebar.tsx
 
 import AppSidebarClient from "./AppSidebarClient";
 
@@ -25,9 +43,19 @@ import {
   getCurrentSchoolProfile,
 } from "@/lib/users/current-school-profile";
 
+import {
+  getCurrentAccessContext,
+} from "@/lib/access-control";
+
 export default async function AppSidebar() {
-  const profile =
-    await getCurrentSchoolProfile();
+  const [
+    profile,
+    accessContext,
+  ] =
+    await Promise.all([
+      getCurrentSchoolProfile(),
+      getCurrentAccessContext(),
+    ]);
 
   if (!profile) {
     return null;
@@ -38,6 +66,9 @@ export default async function AppSidebar() {
       role={
         profile.role
       }
+      roleKey={
+        profile.roleKey
+      }
       name={
         profile.name
       }
@@ -46,6 +77,11 @@ export default async function AppSidebar() {
       }
       imageUrl={
         profile.imageUrl
+      }
+      permissions={
+        Array.from(
+          accessContext.permissions,
+        )
       }
     />
   );

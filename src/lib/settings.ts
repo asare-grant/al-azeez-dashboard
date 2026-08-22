@@ -1,70 +1,191 @@
-export const ITEM_PER_PAGE = 10
+// src/lib/settings.ts
+
+export const ITEM_PER_PAGE =
+  10;
+
+/* ========================================================================== */
+/* LEGACY / DOMAIN PERSONAS                                                   */
+/* ========================================================================== */
+
+/*
+ * IMPORTANT:
+ *
+ * These are not the full RBAC roles.
+ *
+ * They represent the broad application personas that
+ * still exist while the application is transitioning
+ * from route-role authorization to permission-based RBAC.
+ */
+
+export const ADMIN_PERSONAS = [
+  "admin",
+  "super_admin",
+] as const;
+
+export const STAFF_PERSONAS = [
+  "admin",
+  "super_admin",
+  "teacher",
+  "account",
+] as const;
+
+export const SCHOOL_PERSONAS = [
+  "admin",
+  "super_admin",
+  "teacher",
+  "student",
+  "parent",
+  "account",
+] as const;
+
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
 
 type RouteAccessMap = {
-  [key: string]: string[];
+  [key:
+    string]:
+    readonly string[];
 };
+
+/* ========================================================================== */
+/* LEGACY ROUTE ACCESS                                                        */
+/* ========================================================================== */
+
+/*
+ * This remains only as a transitional coarse route map.
+ *
+ * Sensitive authorization must continue to be enforced
+ * by the RBAC checks inside pages, services and APIs.
+ */
 
 export const routeAccessMap: RouteAccessMap = {
-  "/admin(.*)": ["admin"],
-  "/student(.*)": ["student"],
-  "/teacher(.*)": ["teacher"],
-  "/parent(.*)": ["parent"],
-  "/list/teachers": ["admin", "teacher", "account"],
-  "/list/students": ["admin", "teacher", "account"],
-  "/list/parents": ["admin", "teacher"],
-  "/list/subjects": ["admin"],
-  "/list/classes": ["admin", "teacher", "account"],
-  "/list/exams": ["admin", "teacher", "student", "parent"],
-  "/list/assignments": ["admin", "teacher", "student", "parent"],
-  "/list/results": ["admin", "teacher", "student", "parent"],
-  "/list/attendance": ["admin", "teacher", "account"],
-  "/list/events": ["admin", "teacher", "student", "parent", "account"],
-  "/list/announcements": ["admin", "teacher", "student", "parent", "account"],
-  "/list/fee": ["admin"],
-  "/list/fee-category": ["admin"],
-  "/list/fee-master": ["admin"],
-  "/list/fee-report": ["admin"],
-  "/list/fee-structure": ["admin"],
-  "/list/fee-type": ["admin"],
-  "/list/feeding-fees": ["admin", "account"],
-  "/list/bus-fees": ["admin", "account"],
-  "/list/FinanceDashboardPage": ["admin"],
+  /* ------------------------------------------------------------------------ */
+  /* DASHBOARDS                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  "/admin(.*)":
+    ADMIN_PERSONAS,
+
+  "/student(.*)": [
+    "student",
+  ],
+
+  "/teacher(.*)": [
+    "teacher",
+  ],
+
+  "/parent(.*)": [
+    "parent",
+  ],
+
+  "/account(.*)": [
+    "account",
+  ],
+
+  /* ------------------------------------------------------------------------ */
+  /* PEOPLE                                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  "/list/teachers": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "account",
+  ],
+
+  "/list/students": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "account",
+  ],
+
+  "/list/parents": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+  ],
+
+  /* ------------------------------------------------------------------------ */
+  /* ACADEMICS                                                                */
+  /* ------------------------------------------------------------------------ */
+
+  "/list/subjects":
+    ADMIN_PERSONAS,
+
+  "/list/classes": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "account",
+  ],
+
+  "/list/exams": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "student",
+    "parent",
+  ],
+
+  "/list/assignments": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "student",
+    "parent",
+  ],
+
+  "/list/results": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "student",
+    "parent",
+  ],
+
+  "/list/attendance": [
+    ...ADMIN_PERSONAS,
+    "teacher",
+    "account",
+  ],
+
+  /* ------------------------------------------------------------------------ */
+  /* COMMUNICATIONS                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  "/list/events":
+    SCHOOL_PERSONAS,
+
+  "/list/announcements":
+    SCHOOL_PERSONAS,
+
+  /* ------------------------------------------------------------------------ */
+  /* FINANCE                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  "/list/fee":
+    ADMIN_PERSONAS,
+
+  "/list/fee-category":
+    ADMIN_PERSONAS,
+
+  "/list/fee-master":
+    ADMIN_PERSONAS,
+
+  "/list/fee-report":
+    ADMIN_PERSONAS,
+
+  "/list/fee-structure":
+    ADMIN_PERSONAS,
+
+  "/list/fee-type":
+    ADMIN_PERSONAS,
+
+  "/list/feeding-fees": [
+    ...ADMIN_PERSONAS,
+    "account",
+  ],
+
+  "/list/bus-fees": [
+    ...ADMIN_PERSONAS,
+    "account",
+  ],
+
+  "/list/FinanceDashboardPage":
+    ADMIN_PERSONAS,
 };
-
-
-
-
-
-// export const routeAccessMap: RouteAccessMap = {
-//   // Admin pages
-//   "/admin(.*)": ["admin"],
-
-//   // Teacher pages
-//   "/teacher(.*)": ["teacher"],
-
-//   // Student pages
-//   "/student(.*)": ["student"],
-
-//   // Parent pages
-//   "/parent(.*)": ["parent"],
-
-//   // Lists
-//   "/list/teachers": ["admin", "teacher"],         // Admin & Teachers
-//   "/list/teachers/.*": ["admin", "teacher"],      // Single teacher pages
-
-//   "/list/students": ["admin", "teacher", "parent", "student"], // All roles can view list (but backend filters)
-//   "/list/students/.*": ["admin", "teacher", "parent", "student"], // Single student pages
-
-//   "/list/parents": ["admin", "teacher"],
-
-//   "/list/subjects": ["admin"],
-
-//   "/list/classes": ["admin", "teacher"],
-
-//   "/list/exams": ["admin", "teacher", "student", "parent"],
-//   "/list/assignments": ["admin", "teacher", "student", "parent"],
-//   "/list/results": ["admin", "teacher", "student", "parent"],
-//   "/list/attendance": ["admin", "teacher", "student", "parent"],
-//   "/list/events": ["admin", "teacher", "student", "parent"],
-//   "/list/announcements": ["admin", "teacher", "student", "parent"],
-// };

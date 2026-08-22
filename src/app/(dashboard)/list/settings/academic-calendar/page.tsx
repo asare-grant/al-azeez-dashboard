@@ -1,3 +1,4 @@
+// src/app/(dashboard)/list/settings/academic-calendar/page.tsx
 import {
   CalendarDays,
   CalendarRange,
@@ -7,7 +8,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import { auth } from "@clerk/nextjs/server";
+import {
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
 import { redirect } from "next/navigation";
 
@@ -22,21 +26,31 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AcademicCalendarSettingsPage() {
-  const { userId, sessionClaims } = await auth();
+  /* ========================================================================== */
+/* ACCESS                                                                     */
+/* ========================================================================== */
 
-  if (!userId) {
-    redirect("/sign-in");
-  }
+const access =
+  await getCurrentAccessContext();
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+if (
+  !access.authenticated
+) {
+  redirect(
+    "/sign-in",
+  );
+}
 
-  if (role !== "admin") {
-    redirect("/");
-  }
+if (
+  !contextHasPermission(
+    access,
+    "settings.manage",
+  )
+) {
+  redirect(
+    "/",
+  );
+}
 
   const [academicYears, terms] = await Promise.all([
     prisma.schoolAcademicYear.findMany({

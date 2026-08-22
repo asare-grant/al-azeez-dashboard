@@ -1,456 +1,32 @@
-// import prisma from "@/lib/prisma";
-// import { auth } from "@clerk/nextjs/server";
-
-// import type {
-//   UnifiedStudentResult,
-// } from "./types";
-
-// export async function getStudentUnifiedResults({
-//   studentId,
-//   academicYear,
-//   termId,
-// }: {
-//   studentId?: string;
-//   academicYear?: string;
-//   termId?: number;
-// } = {}): Promise<UnifiedStudentResult[]> {
-//   const {
-//     userId,
-//     sessionClaims,
-//   } = await auth();
-
-//   if (!userId) {
-//     throw new Error(
-//       "UNAUTHENTICATED"
-//     );
-//   }
-
-//   const role = (
-//     sessionClaims?.metadata as {
-//       role?: string;
-//     }
-//   )?.role;
-
-//   const resolvedStudentId =
-//     role === "student"
-//       ? userId
-//       : studentId;
-
-//   if (!resolvedStudentId) {
-//     throw new Error(
-//       "STUDENT_ID_REQUIRED"
-//     );
-//   }
-
-//   const results =
-//     await prisma.result.findMany({
-//       where: {
-//         studentId:
-//           resolvedStudentId,
-
-//         AND: [
-//           ...(academicYear
-//             ? [
-//                 {
-//                   OR: [
-//                     {
-//                       assessment: {
-//                         academicYear,
-//                       },
-//                     },
-//                     {
-//                       exam: {
-//                         academicYear,
-//                       },
-//                     },
-//                   ],
-//                 },
-//               ]
-//             : []),
-
-//           ...(termId
-//             ? [
-//                 {
-//                   OR: [
-//                     {
-//                       assessment: {
-//                         termId,
-//                       },
-//                     },
-//                     {
-//                       exam: {
-//                         termId,
-//                       },
-//                     },
-//                   ],
-//                 },
-//               ]
-//             : []),
-//         ],
-//       },
-
-//       orderBy: {
-//         createdAt:
-//           "desc",
-//       },
-
-//       select: {
-//         id: true,
-//         type: true,
-
-//         score: true,
-//         totalMarks: true,
-//         percentage: true,
-
-//         grade: true,
-//         remarks: true,
-
-//         createdAt: true,
-
-//         exam: {
-//           select: {
-//             id: true,
-//             title: true,
-
-//             academicYear: true,
-
-//             term: {
-//               select: {
-//                 id: true,
-//                 name: true,
-//               },
-//             },
-
-//             lesson: {
-//               select: {
-//                 subject: {
-//                   select: {
-//                     name: true,
-//                   },
-//                 },
-
-//                 class: {
-//                   select: {
-//                     name: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-
-//         assignment: {
-//           select: {
-//             id: true,
-//             title: true,
-
-//             lesson: {
-//               select: {
-//                 subject: {
-//                   select: {
-//                     name: true,
-//                   },
-//                 },
-
-//                 class: {
-//                   select: {
-//                     name: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-
-//         assessment: {
-//           select: {
-//             id: true,
-//             title: true,
-//             academicYear: true,
-
-//             term: {
-//               select: {
-//                 id: true,
-//                 name: true,
-//               },
-//             },
-
-//             lesson: {
-//               select: {
-//                 subject: {
-//                   select: {
-//                     name: true,
-//                   },
-//                 },
-
-//                 class: {
-//                   select: {
-//                     name: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-
-//         assessmentAttempt: {
-//           select: {
-//             id: true,
-//             attemptNumber: true,
-//           },
-//         },
-//       },
-//     });
-
-//   return results.map(
-//     (
-//       result
-//     ): UnifiedStudentResult => {
-//       if (
-//         result.type ===
-//           "ASSESSMENT" &&
-//         result.assessment
-//       ) {
-//         return {
-//           id:
-//             result.id,
-
-//           type:
-//             "ASSESSMENT",
-
-//           title:
-//             result.assessment
-//               .title,
-
-//           subject:
-//             result.assessment
-//               .lesson.subject
-//               .name,
-
-//           className:
-//             result.assessment
-//               .lesson.class.name,
-
-//           score:
-//             result.score,
-
-//           totalMarks:
-//             result.totalMarks,
-
-//           percentage:
-//             result.percentage,
-
-//           grade:
-//             result.grade,
-
-//           remarks:
-//             result.remarks,
-
-//           academicYear:
-//             result.assessment
-//               .academicYear,
-
-//           term:
-//             result.assessment
-//               .term
-//               ? {
-//                   id:
-//                     result.assessment
-//                       .term.id,
-
-//                   name:
-//                     result.assessment
-//                       .term.name,
-//                 }
-//               : null,
-
-//           attemptNumber:
-//             result
-//               .assessmentAttempt
-//               ?.attemptNumber ??
-//             null,
-
-//           date:
-//             result.createdAt,
-
-//           assessment: {
-//             id:
-//               result.assessment
-//                 .id,
-
-//             attemptId:
-//               result
-//                 .assessmentAttempt
-//                 ?.id ??
-//               null,
-//           },
-//         };
-//       }
-
-//       if (
-//         result.type ===
-//           "EXAM" &&
-//         result.exam
-//       ) {
-//         return {
-//           id:
-//             result.id,
-
-//           type:
-//             "EXAM",
-
-//           title:
-//             result.exam.title,
-
-//           subject:
-//             result.exam.lesson
-//               .subject.name,
-
-//           className:
-//             result.exam.lesson
-//               .class.name,
-
-//           score:
-//             result.score,
-
-//           totalMarks:
-//             result.totalMarks,
-
-//           percentage:
-//             result.percentage,
-
-//           grade:
-//             result.grade,
-
-//           remarks:
-//             result.remarks,
-
-//           academicYear:
-//             result.exam
-//               .academicYear,
-
-//           term:
-//             result.exam.term
-//               ? {
-//                   id:
-//                     result.exam
-//                       .term.id,
-
-//                   name:
-//                     result.exam
-//                       .term.name,
-//                 }
-//               : null,
-
-//           attemptNumber:
-//             null,
-
-//           date:
-//             result.createdAt,
-
-//           assessment:
-//             null,
-//         };
-//       }
-
-//       return {
-//         id:
-//           result.id,
-
-//         type:
-//           "ASSIGNMENT",
-
-//         title:
-//           result.assignment
-//             ?.title ??
-//           "Assignment",
-
-//         subject:
-//           result.assignment
-//             ?.lesson.subject
-//             .name ??
-//           "Unknown Subject",
-
-//         className:
-//           result.assignment
-//             ?.lesson.class.name ??
-//           "Unknown Class",
-
-//         score:
-//           result.score,
-
-//         totalMarks:
-//           result.totalMarks,
-
-//         percentage:
-//           result.percentage,
-
-//         grade:
-//           result.grade,
-
-//         remarks:
-//           result.remarks,
-
-//         academicYear:
-//           null,
-
-//         term:
-//           null,
-
-//         attemptNumber:
-//           null,
-
-//         date:
-//           result.createdAt,
-
-//         assessment:
-//           null,
-//       };
-//     }
-//   );
-// }
-
-
-
-
+// src/lib/results/queries.ts
 import "server-only";
 
 import prisma from "@/lib/prisma";
 
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  getCurrentAccessContext,
+  contextHasPermission,
+} from "@/lib/access-control";
 
-import type {
-  UnifiedStudentResult,
-} from "./types";
+import type { UnifiedStudentResult } from "./types";
 
 /* -------------------------------------------------------------------------- */
 /*                               AUTH HELPERS                                 */
 /* -------------------------------------------------------------------------- */
 
-async function getCurrentResultUser() {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+async function getCurrentResultViewer() {
+  const access = await getCurrentAccessContext();
 
-  if (!userId) {
-    throw new Error(
-      "UNAUTHENTICATED",
-    );
+  if (!access.authenticated || !access.userId) {
+    throw new Error("UNAUTHENTICATED");
   }
 
-  const role = (
-    sessionClaims
-      ?.metadata as {
-      role?: string;
-    } | undefined
-  )?.role;
+  if (!contextHasPermission(access, "results.view")) {
+    throw new Error("UNAUTHORISED");
+  }
 
   return {
-    userId,
-    role,
+    userId: access.userId,
   };
 }
 
@@ -468,559 +44,397 @@ async function getUnifiedResultsForStudent({
   academicYear?: string;
 
   termId?: number;
-}): Promise<
-  UnifiedStudentResult[]
-> {
-  const normalizedStudentId =
-    studentId.trim();
+}): Promise<UnifiedStudentResult[]> {
+  const normalizedStudentId = studentId.trim();
 
-  if (
-    !normalizedStudentId
-  ) {
-    throw new Error(
-      "STUDENT_ID_REQUIRED",
-    );
+  if (!normalizedStudentId) {
+    throw new Error("STUDENT_ID_REQUIRED");
   }
 
-  const normalizedAcademicYear =
-    academicYear?.trim() ||
-    undefined;
+  const normalizedAcademicYear = academicYear?.trim() || undefined;
 
-  const results =
-    await prisma.result.findMany({
-      where: {
-        studentId:
-          normalizedStudentId,
+  const results = await prisma.result.findMany({
+    where: {
+      studentId: normalizedStudentId,
 
-        AND: [
-          ...(normalizedAcademicYear
-            ? [
-                {
-                  OR: [
-                    {
-                      assessment: {
-                        academicYear:
-                          normalizedAcademicYear,
-                      },
+      AND: [
+        ...(normalizedAcademicYear
+          ? [
+              {
+                OR: [
+                  {
+                    assessment: {
+                      academicYear: normalizedAcademicYear,
                     },
+                  },
 
-                    {
-                      exam: {
-                        academicYear:
-                          normalizedAcademicYear,
-                      },
+                  {
+                    exam: {
+                      academicYear: normalizedAcademicYear,
                     },
+                  },
 
-                    {
-                      assignment: {
-                        academicYear:
-                          normalizedAcademicYear,
-                      },
+                  {
+                    assignment: {
+                      academicYear: normalizedAcademicYear,
                     },
-                  ],
-                },
-              ]
-            : []),
+                  },
+                ],
+              },
+            ]
+          : []),
 
-          ...(termId
-            ? [
-                {
-                  OR: [
-                    {
-                      assessment: {
-                        termId,
-                      },
+        ...(termId
+          ? [
+              {
+                OR: [
+                  {
+                    assessment: {
+                      termId,
                     },
+                  },
 
-                    {
-                      exam: {
-                        termId,
-                      },
+                  {
+                    exam: {
+                      termId,
                     },
+                  },
 
-                    {
-                      assignment: {
-                        termId,
-                      },
+                  {
+                    assignment: {
+                      termId,
                     },
-                  ],
-                },
-              ]
-            : []),
-        ],
-      },
-
-      orderBy: {
-        createdAt:
-          "desc",
-      },
-
-      select: {
-        id:
-          true,
-
-        type:
-          true,
-
-        score:
-          true,
-
-        totalMarks:
-          true,
-
-        percentage:
-          true,
-
-        grade:
-          true,
-
-        remarks:
-          true,
-
-        createdAt:
-          true,
-
-        /* -------------------------------------------------------------- */
-        /*                         EXAMINATION                            */
-        /* -------------------------------------------------------------- */
-
-        exam: {
-          select: {
-            id:
-              true,
-
-            title:
-              true,
-
-            academicYear:
-              true,
-
-            term: {
-              select: {
-                id:
-                  true,
-
-                name:
-                  true,
-              },
-            },
-
-            lesson: {
-              select: {
-                subject: {
-                  select: {
-                    name:
-                      true,
                   },
-                },
-
-                class: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
+                ],
               },
-            },
-          },
-        },
+            ]
+          : []),
+      ],
+    },
 
-        /* -------------------------------------------------------------- */
-        /*                         ASSIGNMENT                             */
-        /* -------------------------------------------------------------- */
+    orderBy: {
+      createdAt: "desc",
+    },
 
-        assignment: {
-          select: {
-            id:
-              true,
+    select: {
+      id: true,
 
-            title:
-              true,
+      type: true,
 
-            academicYear:
-              true,
+      score: true,
 
-            term: {
-              select: {
-                id:
-                  true,
+      totalMarks: true,
 
-                name:
-                  true,
-              },
-            },
+      percentage: true,
 
-            lesson: {
-              select: {
-                subject: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
+      grade: true,
 
-                class: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
-              },
-            },
-          },
-        },
+      remarks: true,
 
-        /* -------------------------------------------------------------- */
-        /*                         ASSESSMENT                             */
-        /* -------------------------------------------------------------- */
-
-        assessment: {
-          select: {
-            id:
-              true,
-
-            title:
-              true,
-
-            academicYear:
-              true,
-
-            term: {
-              select: {
-                id:
-                  true,
-
-                name:
-                  true,
-              },
-            },
-
-            lesson: {
-              select: {
-                subject: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
-
-                class: {
-                  select: {
-                    name:
-                      true,
-                  },
-                },
-              },
-            },
-          },
-        },
-
-        assessmentAttempt: {
-          select: {
-            id:
-              true,
-
-            attemptNumber:
-              true,
-          },
-        },
-      },
-    });
-
-  return results.map(
-    (
-      result,
-    ): UnifiedStudentResult => {
-      /* -------------------------------------------------------------- */
-      /*                        ASSESSMENT                              */
-      /* -------------------------------------------------------------- */
-
-      if (
-        result.type ===
-          "ASSESSMENT" &&
-        result.assessment
-      ) {
-        return {
-          id:
-            result.id,
-
-          type:
-            "ASSESSMENT",
-
-          title:
-            result.assessment
-              .title,
-
-          subject:
-            result.assessment
-              .lesson.subject
-              .name,
-
-          className:
-            result.assessment
-              .lesson.class.name,
-
-          score:
-            result.score,
-
-          totalMarks:
-            result.totalMarks,
-
-          percentage:
-            result.percentage,
-
-          grade:
-            result.grade,
-
-          remarks:
-            result.remarks,
-
-          academicYear:
-            result.assessment
-              .academicYear,
-
-          term:
-            result.assessment
-              .term
-              ? {
-                  id:
-                    result.assessment
-                      .term.id,
-
-                  name:
-                    result.assessment
-                      .term.name,
-                }
-              : null,
-
-          attemptNumber:
-            result
-              .assessmentAttempt
-              ?.attemptNumber ??
-            null,
-
-          date:
-            result.createdAt,
-
-          assessment: {
-            id:
-              result.assessment
-                .id,
-
-            attemptId:
-              result
-                .assessmentAttempt
-                ?.id ??
-              null,
-          },
-        };
-      }
+      createdAt: true,
 
       /* -------------------------------------------------------------- */
       /*                         EXAMINATION                            */
       /* -------------------------------------------------------------- */
 
-      if (
-        result.type ===
-          "EXAM" &&
-        result.exam
-      ) {
-        return {
-          id:
-            result.id,
+      exam: {
+        select: {
+          id: true,
 
-          type:
-            "EXAM",
+          title: true,
 
-          title:
-            result.exam
-              .title,
+          academicYear: true,
 
-          subject:
-            result.exam
-              .lesson.subject
-              .name,
+          term: {
+            select: {
+              id: true,
 
-          className:
-            result.exam
-              .lesson.class
-              .name,
+              name: true,
+            },
+          },
 
-          score:
-            result.score,
+          lesson: {
+            select: {
+              subject: {
+                select: {
+                  name: true,
+                },
+              },
 
-          totalMarks:
-            result.totalMarks,
-
-          percentage:
-            result.percentage,
-
-          grade:
-            result.grade,
-
-          remarks:
-            result.remarks,
-
-          academicYear:
-            result.exam
-              .academicYear,
-
-          term:
-            result.exam
-              .term
-              ? {
-                  id:
-                    result.exam
-                      .term.id,
-
-                  name:
-                    result.exam
-                      .term.name,
-                }
-              : null,
-
-          attemptNumber:
-            null,
-
-          date:
-            result.createdAt,
-
-          assessment:
-            null,
-        };
-      }
+              class: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
 
       /* -------------------------------------------------------------- */
       /*                         ASSIGNMENT                             */
       /* -------------------------------------------------------------- */
 
-      if (
-        result.type ===
-          "ASSIGNMENT" &&
-        result.assignment
-      ) {
-        return {
-          id:
-            result.id,
+      assignment: {
+        select: {
+          id: true,
 
-          type:
-            "ASSIGNMENT",
+          title: true,
 
-          title:
-            result.assignment
-              .title,
+          academicYear: true,
 
-          subject:
-            result.assignment
-              .lesson.subject
-              .name,
+          term: {
+            select: {
+              id: true,
 
-          className:
-            result.assignment
-              .lesson.class
-              .name,
+              name: true,
+            },
+          },
 
-          score:
-            result.score,
+          lesson: {
+            select: {
+              subject: {
+                select: {
+                  name: true,
+                },
+              },
 
-          totalMarks:
-            result.totalMarks,
+              class: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
 
-          percentage:
-            result.percentage,
+      /* -------------------------------------------------------------- */
+      /*                         ASSESSMENT                             */
+      /* -------------------------------------------------------------- */
 
-          grade:
-            result.grade,
+      assessment: {
+        select: {
+          id: true,
 
-          remarks:
-            result.remarks,
+          title: true,
 
-          /*
-           * Important:
-           * Assignments now participate fully
-           * in academic-year and term filtering.
-           */
-          academicYear:
-            result.assignment
-              .academicYear,
+          academicYear: true,
 
-          term:
-            result.assignment
-              .term
-              ? {
-                  id:
-                    result.assignment
-                      .term.id,
+          term: {
+            select: {
+              id: true,
 
-                  name:
-                    result.assignment
-                      .term.name,
-                }
-              : null,
+              name: true,
+            },
+          },
 
-          attemptNumber:
-            null,
+          lesson: {
+            select: {
+              subject: {
+                select: {
+                  name: true,
+                },
+              },
 
-          date:
-            result.createdAt,
+              class: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
 
-          assessment:
-            null,
-        };
-      }
+      assessmentAttempt: {
+        select: {
+          id: true,
 
-      /*
-       * This should only happen if a Result row
-       * is missing its corresponding source relation.
-       */
-      return {
-        id:
-          result.id,
-
-        type:
-          result.type,
-
-        title:
-          "Unavailable Result",
-
-        subject:
-          "Unknown Subject",
-
-        className:
-          "Unknown Class",
-
-        score:
-          result.score,
-
-        totalMarks:
-          result.totalMarks,
-
-        percentage:
-          result.percentage,
-
-        grade:
-          result.grade,
-
-        remarks:
-          result.remarks,
-
-        academicYear:
-          null,
-
-        term:
-          null,
-
-        attemptNumber:
-          null,
-
-        date:
-          result.createdAt,
-
-        assessment:
-          null,
-      };
+          attemptNumber: true,
+        },
+      },
     },
-  );
+  });
+
+  return results.map((result): UnifiedStudentResult => {
+    /* -------------------------------------------------------------- */
+    /*                        ASSESSMENT                              */
+    /* -------------------------------------------------------------- */
+
+    if (result.type === "ASSESSMENT" && result.assessment) {
+      return {
+        id: result.id,
+
+        type: "ASSESSMENT",
+
+        title: result.assessment.title,
+
+        subject: result.assessment.lesson.subject.name,
+
+        className: result.assessment.lesson.class.name,
+
+        score: result.score,
+
+        totalMarks: result.totalMarks,
+
+        percentage: result.percentage,
+
+        grade: result.grade,
+
+        remarks: result.remarks,
+
+        academicYear: result.assessment.academicYear,
+
+        term: result.assessment.term
+          ? {
+              id: result.assessment.term.id,
+
+              name: result.assessment.term.name,
+            }
+          : null,
+
+        attemptNumber: result.assessmentAttempt?.attemptNumber ?? null,
+
+        date: result.createdAt,
+
+        assessment: {
+          id: result.assessment.id,
+
+          attemptId: result.assessmentAttempt?.id ?? null,
+        },
+      };
+    }
+
+    /* -------------------------------------------------------------- */
+    /*                         EXAMINATION                            */
+    /* -------------------------------------------------------------- */
+
+    if (result.type === "EXAM" && result.exam) {
+      return {
+        id: result.id,
+
+        type: "EXAM",
+
+        title: result.exam.title,
+
+        subject: result.exam.lesson.subject.name,
+
+        className: result.exam.lesson.class.name,
+
+        score: result.score,
+
+        totalMarks: result.totalMarks,
+
+        percentage: result.percentage,
+
+        grade: result.grade,
+
+        remarks: result.remarks,
+
+        academicYear: result.exam.academicYear,
+
+        term: result.exam.term
+          ? {
+              id: result.exam.term.id,
+
+              name: result.exam.term.name,
+            }
+          : null,
+
+        attemptNumber: null,
+
+        date: result.createdAt,
+
+        assessment: null,
+      };
+    }
+
+    /* -------------------------------------------------------------- */
+    /*                         ASSIGNMENT                             */
+    /* -------------------------------------------------------------- */
+
+    if (result.type === "ASSIGNMENT" && result.assignment) {
+      return {
+        id: result.id,
+
+        type: "ASSIGNMENT",
+
+        title: result.assignment.title,
+
+        subject: result.assignment.lesson.subject.name,
+
+        className: result.assignment.lesson.class.name,
+
+        score: result.score,
+
+        totalMarks: result.totalMarks,
+
+        percentage: result.percentage,
+
+        grade: result.grade,
+
+        remarks: result.remarks,
+
+        /*
+         * Important:
+         * Assignments now participate fully
+         * in academic-year and term filtering.
+         */
+        academicYear: result.assignment.academicYear,
+
+        term: result.assignment.term
+          ? {
+              id: result.assignment.term.id,
+
+              name: result.assignment.term.name,
+            }
+          : null,
+
+        attemptNumber: null,
+
+        date: result.createdAt,
+
+        assessment: null,
+      };
+    }
+
+    /*
+     * This should only happen if a Result row
+     * is missing its corresponding source relation.
+     */
+    return {
+      id: result.id,
+
+      type: result.type,
+
+      title: "Unavailable Result",
+
+      subject: "Unknown Subject",
+
+      className: "Unknown Class",
+
+      score: result.score,
+
+      totalMarks: result.totalMarks,
+
+      percentage: result.percentage,
+
+      grade: result.grade,
+
+      remarks: result.remarks,
+
+      academicYear: null,
+
+      term: null,
+
+      attemptNumber: null,
+
+      date: result.createdAt,
+
+      assessment: null,
+    };
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1034,27 +448,25 @@ export async function getStudentUnifiedResults({
   academicYear?: string;
 
   termId?: number;
-} = {}): Promise<
-  UnifiedStudentResult[]
-> {
-  const {
-    userId,
-    role,
-  } =
-    await getCurrentResultUser();
+} = {}): Promise<UnifiedStudentResult[]> {
+  const { userId } = await getCurrentResultViewer();
 
-  if (
-    role !==
-    "student"
-  ) {
-    throw new Error(
-      "UNAUTHORISED",
-    );
+  const student = await prisma.student.findUnique({
+    where: {
+      id: userId,
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  if (!student) {
+    throw new Error("UNAUTHORISED");
   }
 
   return getUnifiedResultsForStudent({
-    studentId:
-      userId,
+    studentId: student.id,
 
     academicYear,
 
@@ -1078,24 +490,13 @@ export async function getParentChildUnifiedResults({
   termId?: number;
 }) {
   const {
-    userId,
-    role,
-  } =
-    await getCurrentResultUser();
+  userId,
+} =
+  await getCurrentResultViewer();
 
-  if (
-    role !==
-    "parent"
-  ) {
-    return null;
-  }
+  const normalizedChildId = childId.trim();
 
-  const normalizedChildId =
-    childId.trim();
-
-  if (
-    !normalizedChildId
-  ) {
+  if (!normalizedChildId) {
     return null;
   }
 
@@ -1103,90 +504,69 @@ export async function getParentChildUnifiedResults({
    * Prove ownership BEFORE loading
    * any academic result records.
    */
-  const child =
-    await prisma.student.findFirst({
-      where: {
-        id:
-          normalizedChildId,
+  const child = await prisma.student.findFirst({
+    where: {
+      id: normalizedChildId,
 
-        parentId:
-          userId,
-      },
+      parentId: userId,
+    },
 
-      select: {
-        id:
-          true,
+    select: {
+      id: true,
 
-        studentID:
-          true,
+      studentID: true,
 
-        name:
-          true,
+      name: true,
 
-        surname:
-          true,
+      surname: true,
 
-        img:
-          true,
+      img: true,
 
-        class: {
-          select: {
-            id:
-              true,
+      class: {
+        select: {
+          id: true,
 
-            name:
-              true,
-          },
-        },
-
-        grade: {
-          select: {
-            id:
-              true,
-
-            level:
-              true,
-          },
+          name: true,
         },
       },
-    });
+
+      grade: {
+        select: {
+          id: true,
+
+          level: true,
+        },
+      },
+    },
+  });
 
   if (!child) {
     return null;
   }
 
-  const results =
-    await getUnifiedResultsForStudent({
-      studentId:
-        child.id,
+  const results = await getUnifiedResultsForStudent({
+    studentId: child.id,
 
-      academicYear,
+    academicYear,
 
-      termId,
-    });
+    termId,
+  });
 
   return {
     child: {
-      id:
-        child.id,
+      id: child.id,
 
-      studentId:
-        child.studentID,
+      studentId: child.studentID,
 
-      name:
-        child.name,
+      name: child.name,
 
-      surname:
-        child.surname,
+      surname: child.surname,
 
-      img:
-        child.img,
+      img: child.img,
 
-      class:
-        child.class,
+      class: child.class,
 
-      grade:
-        child.grade,
+      grade: child.grade,
     },
 
     results,

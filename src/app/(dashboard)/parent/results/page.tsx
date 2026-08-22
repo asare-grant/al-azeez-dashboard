@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import {
-    ArrowLeft,
+  ArrowLeft,
   ArrowRight,
   BarChart3,
   BookOpenCheck,
@@ -11,9 +11,8 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import {
-  auth,
-} from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
+import { requirePermission } from "@/lib/access-control";
 
 import {
   redirect,
@@ -27,29 +26,14 @@ export const dynamic =
 export const revalidate = 0;
 
 export default async function ParentResultsPage() {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
 
-  if (!userId) {
-    redirect(
-      "/sign-in",
-    );
-  }
+ const { userId } = await auth();
 
-  const role = (
-    sessionClaims
-      ?.metadata as {
-      role?: string;
-    }
-  )?.role;
+if (!userId) {
+  redirect("/sign-in");
+}
 
-  if (
-    role !== "parent"
-  ) {
-    redirect("/");
-  }
+await requirePermission("results.view");
 
   const children =
     await prisma.student.findMany({
@@ -151,13 +135,13 @@ export default async function ParentResultsPage() {
             Assessments
           </Link>
 
-          <Link
+          {/* <Link
             href="/list/results/legacy"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
           >
             <BarChart3 className="h-4 w-4" />
             Legacy Results
-          </Link>
+          </Link> */}
 
           <Link
             href="/parent"

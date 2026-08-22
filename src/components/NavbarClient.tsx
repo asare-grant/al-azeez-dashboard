@@ -1,168 +1,4 @@
-// "use client";
-
-// import Image from "next/image";
-// import Link from "next/link";
-// import { usePathname, useRouter } from "next/navigation";
-// import { useClerk } from "@clerk/nextjs";
-// import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-// import {
-//   DropdownMenu,
-//   DropdownMenuContent,
-//   DropdownMenuItem,
-//   DropdownMenuLabel,
-//   DropdownMenuSeparator,
-//   DropdownMenuTrigger,
-// } from "@/components/ui/dropdown-menu";
-// import { LogOut, Settings } from "lucide-react";
-// import { SidebarTrigger } from "./ui/sidebar";
-// import Themespage from "./Themespage";
-// import { 
-//   useEffect, 
-//   useState 
-// } from "react";
-// import type {
-//   ReactNode,
-// } from "react";
-
-// interface NavbarClientProps {
-//   username:
-//     string;
-
-//   name:
-//     string;
-
-//   firstName:
-//     string;
-
-//   role:
-//     string;
-
-//   imageUrl:
-//     string;
-
-//   notificationBell:
-//     ReactNode;
-// }
-
-// const NavbarClient = ({
-//   username,
-//   name,
-//   firstName,
-//   role,
-//   imageUrl,
-//   notificationBell,
-// }: NavbarClientProps) => {
-  
-    
-//     const { signOut } = useClerk();
-//       const router = useRouter();
-    
-//       const [loading, setLoading] = useState(false);
-    
-//       const handleLogout = async () => {
-//         setLoading(true);
-//         await signOut();
-//         router.push("/sign-in");
-//       };
-    
-//       const path = usePathname();
-//       useEffect(() => {
-//         console.log(path);
-//       }, [path]);
-
-//   return (
-//         <div className="flex items-center justify-between p-4">
-//       {/* LEFT SIDE */}
-//       <SidebarTrigger />
-      
-//       {/* RIGHT SIDE (ICONS AND USER) */}
-//       <div className="flex items-center gap-4">
-//         {/* THEME MENU */}
-//         <Themespage />
-//         {/* MESSAGE AND NOTIFICATION MENU
-//         <div className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative">
-//           <Image src="/announcement.png" alt="" width={20} height={20} />
-//           <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 text-white rounded-full text-xs">
-//             1
-//           </div>
-//         </div> */}
-
-//         {/* MESSAGE AND NOTIFICATION MENU */}
-//        {notificationBell}
-
-//         <div className="flex flex-col">
-//           <span className="text-xs leading-3 font-medium">
-//             {firstName}
-//           </span>
-//           <span className="text-[10px] text-gray-500 text-right">
-//             {/* Admin */}
-//             {role}
-//           </span>
-//         </div>
-//         {/* <Image src="/avatar.png" alt="" width={36} height={36} className="rounded-full"/> */}
-//         {/*  USER MENU  */}
-//         <DropdownMenu>
-//           <DropdownMenuTrigger className="rounded-full padding-[2px] bg-gray-100 w-[37] h-[37] flex items-center justify-center">
-//             <Avatar>
-//               <AvatarImage src={imageUrl} width={36} height={36} />
-//               <AvatarFallback>UI</AvatarFallback>
-//             </Avatar>
-//           </DropdownMenuTrigger>
-//           <DropdownMenuContent sideOffset={10} className="mx-4 w-[250]">
-//             <DropdownMenuLabel>My Account</DropdownMenuLabel>
-//             <DropdownMenuSeparator />
-//             <DropdownMenuItem className="my-4">
-//               <Avatar>
-//                 <AvatarImage src={imageUrl} width={36} height={36} />
-//                 <AvatarFallback>UI</AvatarFallback>
-//               </Avatar>
-//               <div className="flex flex-col gap-1 ">
-//                 <p className="text-gray-600 font-medium">{name}</p>
-//                 <span className="text-gray-400 text-xs">{role}</span>
-//               </div>
-//             </DropdownMenuItem>
-//             {role === "admin" && (
-//               <DropdownMenuItem>
-//                 <Link
-//                   href="/list/settings/term"
-//                   className="flex gap-2 items-center text-gray-600"
-//                 >
-//                   <Settings className="h-[1.2rem] w-[1.2rem] mr-2" /> Settings
-//                 </Link>
-//               </DropdownMenuItem>
-//             )}
-//             <DropdownMenuItem className="text-[#f0b3b3]" onClick={handleLogout}>
-//               <LogOut
-//                 className="h-[1.2rem] w-[1.2rem] mr-2"
-//                 color="#f0b3b3e2"
-//               />
-//               Logout
-//             </DropdownMenuItem>
-//             <DropdownMenuSeparator />
-//             <DropdownMenuItem className="mt-4 flex items-center justify-center">
-//               <div className="border border-red p-px w-[17] h-[17]">
-//                 <Image src="/logo.jpg" alt="" width={16} height={16} />
-//               </div>
-//               <p className="text-xs text-gray-300">
-//                 Powered & Managed by{" "}
-//                 <span className="text-xs text-[#CFCEFF]">AAIS</span>{" "}
-//               </p>
-//             </DropdownMenuItem>
-//           </DropdownMenuContent>
-//         </DropdownMenu>
-//         {/* <UserButton /> */}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default NavbarClient;
-
-
-
-
-
-
+// src/components/NavbarClient.tsx
 "use client";
 
 import Image from "next/image";
@@ -179,11 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 import {
   DropdownMenu,
@@ -196,11 +28,13 @@ import {
 import { SidebarTrigger } from "./ui/sidebar";
 import Themespage from "./Themespage";
 
+import { useEffect, useState, type ReactNode } from "react";
+
 import {
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+  formatRoleLabel,
+  getRoleDashboardPath,
+  normalizeAppRole,
+} from "@/lib/navigation/roles";
 
 interface NavbarClientProps {
   username: string;
@@ -209,6 +43,8 @@ interface NavbarClientProps {
   role: string;
   imageUrl: string;
   notificationBell: ReactNode;
+
+  canViewSettings: boolean;
 }
 
 const NavbarClient = ({
@@ -218,14 +54,14 @@ const NavbarClient = ({
   role,
   imageUrl,
   notificationBell,
+  canViewSettings,
 }: NavbarClientProps) => {
   const { signOut } = useClerk();
 
   const router = useRouter();
   const path = usePathname();
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     console.log(path);
@@ -252,9 +88,7 @@ const NavbarClient = ({
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  const formattedRole =
-    role.charAt(0).toUpperCase() +
-    role.slice(1);
+  const formattedRole = formatRoleLabel(role);
 
   return (
     <div className="flex items-center justify-between p-4">
@@ -383,11 +217,10 @@ const NavbarClient = ({
                 {/* ACCOUNT BUTTON */}
 
                 <Link
-                  href={`/${role}`}
+                  href={getRoleDashboardPath(normalizeAppRole(role))}
                   className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-slate-100 text-xs font-black text-slate-700 transition-all duration-200 hover:bg-slate-200 hover:text-slate-950"
                 >
                   <UserRound className="h-4 w-4" />
-
                   View your dashboard
                 </Link>
               </div>
@@ -398,7 +231,7 @@ const NavbarClient = ({
             {/* ================================================== */}
 
             <div className="px-2 pb-2">
-              {role === "admin" && (
+              {canViewSettings && (
                 <PremiumMenuItem
                   href="/list/settings/academic-calendar"
                   icon={Settings}
@@ -448,9 +281,7 @@ const NavbarClient = ({
 
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-slate-800 transition-colors group-hover:text-red-700">
-                      {loading
-                        ? "Signing out..."
-                        : "Log out"}
+                      {loading ? "Signing out..." : "Log out"}
                     </p>
 
                     <p className="mt-0.5 text-[10px] font-medium text-slate-400">
@@ -532,16 +363,14 @@ function PremiumMenuItem({
     >
       <Link
         href={href}
-       className="flex w-full items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3"
+        className="flex w-full items-center gap-2.5 p-2.5 sm:gap-3 sm:p-3"
       >
         <span className="flex h-9 w-9 shrink-0 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition-all duration-200 group-hover:bg-slate-200 group-hover:text-slate-950">
           <Icon className="h-[18px] w-[18px]" />
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-slate-800">
-            {title}
-          </p>
+          <p className="text-sm font-bold text-slate-800">{title}</p>
 
           <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400">
             {description}

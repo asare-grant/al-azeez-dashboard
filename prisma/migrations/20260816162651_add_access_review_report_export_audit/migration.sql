@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AccessAuditAction" ADD VALUE 'ACCESS_REVIEW_REPORT_EXPORTED';

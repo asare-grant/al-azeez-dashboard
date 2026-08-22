@@ -1,66 +1,39 @@
 // src/lib/notifications/recipients.ts
 import "server-only";
 
-import type {
-  Prisma,
-} from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 
-import type {
-  NotificationRecipient,
-} from "./service";
+import type { NotificationRecipient } from "./service";
 
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
 
-type NotificationDb =
-  | typeof prisma
-  | Prisma.TransactionClient;
+type NotificationDb = typeof prisma | Prisma.TransactionClient;
 
 type ResolverOptions = {
-  tx?:
-    Prisma.TransactionClient;
+  tx?: Prisma.TransactionClient;
 };
 
 /* -------------------------------------------------------------------------- */
 /*                              SHARED HELPERS                                */
 /* -------------------------------------------------------------------------- */
 
-function getDb(
-  options: ResolverOptions,
-): NotificationDb {
-  return (
-    options.tx ??
-    prisma
-  );
+function getDb(options: ResolverOptions): NotificationDb {
+  return options.tx ?? prisma;
 }
 
-function normalizeRecipients(
-  recipients:
-    NotificationRecipient[],
-) {
-  const unique =
-    new Map<
-      string,
-      NotificationRecipient
-    >();
+function normalizeRecipients(recipients: NotificationRecipient[]) {
+  const unique = new Map<string, NotificationRecipient>();
 
-  for (
-    const recipient of
-    recipients
-  ) {
-    const recipientId =
-      recipient.recipientId.trim();
+  for (const recipient of recipients) {
+    const recipientId = recipient.recipientId.trim();
 
-    const recipientRole =
-      recipient.recipientRole.trim();
+    const recipientRole = recipient.recipientRole.trim();
 
-    if (
-      !recipientId ||
-      !recipientRole
-    ) {
+    if (!recipientId || !recipientRole) {
       continue;
     }
 
@@ -70,50 +43,174 @@ function normalizeRecipients(
      * One user should receive a logical
      * event only once.
      */
-    unique.set(
+    unique.set(recipientId, {
       recipientId,
-      {
-        recipientId,
-        recipientRole,
-      },
-    );
+      recipientRole,
+    });
   }
 
-  return Array.from(
-    unique.values(),
+  return Array.from(unique.values());
+}
+
+/* -------------------------------------------------------------------------- */
+/*                    ACCESS CONTROL GOVERNANCE RECIPIENTS                    */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*                    ACCESS CONTROL GOVERNANCE RECIPIENTS                    */
+/* -------------------------------------------------------------------------- */
+
+export async function getAccessControlGovernanceRecipients(
+  options: ResolverOptions = {},
+): Promise<NotificationRecipient[]> {
+  const db = getDb(options);
+
+  const now = new Date();
+
+  /*
+   * Governance notifications are RBAC-authorized.
+   *
+   * A recipient must:
+   *
+   * 1. have an ACTIVE account,
+   * 2. hold an active role,
+   * 3. hold an active, unexpired role assignment,
+   * 4. receive at least one governance permission
+   *    required to manage delegated access.
+   *
+   * Legacy role metadata is deliberately not
+   * considered an authority source.
+   */
+  const accounts = await db.userAccount.findMany({
+    where: {
+      status: "ACTIVE",
+
+      roles: {
+        some: {
+          AND: [
+            {
+              role: {
+                isActive: true,
+
+                permissions: {
+                  some: {
+                    permission: {
+                      isActive: true,
+
+                      key: {
+                        in: ["roles.manage_expiry", "roles.remove"],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+
+            {
+              OR: [
+                {
+                  expiresAt: null,
+                },
+
+                {
+                  expiresAt: {
+                    gt: now,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  return normalizeRecipients(
+    accounts.map((account) => ({
+      recipientId: account.id,
+
+      /*
+       * This is a notification-routing persona,
+       * not an authorization decision.
+       *
+       * Eligibility above is determined entirely
+       * by effective RBAC authority.
+       */
+      recipientRole: "access-control",
+    })),
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              ADMIN RECIPIENTS                              */
+/*                    ACCESS REVIEW SUPER ADMIN RECIPIENTS                    */
 /* -------------------------------------------------------------------------- */
 
-export async function getAdminNotificationRecipients(
+export async function getAccessReviewSuperAdminRecipients(
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient[]
-> {
-  const db =
-    getDb(options);
+): Promise<NotificationRecipient[]> {
+  const db = getDb(options);
 
-  const admins =
-    await db.admin.findMany({
-      select: {
-        id:
-          true,
+  const now = new Date();
+
+  /*
+   * Access Review campaigns are a Super-Admin governance
+   * responsibility.
+   *
+   * Unlike the broader Access Control resolver above,
+   * this deliberately does NOT use the legacy Admin
+   * fallback.
+   *
+   * The user must hold an active, unexpired super_admin
+   * RBAC assignment.
+   */
+  const accounts = await db.userAccount.findMany({
+    where: {
+      status: "ACTIVE",
+
+      roles: {
+        some: {
+          AND: [
+            {
+              role: {
+                key: "super_admin",
+
+                isActive: true,
+              },
+            },
+
+            {
+              OR: [
+                {
+                  expiresAt: null,
+                },
+
+                {
+                  expiresAt: {
+                    gt: now,
+                  },
+                },
+              ],
+            },
+          ],
+        },
       },
-    });
+    },
+
+    select: {
+      id: true,
+    },
+  });
 
   return normalizeRecipients(
-    admins.map(
-      (admin) => ({
-        recipientId:
-          admin.id,
+    accounts.map((account) => ({
+      recipientId: account.id,
 
-        recipientRole:
-          "admin",
-      }),
-    ),
+      recipientRole: "super_admin",
+    })),
   );
 }
 
@@ -124,42 +221,33 @@ export async function getAdminNotificationRecipients(
 export async function getStudentNotificationRecipient(
   studentId: string,
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient | null
-> {
-  const normalizedStudentId =
-    studentId.trim();
+): Promise<NotificationRecipient | null> {
+  const normalizedStudentId = studentId.trim();
 
   if (!normalizedStudentId) {
     return null;
   }
 
-  const db =
-    getDb(options);
+  const db = getDb(options);
 
-  const student =
-    await db.student.findUnique({
-      where: {
-        id:
-          normalizedStudentId,
-      },
+  const student = await db.student.findUnique({
+    where: {
+      id: normalizedStudentId,
+    },
 
-      select: {
-        id:
-          true,
-      },
-    });
+    select: {
+      id: true,
+    },
+  });
 
   if (!student) {
     return null;
   }
 
   return {
-    recipientId:
-      student.id,
+    recipientId: student.id,
 
-    recipientRole:
-      "student",
+    recipientRole: "student",
   };
 }
 
@@ -170,18 +258,14 @@ export async function getStudentNotificationRecipient(
 export async function getParentNotificationRecipientsForStudent(
   studentId: string,
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient[]
-> {
-  const normalizedStudentId =
-    studentId.trim();
+): Promise<NotificationRecipient[]> {
+  const normalizedStudentId = studentId.trim();
 
   if (!normalizedStudentId) {
     return [];
   }
 
-  const db =
-    getDb(options);
+  const db = getDb(options);
 
   /*
    * Parent -> students is used here because it
@@ -191,33 +275,26 @@ export async function getParentNotificationRecipientsForStudent(
    *      ↓
    * one or more children
    */
-  const parents =
-    await db.parent.findMany({
-      where: {
-        students: {
-          some: {
-            id:
-              normalizedStudentId,
-          },
+  const parents = await db.parent.findMany({
+    where: {
+      students: {
+        some: {
+          id: normalizedStudentId,
         },
       },
+    },
 
-      select: {
-        id:
-          true,
-      },
-    });
+    select: {
+      id: true,
+    },
+  });
 
   return normalizeRecipients(
-    parents.map(
-      (parent) => ({
-        recipientId:
-          parent.id,
+    parents.map((parent) => ({
+      recipientId: parent.id,
 
-        recipientRole:
-          "parent",
-      }),
-    ),
+      recipientRole: "parent",
+    })),
   );
 }
 
@@ -228,66 +305,47 @@ export async function getParentNotificationRecipientsForStudent(
 export async function getClassSupervisorNotificationRecipient(
   classId: number,
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient | null
-> {
-  if (
-    !Number.isInteger(
-      classId,
-    ) ||
-    classId <= 0
-  ) {
+): Promise<NotificationRecipient | null> {
+  if (!Number.isInteger(classId) || classId <= 0) {
     return null;
   }
 
-  const db =
-    getDb(options);
+  const db = getDb(options);
 
-  const classRecord =
-    await db.class.findUnique({
-      where: {
-        id:
-          classId,
-      },
+  const classRecord = await db.class.findUnique({
+    where: {
+      id: classId,
+    },
 
-      select: {
-        supervisorId:
-          true,
-      },
-    });
+    select: {
+      supervisorId: true,
+    },
+  });
 
-  const supervisorId =
-    classRecord
-      ?.supervisorId
-      ?.trim();
+  const supervisorId = classRecord?.supervisorId?.trim();
 
   if (!supervisorId) {
     return null;
   }
 
-  const teacher =
-    await db.teacher.findUnique({
-      where: {
-        id:
-          supervisorId,
-      },
+  const teacher = await db.teacher.findUnique({
+    where: {
+      id: supervisorId,
+    },
 
-      select: {
-        id:
-          true,
-      },
-    });
+    select: {
+      id: true,
+    },
+  });
 
   if (!teacher) {
     return null;
   }
 
   return {
-    recipientId:
-      teacher.id,
+    recipientId: teacher.id,
 
-    recipientRole:
-      "teacher",
+    recipientRole: "teacher",
   };
 }
 
@@ -298,68 +356,42 @@ export async function getClassSupervisorNotificationRecipient(
 export async function getClassTeacherNotificationRecipients(
   classId: number,
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient[]
-> {
-  if (
-    !Number.isInteger(
-      classId,
-    ) ||
-    classId <= 0
-  ) {
+): Promise<NotificationRecipient[]> {
+  if (!Number.isInteger(classId) || classId <= 0) {
     return [];
   }
 
-  const db =
-    getDb(options);
+  const db = getDb(options);
 
   /*
    * Resolve teachers from the lesson table rather
    * than assuming every teacher linked to a class
    * is necessarily its supervisor.
    */
-  const lessons =
-    await db.lesson.findMany({
-      where: {
-        classId,
-      },
+  const lessons = await db.lesson.findMany({
+    where: {
+      classId,
+    },
 
-      select: {
-        teacherId:
-          true,
-      },
-    });
+    select: {
+      teacherId: true,
+    },
+  });
 
-  const teacherIds =
-    Array.from(
-      new Set(
-        lessons
-          .map(
-            (lesson) =>
-              lesson.teacherId
-                ?.trim(),
-          )
-          .filter(
-            (
-              teacherId,
-            ): teacherId is string =>
-              Boolean(
-                teacherId,
-              ),
-          ),
-      ),
-    );
+  const teacherIds = Array.from(
+    new Set(
+      lessons
+        .map((lesson) => lesson.teacherId?.trim())
+        .filter((teacherId): teacherId is string => Boolean(teacherId)),
+    ),
+  );
 
   return normalizeRecipients(
-    teacherIds.map(
-      (teacherId) => ({
-        recipientId:
-          teacherId,
+    teacherIds.map((teacherId) => ({
+      recipientId: teacherId,
 
-        recipientRole:
-          "teacher",
-      }),
-    ),
+      recipientRole: "teacher",
+    })),
   );
 }
 
@@ -370,34 +402,14 @@ export async function getClassTeacherNotificationRecipients(
 export async function getStudentAndParentNotificationRecipients(
   studentId: string,
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient[]
-> {
-  const [
-    student,
-    parents,
-  ] =
-    await Promise.all([
-      getStudentNotificationRecipient(
-        studentId,
-        options,
-      ),
+): Promise<NotificationRecipient[]> {
+  const [student, parents] = await Promise.all([
+    getStudentNotificationRecipient(studentId, options),
 
-      getParentNotificationRecipientsForStudent(
-        studentId,
-        options,
-      ),
-    ]);
-
-  return normalizeRecipients([
-    ...(student
-      ? [
-          student,
-        ]
-      : []),
-
-    ...parents,
+    getParentNotificationRecipientsForStudent(studentId, options),
   ]);
+
+  return normalizeRecipients([...(student ? [student] : []), ...parents]);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -407,32 +419,29 @@ export async function getStudentAndParentNotificationRecipients(
 export async function getAcademicManagementRecipients(
   classId: number,
   options: ResolverOptions = {},
-): Promise<
-  NotificationRecipient[]
-> {
-  const [
-    admins,
-    supervisor,
-  ] =
-    await Promise.all([
-      getAdminNotificationRecipients(
-        options,
-      ),
+): Promise<NotificationRecipient[]> {
+  const [attendanceReportViewers, supervisor] = await Promise.all([
+    getPermissionNotificationRecipients("attendance.report", {
+      ...options,
 
-      getClassSupervisorNotificationRecipient(
-        classId,
-        options,
-      ),
-    ]);
+      /*
+       * This is an administrative attendance
+       * oversight notification.
+       *
+       * The routing persona does not grant access.
+       * The destination route remains responsible
+       * for enforcing the actor's RBAC permissions.
+       */
+      routingRole: "admin",
+    }),
+
+    getClassSupervisorNotificationRecipient(classId, options),
+  ]);
 
   return normalizeRecipients([
-    ...admins,
+    ...attendanceReportViewers,
 
-    ...(supervisor
-      ? [
-          supervisor,
-        ]
-      : []),
+    ...(supervisor ? [supervisor] : []),
   ]);
 }
 
@@ -441,23 +450,18 @@ export async function getAcademicManagementRecipients(
 /* -------------------------------------------------------------------------- */
 
 export function excludeNotificationRecipient(
-  recipients:
-    NotificationRecipient[],
+  recipients: NotificationRecipient[],
 
-  recipientId:
-    string | null | undefined,
+  recipientId: string | null | undefined,
 ) {
-  const normalizedId =
-    recipientId?.trim();
+  const normalizedId = recipientId?.trim();
 
   if (!normalizedId) {
     return recipients;
   }
 
   return recipients.filter(
-    (recipient) =>
-      recipient.recipientId !==
-      normalizedId,
+    (recipient) => recipient.recipientId !== normalizedId,
   );
 }
 
@@ -466,101 +470,104 @@ export function excludeNotificationRecipient(
 /* -------------------------------------------------------------------------- */
 
 export function mergeNotificationRecipients(
-  ...groups:
-    NotificationRecipient[][]
+  ...groups: NotificationRecipient[][]
 ) {
-  return normalizeRecipients(
-    groups.flat(),
-  );
+  return normalizeRecipients(groups.flat());
 }
 
+/* -------------------------------------------------------------------------- */
+/*                    EFFECTIVE PERMISSION AUDIENCE                           */
+/* -------------------------------------------------------------------------- */
 
-export async function getRoleNotificationRecipients(
-  role:
-    | "admin"
-    | "teacher"
-    | "student"
-    | "parent",
+export async function getPermissionNotificationRecipients(
+  permission: string,
 
-  options:
-    ResolverOptions = {},
-): Promise<
-  NotificationRecipient[]
-> {
-  const db =
-    getDb(options);
+  {
+    tx,
 
-  switch (role) {
-    case "admin": {
-      return getAdminNotificationRecipients(
-        options,
-      );
-    }
+    routingRole,
+  }: ResolverOptions & {
+    routingRole?: string;
+  } = {},
+): Promise<NotificationRecipient[]> {
+  const normalizedPermission = permission.trim().toLowerCase();
 
-    case "teacher": {
-      const teachers =
-        await db.teacher.findMany({
-          select: {
-            id:
-              true,
-          },
-        });
-
-      return normalizeRecipients(
-        teachers.map(
-          (teacher) => ({
-            recipientId:
-              teacher.id,
-
-            recipientRole:
-              "teacher",
-          }),
-        ),
-      );
-    }
-
-    case "student": {
-      const students =
-        await db.student.findMany({
-          select: {
-            id:
-              true,
-          },
-        });
-
-      return normalizeRecipients(
-        students.map(
-          (student) => ({
-            recipientId:
-              student.id,
-
-            recipientRole:
-              "student",
-          }),
-        ),
-      );
-    }
-
-    case "parent": {
-      const parents =
-        await db.parent.findMany({
-          select: {
-            id:
-              true,
-          },
-        });
-
-      return normalizeRecipients(
-        parents.map(
-          (parent) => ({
-            recipientId:
-              parent.id,
-
-            recipientRole:
-              "parent",
-          }),
-        ),
-      );
-    }
+  if (!normalizedPermission) {
+    return [];
   }
+
+  const db = getDb({
+    tx,
+  });
+
+  const now = new Date();
+
+  /*
+   * Mirror getCurrentAccessActor() effective-access rules:
+   *
+   * - account must be ACTIVE
+   * - role must be active
+   * - assignment must be permanent or unexpired
+   * - permission must be active
+   *
+   * This allows system roles and delegated/custom roles
+   * to participate without relying on a legacy domain table.
+   */
+  const users = await db.userAccount.findMany({
+    where: {
+      status: "ACTIVE",
+
+      roles: {
+        some: {
+          OR: [
+            {
+              expiresAt: null,
+            },
+
+            {
+              expiresAt: {
+                gt: now,
+              },
+            },
+          ],
+
+          role: {
+            isActive: true,
+
+            permissions: {
+              some: {
+                permission: {
+                  isActive: true,
+
+                  key: normalizedPermission,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  return normalizeRecipients(
+    users.map((user) => ({
+      recipientId: user.id,
+
+      /*
+       * Some workflows have a specific routing persona.
+       *
+       * For example, report_cards.review recipients must
+       * enter the administrative review workspace even if
+       * the recipient's legacy persona is Teacher.
+       *
+       * This value affects navigation only. Authorization
+       * remains enforced by the destination route.
+       */
+      recipientRole: routingRole ?? "custom",
+    })),
+  );
 }

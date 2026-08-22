@@ -2,7 +2,7 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { Printer } from "lucide-react";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentAccessActor } from "@/lib/access-control/current-actor";
 import Table from "@/components/Table";
 import FormContainer from "@/components/FormContainer";
 import FinancePagination from "@/components/FinancePagination";
@@ -25,8 +25,27 @@ export default async function FinanceDashboardPage(props: {
   const p = page ? Number(page) : 1;
   const perPage = limit ? Number(limit) : 10; // default 10
 
-  const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+  /* -------------------------------------------------------------------------- */
+  /* ACCESS CONTROL                                                             */
+  /* -------------------------------------------------------------------------- */
+
+  const accessActor = await getCurrentAccessActor();
+
+  if (!accessActor) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const canViewDashboard = accessActor.can("finance.dashboard.view");
+
+  const canRecordPayments = accessActor.can("finance.payments.record");
+
+  const canGenerateStatements = accessActor.can("finance.statements.generate");
+
+  const canViewReports = accessActor.can("finance.reports.view");
+
+  if (!canViewDashboard) {
+    throw new Error("UNAUTHORIZED");
+  }
 
   // -----------------------------
   // BUILD DYNAMIC QUERY
@@ -132,7 +151,7 @@ export default async function FinanceDashboardPage(props: {
       className: "hidden lg:table-cell",
     },
     { header: "Status", accessor: "status", className: "hidden lg:table-cell" },
-    ...(role === "admin"
+    ...(canRecordPayments || canGenerateStatements
       ? [
           {
             header: "Actions",
@@ -182,32 +201,34 @@ export default async function FinanceDashboardPage(props: {
             {status}
           </span>
         </td>
-        {role === "admin" && (
+        {(canRecordPayments || canGenerateStatements) && (
           <td className="p-2">
             <div className="flex items-center gap-2">
-              {/* ADD PAYMENT */}
-              <FormContainer
-                table="fee-payment"
-                type="create"
-                data={{
-                  masterId: inv.id,
-                }}
-              />
+              {canRecordPayments && (
+                <FormContainer
+                  table="fee-payment"
+                  type="create"
+                  data={{
+                    masterId: inv.id,
+                  }}
+                />
+              )}
 
-              {/* DOWNLOAD / PRINT STUDENT FEE STATEMENT */}
-              <Link
-                href={`/api/fees/statement?studentId=${encodeURIComponent(
-                  inv.studentId,
-                )}&term=${encodeURIComponent(
-                  inv.term,
-                )}&academicYear=${encodeURIComponent(inv.academicYear)}`}
-                target="_blank"
-                title="Download fee statement"
-                aria-label={`Download fee statement for ${inv.student.name} ${inv.student.surname}`}
-                className="group inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md"
-              >
-                <Printer className="h-4 w-4 transition-transform duration-200 group-hover:scale-105" />
-              </Link>
+              {canGenerateStatements && (
+                <Link
+                  href={`/api/fees/statement?studentId=${encodeURIComponent(
+                    inv.studentId,
+                  )}&term=${encodeURIComponent(
+                    inv.term,
+                  )}&academicYear=${encodeURIComponent(inv.academicYear)}`}
+                  target="_blank"
+                  title="Download fee statement"
+                  aria-label={`Download fee statement for ${inv.student.name} ${inv.student.surname}`}
+                  className="group inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md"
+                >
+                  <Printer className="h-4 w-4 transition-transform duration-200 group-hover:scale-105" />
+                </Link>
+              )}
             </div>
           </td>
         )}
@@ -266,8 +287,9 @@ export default async function FinanceDashboardPage(props: {
         {/* Pagination */}
         <FinancePagination page={p} count={invoiceCount} limit={perPage} />
       </div>
-      <BulkFeeStatementForm />
-      <FinanceReport />
+      {canGenerateStatements && <BulkFeeStatementForm />}
+
+      {canViewReports && <FinanceReport />}
     </div>
   );
 }

@@ -1,19 +1,30 @@
+// src/app/(dashboard)/list/academic-settings/layout.tsx
+
 import type {
   ReactNode,
 } from "react";
 
 import {
-  requireRouteRole,
-} from "@/lib/auth/route-permissions";
+  requireRouteAccess,
+} from "@/lib/auth";
 
 export default async function AcademicSettingsLayout({
   children,
 }: {
-  children: ReactNode;
+  children:
+    ReactNode;
 }) {
-  await requireRouteRole([
-    "admin",
-  ]);
+  await requireRouteAccess({
+    legacyRoles: [
+      "admin",
+    ],
+
+    permissionPrefixes: [
+      "settings.",
+      "academics.",
+      "report_cards.",
+    ],
+  });
 
   return children;
 }

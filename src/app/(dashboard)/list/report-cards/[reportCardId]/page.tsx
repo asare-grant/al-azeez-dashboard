@@ -5,7 +5,9 @@ import { ReportCardViewer } from "@/components/report-cards/viewer";
 
 import { getAccessibleReportCard } from "@/lib/report-cards/queries";
 
-import { auth } from "@clerk/nextjs/server";
+import {
+  requireReportCardManager,
+} from "@/lib/report-cards/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,28 +28,32 @@ export default async function ReportCardPage({ params }: ReportCardPageProps) {
     notFound();
   }
 
-  const reportCard = await getAccessibleReportCard(id);
+ const [
+    reportCard,
+    manager,
+  ] =
+    await Promise.all([
+      getAccessibleReportCard(
+        id,
+      ),
 
-  if (!reportCard) {
+      requireReportCardManager(),
+    ]);
+
+  if (
+    !reportCard
+  ) {
     notFound();
   }
-
-  const { sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
 
   return (
     <ReportCardViewer
       reportCard={reportCard}
-      isAdmin={role === "admin"}
+      canPublish={ manager.canPublish}
       backHref="/list/report-cards"
       printHref={`/list/report-cards/${reportCard.id}/print`}
       reviewHref={`/list/report-cards/${reportCard.id}/review`}
-      canReview={role === "admin" || role === "teacher"}
+      canReview={ manager.canReview}
     />
   );
 }

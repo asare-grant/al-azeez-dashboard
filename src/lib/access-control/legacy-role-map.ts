@@ -1,4 +1,7 @@
 export const legacyRoleToAccessRole = {
+  super_admin:
+    "super_admin",
+
   admin:
     "admin",
 
@@ -12,14 +15,17 @@ export const legacyRoleToAccessRole = {
     "parent",
 
   /*
-   * Your existing application calls this role
-   * "account".
-   *
-   * RBAC uses the more meaningful system role:
-   * accountant.
-   */
-  account:
-    "accountant",
+ * The existing application uses the legacy
+ * persona key "account".
+ *
+ * We intentionally keep it mapped to the
+ * protected RBAC "account" role during migration.
+ *
+ * "accountant" remains a separate richer
+ * operational role that can be assigned explicitly.
+ */
+account:
+  "account",
 } as const;
 
 export type LegacyApplicationRole =

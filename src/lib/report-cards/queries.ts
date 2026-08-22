@@ -3,7 +3,12 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 
-import { requireReportCardUser } from "./auth";
+import {
+  requireReportCardAdmin,
+  requireReportCardManager,
+  requireReportCardPermission,
+  requireReportCardUser,
+} from "./auth";
 
 import type {
   Prisma,
@@ -24,242 +29,168 @@ import type { ReportCardReviewWorkspaceData } from "./review-types";
 
 import { validateReportCardGeneration } from "./generation-validator";
 
-import {
-  buildReportCardReadWhere,
-} from "./access";
-
-
+import { buildReportCardReadWhere } from "./access";
 
 const accessibleReportCardSelect = {
-  id:
-    true,
+  id: true,
 
-  status:
-    true,
+  status: true,
 
-  calculationStatus:
-    true,
+  calculationStatus: true,
 
-  version:
-    true,
+  version: true,
 
-  academicYear:
-    true,
+  academicYear: true,
 
   student: {
     select: {
-      id:
-        true,
+      id: true,
 
-      studentID:
-        true,
+      studentID: true,
 
-      name:
-        true,
+      name: true,
 
-      surname:
-        true,
+      surname: true,
 
-      img:
-        true,
+      img: true,
     },
   },
 
   class: {
     select: {
-      id:
-        true,
+      id: true,
 
-      name:
-        true,
+      name: true,
     },
   },
 
   grade: {
     select: {
-      id:
-        true,
+      id: true,
 
-      level:
-        true,
+      level: true,
     },
   },
 
   term: {
     select: {
-      id:
-        true,
+      id: true,
 
-      name:
-        true,
+      name: true,
 
-      startDate:
-        true,
+      startDate: true,
 
-      endDate:
-        true,
+      endDate: true,
     },
   },
 
-  subjectCount:
-    true,
+  subjectCount: true,
 
-  completedSubjectCount:
-    true,
+  completedSubjectCount: true,
 
-  incompleteSubjectCount:
-    true,
+  incompleteSubjectCount: true,
 
-  totalScore:
-    true,
+  totalScore: true,
 
-  averageScore:
-    true,
+  averageScore: true,
 
-  highestSubjectScore:
-    true,
+  highestSubjectScore: true,
 
-  lowestSubjectScore:
-    true,
+  lowestSubjectScore: true,
 
-  passedSubjectCount:
-    true,
+  passedSubjectCount: true,
 
-  failedSubjectCount:
-    true,
+  failedSubjectCount: true,
 
-  passRate:
-    true,
+  passRate: true,
 
-  totalGradePoints:
-    true,
+  totalGradePoints: true,
 
-  averageGradePoint:
-    true,
+  averageGradePoint: true,
 
-  overallGrade:
-    true,
+  overallGrade: true,
 
-  overallRemark:
-    true,
+  overallRemark: true,
 
-  overallGradePoint:
-    true,
+  overallGradePoint: true,
 
-  overallPosition:
-    true,
+  overallPosition: true,
 
-  classStudentCount:
-    true,
+  classStudentCount: true,
 
-  daysSchoolOpened:
-    true,
+  daysSchoolOpened: true,
 
-  daysPresent:
-    true,
+  daysPresent: true,
 
-  daysAbsent:
-    true,
+  daysAbsent: true,
 
-  attendancePercentage:
-    true,
+  attendancePercentage: true,
 
-  conduct:
-    true,
+  conduct: true,
 
-  classTeacherRemark:
-    true,
+  classTeacherRemark: true,
 
-  headTeacherRemark:
-    true,
+  headTeacherRemark: true,
 
-  promotionStatus:
-    true,
+  promotionStatus: true,
 
-  nextTermBegins:
-    true,
+  nextTermBegins: true,
 
-  generatedAt:
-    true,
+  generatedAt: true,
 
-  regeneratedAt:
-    true,
+  regeneratedAt: true,
 
-  publishedAt:
-    true,
+  publishedAt: true,
 
   subjects: {
     select: {
-      id:
-        true,
+      id: true,
 
-      subjectId:
-        true,
+      subjectId: true,
 
-      subjectName:
-        true,
+      subjectName: true,
 
-      teacherId:
-        true,
+      teacherId: true,
 
-      teacherName:
-        true,
+      teacherName: true,
 
-      assignmentPercentage:
-        true,
+      assignmentPercentage: true,
 
-      assignmentWeight:
-        true,
+      assignmentWeight: true,
 
-      assignmentScore:
-        true,
+      assignmentScore: true,
 
-      assessmentPercentage:
-        true,
+      assessmentPercentage: true,
 
-      assessmentWeight:
-        true,
+      assessmentWeight: true,
 
-      assessmentScore:
-        true,
+      assessmentScore: true,
 
-      examinationPercentage:
-        true,
+      examinationPercentage: true,
 
-      examinationWeight:
-        true,
+      examinationWeight: true,
 
-      examinationScore:
-        true,
+      examinationScore: true,
 
-      finalScore:
-        true,
+      finalScore: true,
 
-      grade:
-        true,
+      grade: true,
 
-      remark:
-        true,
+      remark: true,
 
-      gradePoint:
-        true,
+      gradePoint: true,
 
-      passed:
-        true,
+      passed: true,
 
-      calculationStatus:
-        true,
+      calculationStatus: true,
 
-      subjectPosition:
-        true,
+      subjectPosition: true,
 
-      classAverage:
-        true,
+      classAverage: true,
     },
 
     orderBy: {
-      subjectName:
-        "asc",
+      subjectName: "asc",
     },
   },
 } satisfies Prisma.ReportCardSelect;
@@ -279,11 +210,7 @@ export async function getManagedReportCards({
   termId?: number;
   status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
 } = {}) {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin" && role !== "teacher") {
-    throw new Error("UNAUTHORISED");
-  }
+  const { userId, scope } = await requireReportCardManager();
 
   const reportCards = await prisma.reportCard.findMany({
     where: {
@@ -311,7 +238,7 @@ export async function getManagedReportCards({
           }
         : {}),
 
-      ...(role === "teacher"
+      ...(scope === "TEACHER_OWNED"
         ? {
             class: {
               lessons: {
@@ -664,35 +591,26 @@ export async function getParentChildReportCards(childId: string) {
 /*                      SECURE SINGLE REPORT-CARD QUERY                       */
 /* -------------------------------------------------------------------------- */
 
-export async function getAccessibleReportCard(
-  reportCardId: number,
-) {
-  const {
+export async function getAccessibleReportCard(reportCardId: number) {
+  const { userId, role } = await requireReportCardUser();
+
+  const where = buildReportCardReadWhere({
+    reportCardId,
+
     userId,
+
     role,
-  } =
-    await requireReportCardUser();
-
-  const where =
-    buildReportCardReadWhere({
-      reportCardId,
-
-      userId,
-
-      role,
-    });
+  });
 
   if (!where) {
     return null;
   }
 
-  const reportCard =
-    await prisma.reportCard.findFirst({
-      where,
+  const reportCard = await prisma.reportCard.findFirst({
+    where,
 
-      select:
-        accessibleReportCardSelect,
-    });
+    select: accessibleReportCardSelect,
+  });
 
   if (!reportCard) {
     return null;
@@ -701,10 +619,7 @@ export async function getAccessibleReportCard(
   return {
     ...reportCard,
 
-    student:
-      mapStudentIdentity(
-        reportCard.student,
-      ),
+    student: mapStudentIdentity(reportCard.student),
   };
 }
 
@@ -757,12 +672,7 @@ export async function getReportCardCommandCentre({
   page?: number;
   pageSize?: number;
 } = {}) {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin" && role !== "teacher") {
-    throw new Error("UNAUTHORISED");
-  }
-
+  const { userId, scope } = await requireReportCardManager();
   const safePage = Math.max(1, page);
 
   const safePageSize = Math.min(Math.max(1, pageSize), 50);
@@ -784,7 +694,7 @@ export async function getReportCardCommandCentre({
   const academicYear = filters.academicYear?.trim();
 
   const ownershipWhere: Prisma.ReportCardWhereInput =
-    role === "teacher"
+    scope === "TEACHER_OWNED"
       ? {
           class: {
             lessons: {
@@ -903,9 +813,6 @@ export async function getReportCardCommandCentre({
   const [
     reportCards,
     total,
-    statusGroups,
-    calculationGroups,
-    reviewGroups,
     scoreAggregate,
     classes,
     terms,
@@ -1010,34 +917,6 @@ export async function getReportCardCommandCentre({
       where,
     }),
 
-    prisma.reportCard.groupBy({
-      by: ["status"],
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
-    prisma.reportCard.groupBy({
-      by: ["calculationStatus"],
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
-    prisma.reportCard.groupBy({
-      by: ["reviewStatus"],
-
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
     prisma.reportCard.aggregate({
       where: {
         ...where,
@@ -1054,7 +933,7 @@ export async function getReportCardCommandCentre({
 
     prisma.class.findMany({
       where:
-        role === "teacher"
+        scope === "TEACHER_OWNED"
           ? {
               lessons: {
                 some: {
@@ -1117,19 +996,63 @@ export async function getReportCardCommandCentre({
     }),
   ]);
 
+  const [statusGroups, calculationGroups, reviewGroups] = await Promise.all([
+    prisma.reportCard.groupBy({
+      by: ["status"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        status: "asc",
+      },
+    }),
+
+    prisma.reportCard.groupBy({
+      by: ["calculationStatus"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        calculationStatus: "asc",
+      },
+    }),
+
+    prisma.reportCard.groupBy({
+      by: ["reviewStatus"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        reviewStatus: "asc",
+      },
+    }),
+  ]);
+
   const statusCount = new Map(
-    statusGroups.map((group) => [group.status, group._count._all]),
+    statusGroups.map((group) => [group.status, group._count.id]),
   );
 
   const calculationCount = new Map(
     calculationGroups.map((group) => [
       group.calculationStatus,
-      group._count._all,
+      group._count.id,
     ]),
   );
 
   const reviewCount = new Map(
-    reviewGroups.map((group) => [group.reviewStatus, group._count._all]),
+    reviewGroups.map((group) => [group.reviewStatus, group._count.id]),
   );
 
   const draft = statusCount.get("DRAFT") ?? 0;
@@ -1299,20 +1222,12 @@ export async function getParentChildrenForReportCards() {
   }));
 }
 
-
-
 /* -------------------------------------------------------------------------- */
 /*                    STUDENT ACCESSIBLE REPORT CARD                          */
 /* -------------------------------------------------------------------------- */
 
-export async function getStudentAccessibleReportCard(
-  reportCardId: number,
-) {
-  const {
-    userId,
-    role,
-  } =
-    await requireReportCardUser();
+export async function getStudentAccessibleReportCard(reportCardId: number) {
+  const { userId, role } = await requireReportCardUser();
 
   /*
    * This is a student-specific route/query.
@@ -1321,33 +1236,27 @@ export async function getStudentAccessibleReportCard(
    * to view this report elsewhere, but they should
    * not enter through a student-owned route.
    */
-  if (
-    role !==
-    "student"
-  ) {
+  if (role !== "student") {
     return null;
   }
 
-  const where =
-    buildReportCardReadWhere({
-      reportCardId,
+  const where = buildReportCardReadWhere({
+    reportCardId,
 
-      userId,
+    userId,
 
-      role,
-    });
+    role,
+  });
 
   if (!where) {
     return null;
   }
 
-  const reportCard =
-    await prisma.reportCard.findFirst({
-      where,
+  const reportCard = await prisma.reportCard.findFirst({
+    where,
 
-      select:
-        accessibleReportCardSelect,
-    });
+    select: accessibleReportCardSelect,
+  });
 
   if (!reportCard) {
     return null;
@@ -1356,10 +1265,7 @@ export async function getStudentAccessibleReportCard(
   return {
     ...reportCard,
 
-    student:
-      mapStudentIdentity(
-        reportCard.student,
-      ),
+    student: mapStudentIdentity(reportCard.student),
   };
 }
 
@@ -1371,47 +1277,35 @@ export async function getParentAccessibleReportCard({
   childId,
   reportCardId,
 }: {
-  childId:
-    string;
+  childId: string;
 
-  reportCardId:
-    number;
+  reportCardId: number;
 }) {
-  const {
-    userId,
-    role,
-  } =
-    await requireReportCardUser();
+  const { userId, role } = await requireReportCardUser();
 
-  if (
-    role !==
-    "parent"
-  ) {
+  if (role !== "parent") {
     return null;
   }
 
-  const where =
-    buildReportCardReadWhere({
-      reportCardId,
+  const where = buildReportCardReadWhere({
+    reportCardId,
 
-      userId,
+    userId,
 
-      role,
+    role,
 
-      childId,
-    });
+    childId,
+  });
 
   if (!where) {
     return null;
   }
 
-  const reportCard =
-    await prisma.reportCard.findFirst({
-      where,
+  const reportCard = await prisma.reportCard.findFirst({
+    where,
 
-      select:
-        accessibleReportCardSelect,
-    });
+    select: accessibleReportCardSelect,
+  });
 
   if (!reportCard) {
     return null;
@@ -1420,10 +1314,7 @@ export async function getParentAccessibleReportCard({
   return {
     ...reportCard,
 
-    student:
-      mapStudentIdentity(
-        reportCard.student,
-      ),
+    student: mapStudentIdentity(reportCard.student),
   };
 }
 
@@ -1682,9 +1573,6 @@ export async function getTeacherClassReportCardCommandCentre({
   const [
     reportCards,
     total,
-    statusGroups,
-    calculationGroups,
-    reviewGroups,
     scoreAggregate,
     terms,
     academicYearRows,
@@ -1783,35 +1671,6 @@ export async function getTeacherClassReportCardCommandCentre({
       where,
     }),
 
-    prisma.reportCard.groupBy({
-      by: ["status"],
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
-    prisma.reportCard.groupBy({
-      by: ["calculationStatus"],
-
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
-    prisma.reportCard.groupBy({
-      by: ["reviewStatus"],
-
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
     prisma.reportCard.aggregate({
       where: {
         ...where,
@@ -1893,19 +1752,63 @@ export async function getTeacherClassReportCardCommandCentre({
     }),
   ]);
 
+  const [statusGroups, calculationGroups, reviewGroups] = await Promise.all([
+    prisma.reportCard.groupBy({
+      by: ["status"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        status: "asc",
+      },
+    }),
+
+    prisma.reportCard.groupBy({
+      by: ["calculationStatus"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        calculationStatus: "asc",
+      },
+    }),
+
+    prisma.reportCard.groupBy({
+      by: ["reviewStatus"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        reviewStatus: "asc",
+      },
+    }),
+  ]);
+
   const statusCount = new Map(
-    statusGroups.map((group) => [group.status, group._count._all]),
+    statusGroups.map((group) => [group.status, group._count.id]),
   );
 
   const calculationCount = new Map(
     calculationGroups.map((group) => [
       group.calculationStatus,
-      group._count._all,
+      group._count.id,
     ]),
   );
 
   const reviewCount = new Map(
-    reviewGroups.map((group) => [group.reviewStatus, group._count._all]),
+    reviewGroups.map((group) => [group.reviewStatus, group._count.id]),
   );
 
   const items = reportCards.map((reportCard) => ({
@@ -1987,47 +1890,35 @@ export async function getTeacherAccessibleReportCard({
   classId,
   reportCardId,
 }: {
-  classId:
-    number;
+  classId: number;
 
-  reportCardId:
-    number;
+  reportCardId: number;
 }) {
-  const {
-    userId,
-    role,
-  } =
-    await requireReportCardUser();
+  const { userId, role } = await requireReportCardUser();
 
-  if (
-    role !==
-    "teacher"
-  ) {
+  if (role !== "teacher") {
     return null;
   }
 
-  const where =
-    buildReportCardReadWhere({
-      reportCardId,
+  const where = buildReportCardReadWhere({
+    reportCardId,
 
-      userId,
+    userId,
 
-      role,
+    role,
 
-      classId,
-    });
+    classId,
+  });
 
   if (!where) {
     return null;
   }
 
-  const reportCard =
-    await prisma.reportCard.findFirst({
-      where,
+  const reportCard = await prisma.reportCard.findFirst({
+    where,
 
-      select:
-        accessibleReportCardSelect,
-    });
+    select: accessibleReportCardSelect,
+  });
 
   if (!reportCard) {
     return null;
@@ -2036,34 +1927,40 @@ export async function getTeacherAccessibleReportCard({
   return {
     ...reportCard,
 
-    student:
-      mapStudentIdentity(
-        reportCard.student,
-      ),
+    student: mapStudentIdentity(reportCard.student),
   };
 }
 
 /* -------------------------------------------------------------------------- */
 /*                    REPORT-CARD GENERATION OPTIONS                          */
 /* -------------------------------------------------------------------------- */
-
 export async function getReportCardGenerationOptions() {
-  const { userId, role } = await requireReportCardUser();
+  const user =
+    await requireReportCardManager();
 
-  if (role !== "admin" && role !== "teacher") {
-    throw new Error("UNAUTHORISED");
-  }
+  /*
+   * Global generators can see every class.
+   *
+   * Non-global teacher managers can only see classes for which they
+   * are the assigned class supervisor.
+   *
+   * Merely teaching a lesson in a class does not grant report-card
+   * generation authority.
+   */
+  const supervisorOnly =
+    !user.canGenerate;
 
-  const [classes, terms, weightingYears] = await prisma.$transaction([
+  const [
+    classes,
+    terms,
+    weightingYears,
+  ] = await prisma.$transaction([
     prisma.class.findMany({
       where:
-        role === "teacher"
+        supervisorOnly
           ? {
-              lessons: {
-                some: {
-                  teacherId: userId,
-                },
-              },
+              supervisorId:
+                user.userId,
             }
           : undefined,
 
@@ -2118,16 +2015,13 @@ export async function getReportCardGenerationOptions() {
       where: {
         isActive: true,
 
-        ...(role === "teacher"
+        ...(supervisorOnly
           ? {
               grade: {
                 classess: {
                   some: {
-                    lessons: {
-                      some: {
-                        teacherId: userId,
-                      },
-                    },
+                    supervisorId:
+                      user.userId,
                   },
                 },
               },
@@ -2135,40 +2029,68 @@ export async function getReportCardGenerationOptions() {
           : {}),
       },
 
-      distinct: ["academicYear"],
+      distinct: [
+        "academicYear",
+      ],
 
       select: {
         academicYear: true,
       },
 
       orderBy: {
-        academicYear: "desc",
+        academicYear:
+          "desc",
       },
     }),
   ]);
 
-  const activeTerm = terms.find((term) => term.isActive) ?? null;
+  const activeTerm =
+    terms.find(
+      (term) =>
+        term.isActive,
+    ) ?? null;
 
   return {
-    classes: classes.map((classOption) => ({
-      id: classOption.id,
+    classes:
+      classes.map(
+        (classOption) => ({
+          id:
+            classOption.id,
 
-      name: classOption.name,
+          name:
+            classOption.name,
 
-      grade: classOption.grade,
+          grade:
+            classOption.grade,
 
-      studentCount: classOption._count.students,
+          studentCount:
+            classOption
+              ._count
+              .students,
 
-      lessonCount: classOption._count.lessons,
-    })),
+          lessonCount:
+            classOption
+              ._count
+              .lessons,
+        }),
+      ),
 
     terms,
 
-    academicYears: weightingYears.map((weighting) => weighting.academicYear),
+    academicYears:
+      weightingYears.map(
+        (weighting) =>
+          weighting.academicYear,
+      ),
 
-    defaultAcademicYear: weightingYears[0]?.academicYear ?? null,
+    defaultAcademicYear:
+      weightingYears[0]
+        ?.academicYear ??
+      null,
 
-    defaultTermId: activeTerm?.id ?? null,
+    defaultTermId:
+      activeTerm?.id ??
+      null,
   };
 }
 
@@ -2199,11 +2121,7 @@ export async function getReportCardGenerationReadiness({
 export async function getReportCardReviewWorkspace(
   reportCardId: number,
 ): Promise<ReportCardReviewWorkspaceData | null> {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin" && role !== "teacher") {
-    return null;
-  }
+  const { userId, scope, role } = await requireReportCardManager();
 
   if (!Number.isInteger(reportCardId) || reportCardId <= 0) {
     return null;
@@ -2213,7 +2131,7 @@ export async function getReportCardReviewWorkspace(
     where: {
       id: reportCardId,
 
-      ...(role === "teacher"
+      ...(scope === "TEACHER_OWNED"
         ? {
             class: {
               lessons: {
@@ -2584,11 +2502,7 @@ export async function getReportCardBulkReviewWorkspace({
   page?: number;
   pageSize?: number;
 } = {}) {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin") {
-    throw new Error("ADMIN_REQUIRED");
-  }
+  await requireReportCardAdmin();
 
   const safePage = Math.max(1, page);
 
@@ -2680,9 +2594,6 @@ export async function getReportCardBulkReviewWorkspace({
     reportCards,
     total,
     completeReportCount,
-    reviewGroups,
-    calculationGroups,
-    lifecycleGroups,
     averageAggregate,
     classes,
     terms,
@@ -2799,33 +2710,6 @@ export async function getReportCardBulkReviewWorkspace({
       },
     }),
 
-    prisma.reportCard.groupBy({
-      by: ["reviewStatus"],
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
-    prisma.reportCard.groupBy({
-      by: ["calculationStatus"],
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
-    prisma.reportCard.groupBy({
-      by: ["status"],
-      where,
-
-      _count: {
-        _all: true,
-      },
-    }),
-
     prisma.reportCard.aggregate({
       where: {
         ...where,
@@ -2901,19 +2785,63 @@ export async function getReportCardBulkReviewWorkspace({
     }),
   ]);
 
+  const [lifecycleGroups, calculationGroups, reviewGroups] = await Promise.all([
+    prisma.reportCard.groupBy({
+      by: ["status"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        status: "asc",
+      },
+    }),
+
+    prisma.reportCard.groupBy({
+      by: ["calculationStatus"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        calculationStatus: "asc",
+      },
+    }),
+
+    prisma.reportCard.groupBy({
+      by: ["reviewStatus"],
+
+      where,
+
+      _count: {
+        id: true,
+      },
+
+      orderBy: {
+        reviewStatus: "asc",
+      },
+    }),
+  ]);
+
   const reviewCount = new Map(
-    reviewGroups.map((group) => [group.reviewStatus, group._count._all]),
+    reviewGroups.map((group) => [group.reviewStatus, group._count.id]),
   );
 
   const calculationCount = new Map(
     calculationGroups.map((group) => [
       group.calculationStatus,
-      group._count._all,
+      group._count.id,
     ]),
   );
 
   const lifecycleCount = new Map(
-    lifecycleGroups.map((group) => [group.status, group._count._all]),
+    lifecycleGroups.map((group) => [group.status, group._count.id]),
   );
 
   const items = reportCards.map((reportCard) => ({

@@ -1,19 +1,40 @@
+// src/app/(dashboard)/parent/layout.tsx
+
 import type {
   ReactNode,
 } from "react";
 
 import {
-  requireRouteRole,
-} from "@/lib/auth/route-permissions";
+  getCurrentSchoolProfile,
+} from "@/lib/users/current-school-profile";
+
+import {
+  redirect,
+} from "next/navigation";
 
 export default async function ParentLayout({
   children,
 }: {
-  children: ReactNode;
+  children:
+    ReactNode;
 }) {
-  await requireRouteRole([
-    "parent",
-  ]);
+  const profile =
+    await getCurrentSchoolProfile();
+
+  if (!profile) {
+    redirect(
+      "/sign-in",
+    );
+  }
+
+  if (
+    profile.role !==
+    "parent"
+  ) {
+    redirect(
+      "/dashboard",
+    );
+  }
 
   return children;
 }

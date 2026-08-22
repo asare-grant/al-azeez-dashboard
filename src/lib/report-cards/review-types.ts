@@ -4,13 +4,21 @@ import type {
   ReportCardStatus,
 } from "@prisma/client";
 
+import type {
+  AppRole,
+} from "@/lib/navigation/roles";
 /* -------------------------------------------------------------------------- */
 /*                             REVIEW ACTORS                                  */
 /* -------------------------------------------------------------------------- */
 
 export type ReportCardReviewActorRole =
-  | "admin"
-  | "teacher";
+  Extract<
+    AppRole,
+    | "super_admin"
+    | "admin"
+    | "teacher"
+    | "custom"
+  >;
 
 export type ReportCardReviewActor = {
   id: string;

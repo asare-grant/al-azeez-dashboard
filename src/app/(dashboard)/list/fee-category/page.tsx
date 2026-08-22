@@ -5,7 +5,7 @@ import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { FeeCategory, Prisma } from "@prisma/client";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentAccessActor } from "@/lib/access-control/current-actor";
 import Image from "next/image";
 
 export const revalidate = 0; // Disable caching
@@ -15,12 +15,19 @@ export default async function FeeCategoryListPage(props: {
 }) {
   const searchParams = await props.searchParams;
 
-  const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const accessActor = await getCurrentAccessActor();
+
+  if (!accessActor || !accessActor.can("finance.structure.manage")) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const canManageStructure = accessActor.can("finance.structure.manage");
 
   const columns = [
     { header: "Category Name", accessor: "name" },
-    ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
+    ...(canManageStructure
+  ? [{ header: "Actions", accessor: "action" }]
+  : []),
   ];
 
   const renderRow = (item: FeeCategory) => (
@@ -31,7 +38,7 @@ export default async function FeeCategoryListPage(props: {
       <td className="p-4">{item.name}</td>
       <td>
         <div className="flex items-center gap-2">
-          {role === "admin" && (
+          {canManageStructure && (
             <>
               <FormContainer table="fee-category" type="update" data={item} />
               <FormContainer table="fee-category" type="delete" id={item.id} />
@@ -77,7 +84,7 @@ export default async function FeeCategoryListPage(props: {
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" && (
+            {canManageStructure && (
               <FormContainer table="fee-category" type="create" />
             )}
           </div>

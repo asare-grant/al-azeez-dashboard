@@ -1,38 +1,96 @@
+// src/lib/academic-weightings/auth.ts
+
+import "server-only";
+
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  getCurrentAccessActor,
+} from "@/lib/access-control";
 
 export type AcademicWeightingManager = {
-  userId: string;
-  role: "admin";
+  userId:
+    string;
+
+  role:
+    string | null;
+
+  actorName:
+    string | null;
 };
 
-export async function requireAcademicWeightingAdmin(): Promise<AcademicWeightingManager> {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+export async function requireAcademicWeightingAdmin(): Promise<
+  AcademicWeightingManager
+> {
+  const accessActor =
+    await getCurrentAccessActor();
 
-  if (!userId) {
+  if (
+    !accessActor
+  ) {
     throw new Error(
       "UNAUTHENTICATED",
     );
   }
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (role !== "admin") {
+  if (
+    !accessActor.can(
+      "settings.manage",
+    )
+  ) {
     throw new Error(
       "UNAUTHORISED",
     );
   }
 
+  const grantingAssignment =
+    accessActor.activeAssignments.find(
+      (
+        assignment,
+      ) =>
+        assignment.role.permissions.some(
+          (
+            rolePermission,
+          ) =>
+            rolePermission
+              .permission
+              .isActive &&
+            rolePermission
+              .permission
+              .key
+              .trim()
+              .toLowerCase() ===
+              "settings.manage",
+        ),
+    );
+
+  const role =
+    grantingAssignment
+      ?.role.key
+      ?.trim()
+      .toLowerCase() ??
+    accessActor.actor
+      .legacyRole
+      ?.trim()
+      .toLowerCase() ??
+    null;
+
+  const actorName =
+    accessActor.actor
+      .displayName
+      ?.trim() ||
+    accessActor.actor
+      .username
+      ?.trim() ||
+    accessActor.actor
+      .email
+      ?.trim() ||
+    "Academic Administrator";
+
   return {
-    userId,
+    userId:
+      accessActor.actor.id,
+
     role,
+
+    actorName,
   };
 }

@@ -1,3 +1,4 @@
+// src/app/(dashboard)/list/assessments/page.ts
 import type { AssessmentStatus } from "@prisma/client";
 
 import { AssessmentCommandCentre } from "@/components/assessments/command-centre";

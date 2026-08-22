@@ -1,3 +1,13 @@
+// src/lib/access-control/system-roles.ts
+
+import {
+  permissionCatalogue,
+} from "./permission-catalogue";
+
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
+
 export type SystemRoleDefinition = {
   key:
     string;
@@ -15,60 +25,242 @@ export type SystemRoleDefinition = {
     string[];
 };
 
-const allPermissions =
-  ["*"];
+/* ========================================================================== */
+/* HELPERS                                                                    */
+/* ========================================================================== */
+
+const ALL_PERMISSION_KEYS =
+  permissionCatalogue.map(
+    (
+      permission,
+    ) =>
+      permission.key,
+  );
+
+function unique(
+  permissions:
+    readonly string[],
+) {
+  return Array.from(
+    new Set(
+      permissions.map(
+        (
+          permission,
+        ) =>
+          permission
+            .trim()
+            .toLowerCase(),
+      ),
+    ),
+  );
+}
+
+/* ========================================================================== */
+/* SHARED AUTHENTICATED CAPABILITIES                                          */
+/* ========================================================================== */
+
+const COMMON_SIGNED_IN_PERMISSIONS = [
+  "communications.events.view",
+  "communications.announcements.view",
+  "communications.notifications.view",
+  "communications.messages.view",
+] as const;
+
+/* ========================================================================== */
+/* SYSTEM / DEFAULT ROLES                                                     */
+/* ========================================================================== */
 
 export const systemRoles:
   SystemRoleDefinition[] = [
-    {
-      key:
-        "super_admin",
+  /* ------------------------------------------------------------------------ */
+  /* SUPER ADMIN                                                              */
+  /* ------------------------------------------------------------------------ */
 
-      name:
-        "Super Administrator",
+  {
+    key:
+      "super_admin",
 
-      description:
-        "Platform-level school administrator with unrestricted access.",
+    name:
+      "Super Administrator",
 
-      protected:
-        true,
+    description:
+      "Platform-level school administrator with unrestricted access.",
 
-      permissions:
-        allPermissions,
-    },
+    protected:
+      true,
 
-    {
-      key:
-        "admin",
+    /*
+     * Super Admin automatically receives every permission
+     * currently defined in the permission catalogue.
+     */
+    permissions:
+      [...ALL_PERMISSION_KEYS],
+  },
 
-      name:
-        "Administrator",
+  /* ------------------------------------------------------------------------ */
+  /* ADMIN                                                                    */
+  /* ------------------------------------------------------------------------ */
 
-      description:
-        "Full day-to-day school administration and academic operations.",
+  {
+    key:
+      "admin",
 
-      protected:
-        true,
+    name:
+      "Administrator",
 
-      permissions: [
-        "*",
-      ],
-    },
+    description:
+      "Full day-to-day school administration and academic operations.",
 
-    {
-      key:
-        "academic_director",
+    protected:
+      true,
 
-      name:
-        "Academic Director",
+    permissions:
+      unique([
+        /* USERS */
+        "users.view",
+        "users.create",
+        "users.update",
+        "users.disable",
+        "users.manage_status",
+        "users.reset_password",
 
-      description:
-        "Academic leadership, teachers, classes, assessments and report oversight.",
+        /* ROLES & PERMISSIONS */
+        "roles.view",
+        "roles.manage",
+        "roles.assign",
+        "roles.remove",
+        "roles.manage_expiry",
 
-      protected:
-        false,
+        "permissions.manage",
 
-      permissions: [
+        /* STUDENTS */
+        "students.view",
+        "students.create",
+        "students.update",
+        "students.delete",
+
+        /* TEACHERS */
+        "teachers.view",
+        "teachers.create",
+        "teachers.update",
+        "teachers.delete",
+
+        /* PARENTS */
+        "parents.view",
+        "parents.create",
+        "parents.update",
+        "parents.delete",
+
+        /* ACADEMICS */
+        "academics.subjects.view",
+        "academics.subjects.manage",
+
+        "academics.classes.view",
+        "academics.classes.manage",
+
+        "academics.lessons.view",
+        "academics.lessons.manage",
+
+        /* EXAMS */
+        "exams.view",
+        "exams.manage",
+
+        /* ASSIGNMENTS */
+        "assignments.view",
+        "assignments.manage",
+
+        /* RESULTS */
+        "results.view",
+        "results.manage",
+
+        /* ASSESSMENTS */
+        "assessments.view",
+        "assessments.create",
+        "assessments.publish",
+        "assessments.grade",
+
+        /* ATTENDANCE */
+        "attendance.view",
+        "attendance.record",
+        "attendance.modify",
+        "attendance.report",
+
+        /* REPORT CARDS */
+        "report_cards.view",
+        "report_cards.generate",
+        "report_cards.edit",
+        "report_cards.submit",
+        "report_cards.review",
+        "report_cards.publish",
+        "report_cards.settings",
+
+        /* FINANCE */
+        "finance.dashboard.view",
+        "finance.invoices.view",
+        "finance.invoices.manage",
+        "finance.payments.record",
+        "finance.payments.modify",
+        "finance.structure.manage",
+        "finance.reports.view",
+        "finance.statements.generate",
+        "finance.reminders.send",
+
+        /* COMMUNICATIONS */
+        "communications.events.view",
+        "communications.events.manage",
+
+        "communications.announcements.view",
+        "communications.announcements.manage",
+
+        "communications.notifications.view",
+
+        "communications.messages.view",
+        "communications.messages.send",
+        "communications.messages.manage",
+
+        /* NOTIFICATION OPERATIONS */
+        "notification_operations.view",
+        "notification_operations.policy.manage",
+        "notification_operations.analytics.view",
+        "notification_operations.scheduler.run",
+
+        /* SETTINGS */
+        "settings.view",
+        "settings.manage",
+
+        /* AUDIT */
+        "audit.view",
+
+        /*
+         * Admin can inspect formal review governance,
+         * but the most sensitive certification powers
+         * remain Super-Admin level by default.
+         */
+        "access_reviews.view",
+      ]),
+  },
+
+  /* ------------------------------------------------------------------------ */
+  /* ACADEMIC DIRECTOR                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  {
+    key:
+      "academic_director",
+
+    name:
+      "Academic Director",
+
+    description:
+      "Academic leadership, teachers, classes, assessments and report oversight.",
+
+    protected:
+      false,
+
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
+
         "students.view",
 
         "teachers.view",
@@ -107,37 +299,48 @@ export const systemRoles:
         "report_cards.publish",
         "report_cards.settings",
 
-        "communications.events.view",
         "communications.events.manage",
 
-        "communications.announcements.view",
         "communications.announcements.manage",
 
-        "communications.notifications.view",
-      ],
-    },
+        "communications.messages.send",
+      ]),
+  },
 
-    {
-      key:
-        "teacher",
+  /* ------------------------------------------------------------------------ */
+  /* TEACHER                                                                  */
+  /* ------------------------------------------------------------------------ */
 
-      name:
-        "Teacher",
+  {
+    key:
+      "teacher",
 
-      description:
-        "Teaching, classroom, assessment, attendance and report-card responsibilities.",
+    name:
+      "Teacher",
 
-      protected:
-        true,
+    description:
+      "Teaching, classroom, assessment, attendance and report-card responsibilities.",
 
-      permissions: [
+    protected:
+      true,
+
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
+
         "students.view",
+
+        "teachers.view",
+
+        "parents.view",
 
         "academics.subjects.view",
         "academics.classes.view",
         "academics.lessons.view",
+        "academics.lessons.manage",
 
         "exams.view",
+        "exams.manage",
 
         "assignments.view",
         "assignments.manage",
@@ -157,30 +360,36 @@ export const systemRoles:
         "report_cards.edit",
         "report_cards.submit",
 
-        "communications.events.view",
+        "communications.messages.send",
+      ]),
+  },
 
-        "communications.announcements.view",
+  /* ------------------------------------------------------------------------ */
+  /* ACCOUNTANT / BURSAR                                                      */
+  /* ------------------------------------------------------------------------ */
 
-        "communications.notifications.view",
-      ],
-    },
+  {
+    key:
+      "accountant",
 
-    {
-      key:
-        "accountant",
+    name:
+      "Accountant / Bursar",
 
-      name:
-        "Accountant / Bursar",
+    description:
+      "School finance, billing, payments, statements and finance reporting.",
 
-      description:
-        "School finance, billing, payments, statements and finance reporting.",
+    protected:
+      false,
 
-      protected:
-        false,
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
 
-      permissions: [
         "students.view",
+
         "parents.view",
+
+        "academics.classes.view",
 
         "finance.dashboard.view",
 
@@ -197,25 +406,75 @@ export const systemRoles:
         "finance.statements.generate",
 
         "finance.reminders.send",
+      ]),
+  },
 
-        "communications.notifications.view",
-      ],
-    },
+  /* ------------------------------------------------------------------------ */
+  /* LEGACY ACCOUNT PERSONA                                                   */
+  /* ------------------------------------------------------------------------ */
 
-    {
-      key:
-        "admissions_officer",
+  {
+    key:
+      "account",
 
-      name:
-        "Admissions Officer",
+    name:
+      "Accounts Officer",
 
-      description:
-        "Student and parent onboarding and enrolment administration.",
+    description:
+      "Legacy finance and accounts persona retained during RBAC migration.",
 
-      protected:
-        false,
+    protected:
+      true,
 
-      permissions: [
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
+
+        "students.view",
+
+        "parents.view",
+
+        "academics.classes.view",
+
+        "attendance.view",
+
+        "finance.dashboard.view",
+
+        "finance.invoices.view",
+        "finance.invoices.manage",
+
+        "finance.payments.record",
+        "finance.payments.modify",
+
+        "finance.reports.view",
+
+        "finance.statements.generate",
+
+        "finance.reminders.send",
+      ]),
+  },
+
+  /* ------------------------------------------------------------------------ */
+  /* ADMISSIONS OFFICER                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  {
+    key:
+      "admissions_officer",
+
+    name:
+      "Admissions Officer",
+
+    description:
+      "Student and parent onboarding and enrolment administration.",
+
+    protected:
+      false,
+
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
+
         "students.view",
         "students.create",
         "students.update",
@@ -226,24 +485,31 @@ export const systemRoles:
 
         "academics.classes.view",
 
-        "communications.notifications.view",
-      ],
-    },
+        "communications.messages.send",
+      ]),
+  },
 
-    {
-      key:
-        "secretary",
+  /* ------------------------------------------------------------------------ */
+  /* SECRETARY                                                                */
+  /* ------------------------------------------------------------------------ */
 
-      name:
-        "School Secretary",
+  {
+    key:
+      "secretary",
 
-      description:
-        "Front-office records, communications and general administrative support.",
+    name:
+      "School Secretary",
 
-      protected:
-        false,
+    description:
+      "Front-office records, communications and general administrative support.",
 
-      permissions: [
+    protected:
+      false,
+
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
+
         "students.view",
 
         "teachers.view",
@@ -252,30 +518,36 @@ export const systemRoles:
 
         "academics.classes.view",
 
-        "communications.events.view",
         "communications.events.manage",
 
-        "communications.announcements.view",
         "communications.announcements.manage",
 
-        "communications.notifications.view",
-      ],
-    },
+        "communications.messages.send",
+      ]),
+  },
 
-    {
-      key:
-        "student",
+  /* ------------------------------------------------------------------------ */
+  /* STUDENT                                                                  */
+  /* ------------------------------------------------------------------------ */
 
-      name:
-        "Student",
+  {
+    key:
+      "student",
 
-      description:
-        "Student access to personal academic information.",
+    name:
+      "Student",
 
-      protected:
-        true,
+    description:
+      "Student access to personal academic information.",
 
-      permissions: [
+    protected:
+      true,
+
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
+
+        "academics.subjects.view",
         "academics.lessons.view",
 
         "exams.view",
@@ -289,29 +561,30 @@ export const systemRoles:
         "attendance.view",
 
         "report_cards.view",
+      ]),
+  },
 
-        "communications.events.view",
+  /* ------------------------------------------------------------------------ */
+  /* PARENT                                                                   */
+  /* ------------------------------------------------------------------------ */
 
-        "communications.announcements.view",
+  {
+    key:
+      "parent",
 
-        "communications.notifications.view",
-      ],
-    },
+    name:
+      "Parent / Guardian",
 
-    {
-      key:
-        "parent",
+    description:
+      "Parent access to linked children's academic and financial information.",
 
-      name:
-        "Parent / Guardian",
+    protected:
+      true,
 
-      description:
-        "Parent access to linked children's academic and financial information.",
+    permissions:
+      unique([
+        ...COMMON_SIGNED_IN_PERMISSIONS,
 
-      protected:
-        true,
-
-      permissions: [
         "academics.lessons.view",
 
         "assignments.view",
@@ -324,32 +597,35 @@ export const systemRoles:
 
         "report_cards.view",
 
+        /*
+         * Parent can see the linked child's
+         * fee account.
+         */
         "finance.invoices.view",
 
         "finance.statements.generate",
+      ]),
+  },
 
-        "communications.events.view",
+  /* ------------------------------------------------------------------------ */
+  /* AUDITOR                                                                  */
+  /* ------------------------------------------------------------------------ */
 
-        "communications.announcements.view",
+  {
+    key:
+      "auditor",
 
-        "communications.notifications.view",
-      ],
-    },
+    name:
+      "Auditor / Read Only",
 
-    {
-      key:
-        "auditor",
+    description:
+      "Read-only access to selected administrative and financial records.",
 
-      name:
-        "Auditor / Read Only",
+    protected:
+      false,
 
-      description:
-        "Read-only access to selected administrative and financial records.",
-
-      protected:
-        false,
-
-      permissions: [
+    permissions:
+      unique([
         "students.view",
 
         "teachers.view",
@@ -369,6 +645,45 @@ export const systemRoles:
         "finance.reports.view",
 
         "audit.view",
-      ],
-    },
-  ];
+
+        "communications.notifications.view",
+      ]),
+  },
+];
+
+/* ========================================================================== */
+/* LOOKUP HELPERS                                                             */
+/* ========================================================================== */
+
+export function getSystemRoleDefinition(
+  roleKey:
+    string,
+) {
+  const normalized =
+    roleKey
+      .trim()
+      .toLowerCase();
+
+  return (
+    systemRoles.find(
+      (
+        role,
+      ) =>
+        role.key ===
+        normalized,
+    ) ??
+    null
+  );
+}
+
+export function getSystemRolePermissionKeys(
+  roleKey:
+    string,
+) {
+  return (
+    getSystemRoleDefinition(
+      roleKey,
+    )?.permissions ??
+    []
+  );
+}

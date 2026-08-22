@@ -1,49 +1,3 @@
-// // src/middleware.ts
-// import { clerkMiddleware, createRouteMatcher, auth } from "@clerk/nextjs/server";
-// import { routeAccessMap } from "./lib/settings";
-// import { NextResponse } from "next/server";
-
-// const matchers = Object.keys(routeAccessMap).map((route) => ({
-//   matcher: createRouteMatcher([route]),
-//   allowedRoles: routeAccessMap[route],
-// }));
-
-// export default clerkMiddleware(async (auth, req) => {
-//   // ✅ Directly access sessionClaims
-//   const { sessionClaims } = await auth();
-
-//   // ✅ Get role from publicMetadata or metadata
-//   const role =
-//     (sessionClaims?.publicMetadata as { role?: string })?.role ||
-//     (sessionClaims?.metadata as { role?: string })?.role ||
-//     ""; // fallback
-
-//   console.log("Detected role:", role);
-
-//   // ✅ Route restriction check
-//   for (const { matcher, allowedRoles } of matchers) {
-//     if (matcher(req) && !allowedRoles.includes(role)) {
-//       // Redirect unauthorized users to their dashboard
-//       return NextResponse.redirect(new URL(`/${role}`, req.url));
-//     }
-//   }
-
-//   return NextResponse.next();
-// });
-
-// export const config = {
-//   matcher: [
-//     // Skip Next.js internals and static files
-//     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-//     // Always run for API routes
-//     "/(api|trpc)(.*)",
-//   ],
-// };
-
-
-
-
-
 // src/middleware.ts
 
 import {
@@ -51,58 +5,86 @@ import {
   createRouteMatcher,
 } from "@clerk/nextjs/server";
 
-import { NextResponse } from "next/server";
+import {
+  NextResponse,
+} from "next/server";
 
-import { routeAccessMap } from "./lib/settings";
-
-/* -------------------------------------------------------------------------- */
-/* ROLE-BASED ROUTES                                                          */
-/* -------------------------------------------------------------------------- */
-
-const matchers = Object.keys(
+import {
   routeAccessMap,
-).map((route) => ({
-  matcher:
-    createRouteMatcher([
-      route,
-    ]),
+} from "./lib/settings";
 
-  allowedRoles:
-    routeAccessMap[
-      route
-    ],
-}));
-
-/* -------------------------------------------------------------------------- */
-/* SESSION TASK ROUTES                                                        */
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
+/* LEGACY ROLE-BASED ROUTES                                                   */
+/* ========================================================================== */
 
 /*
- * IMPORTANT:
+ * Transitional only.
  *
- * A user whose password has been marked as compromised
- * has a PENDING Clerk session.
- *
- * The reset-password page must remain reachable while
- * that session is pending.
+ * New RBAC authorization should be enforced close to
+ * the page, service or API resource itself.
  */
+const matchers =
+  Object.keys(
+    routeAccessMap,
+  ).map(
+    (
+      route,
+    ) => ({
+      matcher:
+        createRouteMatcher([
+          route,
+        ]),
+
+      allowedRoles:
+        routeAccessMap[
+          route
+        ],
+    }),
+  );
+
+/* ========================================================================== */
+/* SPECIAL ROUTES                                                             */
+/* ========================================================================== */
+
 const isSessionTaskRoute =
   createRouteMatcher([
     "/session-tasks(.*)",
   ]);
-
-/* -------------------------------------------------------------------------- */
-/* SIGN-IN ROUTE                                                              */
-/* -------------------------------------------------------------------------- */
 
 const isSignInRoute =
   createRouteMatcher([
     "/sign-in(.*)",
   ]);
 
-/* -------------------------------------------------------------------------- */
+/*
+ * Universal authenticated landing route.
+ *
+ * We will create this next.
+ */
+const isDashboardGateway =
+  createRouteMatcher([
+    "/dashboard(.*)",
+  ]);
+
+/* ========================================================================== */
+/* NORMALIZE ROLE                                                             */
+/* ========================================================================== */
+
+function normalizeRole(
+  value:
+    unknown,
+) {
+  return typeof value ===
+    "string"
+    ? value
+        .trim()
+        .toLowerCase()
+    : "";
+}
+
+/* ========================================================================== */
 /* CLERK MIDDLEWARE                                                           */
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 
 export default clerkMiddleware(
   async (
@@ -116,16 +98,9 @@ export default clerkMiddleware(
       await auth();
 
     /* ---------------------------------------------------------------------- */
-    /* SESSION TASK PAGE                                                      */
+    /* SESSION TASK                                                           */
     /* ---------------------------------------------------------------------- */
 
-    /*
-     * NEVER redirect a pending user away from
-     * /session-tasks/reset-password.
-     *
-     * This is the page they must be allowed to use
-     * to complete the pending Clerk task.
-     */
     if (
       isSessionTaskRoute(
         req,
@@ -135,16 +110,9 @@ export default clerkMiddleware(
     }
 
     /* ---------------------------------------------------------------------- */
-    /* PENDING SESSION                                                        */
+    /* PENDING CLERK SESSION                                                  */
     /* ---------------------------------------------------------------------- */
 
-    /*
-     * Authentication succeeded, but Clerk has a required
-     * session task that must be completed.
-     *
-     * In our current application the pending task we support
-     * is reset-password.
-     */
     if (
       sessionStatus ===
       "pending"
@@ -161,25 +129,33 @@ export default clerkMiddleware(
     }
 
     /* ---------------------------------------------------------------------- */
-    /* NORMAL ROLE                                                            */
+    /* ROLE CLAIM                                                             */
     /* ---------------------------------------------------------------------- */
 
+    const rawRole =
+      (
+        sessionClaims
+          ?.publicMetadata as
+          | {
+              role?:
+                unknown;
+            }
+          | undefined
+      )?.role ??
+      (
+        sessionClaims
+          ?.metadata as
+          | {
+              role?:
+                unknown;
+            }
+          | undefined
+      )?.role;
+
     const role =
-      (
-        sessionClaims?.publicMetadata as
-          | {
-              role?: string;
-            }
-          | undefined
-      )?.role ||
-      (
-        sessionClaims?.metadata as
-          | {
-              role?: string;
-            }
-          | undefined
-      )?.role ||
-      "";
+      normalizeRole(
+        rawRole,
+      );
 
     console.log(
       "Detected role:",
@@ -187,12 +163,12 @@ export default clerkMiddleware(
     );
 
     /* ---------------------------------------------------------------------- */
-    /* SIGN-IN                                                                */
+    /* AUTH ROUTES                                                            */
     /* ---------------------------------------------------------------------- */
 
     /*
-     * Let the sign-in page itself handle normal signed-in
-     * navigation. Do not apply dashboard role matching here.
+     * Do not apply dashboard-role restrictions to
+     * sign-in itself.
      */
     if (
       isSignInRoute(
@@ -202,8 +178,20 @@ export default clerkMiddleware(
       return NextResponse.next();
     }
 
+    /*
+     * The universal dashboard gateway must remain
+     * reachable for any authenticated identity.
+     */
+    if (
+      isDashboardGateway(
+        req,
+      )
+    ) {
+      return NextResponse.next();
+    }
+
     /* ---------------------------------------------------------------------- */
-    /* ROLE RESTRICTION                                                       */
+    /* TRANSITIONAL ROUTE CHECK                                               */
     /* ---------------------------------------------------------------------- */
 
     for (
@@ -213,65 +201,304 @@ export default clerkMiddleware(
       } of matchers
     ) {
       if (
-        matcher(req) &&
-        !allowedRoles.includes(
+        !matcher(
+          req,
+        )
+      ) {
+        continue;
+      }
+
+      if (
+        allowedRoles.includes(
           role,
         )
       ) {
-        /*
-         * Only redirect when we actually know the role.
-         *
-         * This prevents redirects such as "/" caused by:
-         *
-         * new URL(`/${role}`, ...)
-         *
-         * when role === "".
-         */
-        if (
-          role
-        ) {
-          return NextResponse.redirect(
-            new URL(
-              `/${role}`,
-              req.url,
-            ),
-          );
-        }
+        continue;
+      }
 
+      /*
+       * IMPORTANT:
+       *
+       * Never redirect to:
+       *
+       * /${role}
+       *
+       * A Clerk/RBAC role does NOT need to have its own
+       * physical Next.js dashboard.
+       *
+       * Instead, send the authenticated identity through
+       * the universal dashboard resolver.
+       */
+      if (
+        role
+      ) {
         return NextResponse.redirect(
           new URL(
-            "/sign-in",
+            "/dashboard",
             req.url,
           ),
         );
       }
+
+      return NextResponse.redirect(
+        new URL(
+          "/sign-in",
+          req.url,
+        ),
+      );
     }
 
     return NextResponse.next();
   },
 );
 
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 /* CONFIG                                                                     */
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 
 export const config = {
   matcher: [
-    /*
-     * Skip Next.js internals and static files.
-     */
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
 
-    /*
-     * Always run for API routes.
-     */
     "/(api|trpc)(.*)",
 
-    /*
-     * Clerk frontend API routes.
-     *
-     * Recommended by current Clerk Next.js configuration.
-     */
     "/__clerk/(.*)",
   ],
 };
+
+
+
+
+
+
+// // src/middleware.ts
+
+// import {
+//   clerkMiddleware,
+//   createRouteMatcher,
+// } from "@clerk/nextjs/server";
+
+// import { NextResponse } from "next/server";
+
+// import { routeAccessMap } from "./lib/settings";
+
+// /* -------------------------------------------------------------------------- */
+// /* ROLE-BASED ROUTES                                                          */
+// /* -------------------------------------------------------------------------- */
+
+// const matchers = Object.keys(
+//   routeAccessMap,
+// ).map((route) => ({
+//   matcher:
+//     createRouteMatcher([
+//       route,
+//     ]),
+
+//   allowedRoles:
+//     routeAccessMap[
+//       route
+//     ],
+// }));
+
+// /* -------------------------------------------------------------------------- */
+// /* SESSION TASK ROUTES                                                        */
+// /* -------------------------------------------------------------------------- */
+
+// /*
+//  * IMPORTANT:
+//  *
+//  * A user whose password has been marked as compromised
+//  * has a PENDING Clerk session.
+//  *
+//  * The reset-password page must remain reachable while
+//  * that session is pending.
+//  */
+// const isSessionTaskRoute =
+//   createRouteMatcher([
+//     "/session-tasks(.*)",
+//   ]);
+
+// /* -------------------------------------------------------------------------- */
+// /* SIGN-IN ROUTE                                                              */
+// /* -------------------------------------------------------------------------- */
+
+// const isSignInRoute =
+//   createRouteMatcher([
+//     "/sign-in(.*)",
+//   ]);
+
+// /* -------------------------------------------------------------------------- */
+// /* CLERK MIDDLEWARE                                                           */
+// /* -------------------------------------------------------------------------- */
+
+// export default clerkMiddleware(
+//   async (
+//     auth,
+//     req,
+//   ) => {
+//     const {
+//       sessionClaims,
+//       sessionStatus,
+//     } =
+//       await auth();
+
+//     /* ---------------------------------------------------------------------- */
+//     /* SESSION TASK PAGE                                                      */
+//     /* ---------------------------------------------------------------------- */
+
+//     /*
+//      * NEVER redirect a pending user away from
+//      * /session-tasks/reset-password.
+//      *
+//      * This is the page they must be allowed to use
+//      * to complete the pending Clerk task.
+//      */
+//     if (
+//       isSessionTaskRoute(
+//         req,
+//       )
+//     ) {
+//       return NextResponse.next();
+//     }
+
+//     /* ---------------------------------------------------------------------- */
+//     /* PENDING SESSION                                                        */
+//     /* ---------------------------------------------------------------------- */
+
+//     /*
+//      * Authentication succeeded, but Clerk has a required
+//      * session task that must be completed.
+//      *
+//      * In our current application the pending task we support
+//      * is reset-password.
+//      */
+//     if (
+//       sessionStatus ===
+//       "pending"
+//     ) {
+//       const url =
+//         req.nextUrl.clone();
+
+//       url.pathname =
+//         "/session-tasks/reset-password";
+
+//       return NextResponse.redirect(
+//         url,
+//       );
+//     }
+
+//     /* ---------------------------------------------------------------------- */
+//     /* NORMAL ROLE                                                            */
+//     /* ---------------------------------------------------------------------- */
+
+//     const role =
+//       (
+//         sessionClaims?.publicMetadata as
+//           | {
+//               role?: string;
+//             }
+//           | undefined
+//       )?.role ||
+//       (
+//         sessionClaims?.metadata as
+//           | {
+//               role?: string;
+//             }
+//           | undefined
+//       )?.role ||
+//       "";
+
+//     console.log(
+//       "Detected role:",
+//       role,
+//     );
+
+//     /* ---------------------------------------------------------------------- */
+//     /* SIGN-IN                                                                */
+//     /* ---------------------------------------------------------------------- */
+
+//     /*
+//      * Let the sign-in page itself handle normal signed-in
+//      * navigation. Do not apply dashboard role matching here.
+//      */
+//     if (
+//       isSignInRoute(
+//         req,
+//       )
+//     ) {
+//       return NextResponse.next();
+//     }
+
+//     /* ---------------------------------------------------------------------- */
+//     /* ROLE RESTRICTION                                                       */
+//     /* ---------------------------------------------------------------------- */
+
+//     for (
+//       const {
+//         matcher,
+//         allowedRoles,
+//       } of matchers
+//     ) {
+//       if (
+//         matcher(req) &&
+//         !allowedRoles.includes(
+//           role,
+//         )
+//       ) {
+//         /*
+//          * Only redirect when we actually know the role.
+//          *
+//          * This prevents redirects such as "/" caused by:
+//          *
+//          * new URL(`/${role}`, ...)
+//          *
+//          * when role === "".
+//          */
+//         if (
+//           role
+//         ) {
+//           return NextResponse.redirect(
+//             new URL(
+//               `/${role}`,
+//               req.url,
+//             ),
+//           );
+//         }
+
+//         return NextResponse.redirect(
+//           new URL(
+//             "/sign-in",
+//             req.url,
+//           ),
+//         );
+//       }
+//     }
+
+//     return NextResponse.next();
+//   },
+// );
+
+// /* -------------------------------------------------------------------------- */
+// /* CONFIG                                                                     */
+// /* -------------------------------------------------------------------------- */
+
+// export const config = {
+//   matcher: [
+//     /*
+//      * Skip Next.js internals and static files.
+//      */
+//     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+
+//     /*
+//      * Always run for API routes.
+//      */
+//     "/(api|trpc)(.*)",
+
+//     /*
+//      * Clerk frontend API routes.
+//      *
+//      * Recommended by current Clerk Next.js configuration.
+//      */
+//     "/__clerk/(.*)",
+//   ],
+// };

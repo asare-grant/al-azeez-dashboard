@@ -1,30 +1,36 @@
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
+import {
+  auth,
+} from "@clerk/nextjs/server";
 
 import prisma from "@/lib/prisma";
 
-export type AccessControlPermissionKey =
-  | "users.update"
-  | "users.manage_status"
-  | "users.reset_password"
-  | "roles.assign"
-  | "roles.remove"
-  | "roles.manage_expiry";
+/* ========================================================================== */
+/* CURRENT ACCESS ACTOR                                                       */
+/* ========================================================================== */
 
 export async function getCurrentAccessActor() {
   const {
     userId,
-  } = await auth();
+  } =
+    await auth();
 
-  if (!userId) {
+  if (
+    !userId
+  ) {
     return null;
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* ACTOR                                                                    */
+  /* ------------------------------------------------------------------------ */
 
   const actor =
     await prisma.userAccount.findUnique({
       where: {
-        id: userId,
+        id:
+          userId,
       },
 
       include: {
@@ -34,7 +40,8 @@ export async function getCurrentAccessActor() {
               include: {
                 permissions: {
                   include: {
-                    permission: true,
+                    permission:
+                      true,
                   },
                 },
               },
@@ -44,66 +51,109 @@ export async function getCurrentAccessActor() {
       },
     });
 
-  if (!actor) {
+  if (
+    !actor
+  ) {
     return null;
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* ACCOUNT STATUS                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  /*
+   * Clerk suspension/banning already prevents normal
+   * authentication, but RBAC should also independently
+   * refuse authority to a locally suspended/disabled
+   * account.
+   */
+  if (
+    actor.status !==
+    "ACTIVE"
+  ) {
+    return null;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* ACTIVE ROLE ASSIGNMENTS                                                  */
+  /* ------------------------------------------------------------------------ */
 
   const now =
     new Date();
 
   const activeAssignments =
     actor.roles.filter(
-      (assignment) =>
-        assignment.role.isActive &&
+      (
+        assignment,
+      ) =>
+        assignment.role
+          .isActive &&
         (
           !assignment.expiresAt ||
-          assignment.expiresAt > now
+          assignment.expiresAt >
+            now
         ),
     );
 
+  /* ------------------------------------------------------------------------ */
+  /* EFFECTIVE PERMISSIONS                                                    */
+  /* ------------------------------------------------------------------------ */
+
   const permissions =
-    new Set(
+    new Set<string>(
       activeAssignments.flatMap(
-        (assignment) =>
+        (
+          assignment,
+        ) =>
           assignment.role.permissions
             .filter(
-              (rolePermission) =>
-                rolePermission.permission.isActive,
+              (
+                rolePermission,
+              ) =>
+                rolePermission
+                  .permission
+                  .isActive,
             )
             .map(
-              (rolePermission) =>
-                rolePermission.permission.key,
+              (
+                rolePermission,
+              ) =>
+                rolePermission
+                  .permission
+                  .key
+                  .trim()
+                  .toLowerCase(),
             ),
       ),
     );
 
-  /*
-   * Transitional fallback.
-   *
-   * Existing legacy administrators retain management
-   * access while the full RBAC permission catalogue is
-   * being populated.
-   *
-   * We can remove this later once all Admin roles contain
-   * the explicit permissions.
-   */
-  const legacyAdmin =
-    actor.legacyRole
-      ?.trim()
-      .toLowerCase() ===
-    "admin";
+  /* ------------------------------------------------------------------------ */
+  /* PERMISSION CHECK                                                         */
+  /* ------------------------------------------------------------------------ */
 
   function can(
     permission:
-      AccessControlPermissionKey,
+      string,
   ) {
-    return (
-      legacyAdmin ||
-      permissions.has(
-        permission,
-      )
+    const normalizedPermission =
+      permission
+        .trim()
+        .toLowerCase();
+
+    if (
+      !normalizedPermission
+    ) {
+      return false;
+    }
+
+    return permissions.has(
+      normalizedPermission,
     );
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* RETURN                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return {
     actor,
@@ -111,8 +161,6 @@ export async function getCurrentAccessActor() {
     permissions,
 
     activeAssignments,
-
-    legacyAdmin,
 
     can,
   };

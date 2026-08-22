@@ -1,33 +1,132 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+// src/app/api/lessonsForUser/route.ts
+
+import {
+  NextResponse,
+} from "next/server";
+
+import {
+  requireAcademicOptionsAccess,
+} from "@/lib/academics/options-auth";
+
 import prisma from "@/lib/prisma";
+
+/* ========================================================================== */
+/* GET                                                                        */
+/* ========================================================================== */
 
 export async function GET() {
   try {
-    const { userId, sessionClaims } = await auth();
-    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    let lessons: { id: number; name: string; }[];
+    const actor =
+      await requireAcademicOptionsAccess();
 
-    if (role === "admin") {
-      // Admin: fetch all lessons
-      lessons = await prisma.lesson.findMany({
-        select: { id: true, name: true },
+    /* ---------------------------------------------------------------------- */
+    /* LESSONS                                                                */
+    /* ---------------------------------------------------------------------- */
+
+    const lessons =
+      await prisma.lesson.findMany({
+        where:
+          actor.scope ===
+          "OWN_LESSONS"
+            ? {
+                teacherId:
+                  actor.userId,
+              }
+            : undefined,
+
+        select: {
+          id:
+            true,
+
+          name:
+            true,
+        },
+
+        orderBy: {
+          name:
+            "asc",
+        },
       });
-    } else if (role === "teacher") {
-      // Teacher: fetch only lessons they teach
-      lessons = await prisma.lesson.findMany({
-        where: { teacherId: userId! },
-        select: { id: true, name: true },
-      });
-    } else {
-      // Other roles: return empty list
-      lessons = [];
+
+    return NextResponse.json({
+      lessons,
+    });
+  } catch (
+    error
+  ) {
+    console.error(
+      "LESSONS FOR USER ERROR:",
+      error,
+    );
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "UNAUTHENTICATED"
+    ) {
+      return NextResponse.json(
+        {
+          lessons:
+            [],
+
+          error:
+            true,
+
+          message:
+            "Authentication required.",
+        },
+
+        {
+          status:
+            401,
+        },
+      );
     }
 
-    return NextResponse.json({ lessons });
-  } catch (err) {
-    console.error("❌ Error fetching lessons:", err);
-    return NextResponse.json({ lessons: [], error: true });
+    if (
+      error instanceof Error &&
+      error.message ===
+        "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          lessons:
+            [],
+
+          error:
+            true,
+
+          message:
+            "You do not have permission to access lesson options.",
+        },
+
+        {
+          status:
+            403,
+        },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        lessons:
+          [],
+
+        error:
+          true,
+
+        message:
+          "Lesson options could not be loaded.",
+      },
+
+      {
+        status:
+          500,
+      },
+    );
   }
 }

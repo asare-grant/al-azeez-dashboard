@@ -1,4 +1,13 @@
+// src/components/access-control/create-user/CreateUserWizard.tsx
 "use client";
+
+import {
+  useReverification,
+} from "@clerk/nextjs";
+
+import {
+  isReverificationCancelledError,
+} from "@clerk/nextjs/errors";
 
 import {
   Check,
@@ -120,6 +129,11 @@ export default function CreateUserWizard({
   students: StudentOption[];
 }) {
   const router = useRouter();
+
+  const provisionUserWithReverification =
+  useReverification(
+    provisionUserAction,
+  );
 
   const [step, setStep] = useState(0);
 
@@ -247,87 +261,197 @@ export default function CreateUserWizard({
     return null;
   }
 
-  function submit() {
-    /*
-     * Final client-side validation.
-     *
-     * Even though every previous step should already
-     * have validated successfully, the final Create
-     * User action performs one complete validation
-     * pass again.
-     */
-    const validation = validateEntireWizard(data);
+ function submit() {
+  /* ------------------------------------------------------------------------ */
+  /* FINAL VALIDATION                                                         */
+  /* ------------------------------------------------------------------------ */
 
-    if (!validation.valid) {
-      setErrors(validation.errors);
+  const validation =
+    validateEntireWizard(
+      data,
+    );
 
-      const invalidStep = getFirstInvalidStep(validation.errors);
+  if (
+    !validation.valid
+  ) {
+    setErrors(
+      validation.errors,
+    );
 
-      if (invalidStep !== null) {
-        setStep(invalidStep);
-      }
-
-      toast.error(
-        "Please complete the required information before creating this user.",
+    const invalidStep =
+      getFirstInvalidStep(
+        validation.errors,
       );
 
-      return;
+    if (
+      invalidStep !==
+      null
+    ) {
+      setStep(
+        invalidStep,
+      );
     }
 
-    if (!data.primaryRole) {
-      return;
-    }
+    toast.error(
+      "Please complete the required information before creating this user.",
+    );
 
-    startTransition(async () => {
-      const result = await provisionUserAction({
-        identity: {
-          firstName: data.firstName.trim(),
-
-          lastName: data.lastName.trim(),
-
-          email: data.email.trim(),
-
-          phone: data.phone.trim() ? data.phone.trim() : null,
-
-          /*
-           * Username is mandatory in our new
-           * provisioning architecture.
-           */
-          username: data.username.trim(),
-
-          imageUrl: data.imageUrl ? data.imageUrl : null,
-        },
-
-        access: {
-          primaryRole: data.primaryRole,
-
-          roleIds: data.roleIds,
-        },
-
-        account: {
-          /*
-           * confirmPassword is intentionally NOT
-           * sent to Clerk or Prisma.
-           */
-          password: data.password,
-        },
-
-        profile: data.profile,
-      });
-
-      if (!result.success) {
-        toast.error(result.message);
-
-        return;
-      }
-
-      toast.success(result.message);
-
-      router.push(`/list/access-control/users/${result.userId}`);
-
-      router.refresh();
-    });
+    return;
   }
+
+  if (
+    !data.primaryRole
+  ) {
+    return;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* PAYLOAD                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  const payload = {
+    identity: {
+      firstName:
+        data.firstName
+          .trim(),
+
+      lastName:
+        data.lastName
+          .trim(),
+
+      email:
+        data.email
+          .trim(),
+
+      phone:
+        data.phone
+          .trim()
+          ? data.phone.trim()
+          : null,
+
+      username:
+        data.username
+          .trim(),
+
+      imageUrl:
+        data.imageUrl
+          ? data.imageUrl
+          : null,
+    },
+
+    access: {
+      primaryRole:
+        data.primaryRole,
+
+      roleIds:
+        data.roleIds,
+    },
+
+    account: {
+      password:
+        data.password,
+    },
+
+    profile:
+      data.profile,
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* PROVISION                                                                */
+  /* ------------------------------------------------------------------------ */
+
+  startTransition(
+    async () => {
+      try {
+        /*
+         * IMPORTANT:
+         *
+         * Do not call provisionUserAction directly.
+         *
+         * Clerk's wrapper detects a server-side
+         * reverificationError(), opens its verification
+         * experience and automatically retries this same
+         * action after successful verification.
+         */
+        const result =
+          await provisionUserWithReverification(
+            payload,
+          );
+
+        /*
+         * Defensive guard.
+         *
+         * A cancelled/incomplete flow should never be
+         * treated as successful provisioning.
+         */
+        if (
+          !result
+        ) {
+          return;
+        }
+
+        if (
+          !(
+            "success" in
+            result
+          )
+        ) {
+          return;
+        }
+
+        if (
+          !result.success
+        ) {
+          toast.error(
+            result.message,
+          );
+
+          return;
+        }
+
+        toast.success(
+          result.message,
+        );
+
+        router.push(
+          `/list/access-control/users/${result.userId}`,
+        );
+
+        router.refresh();
+      } catch (
+        error
+      ) {
+        /*
+         * Closing/cancelling Clerk's reverification
+         * experience rejects the wrapped request.
+         *
+         * Treat cancellation as a normal abandoned
+         * operation rather than an application failure.
+         */
+        if (
+          isReverificationCancelledError(
+            error,
+          )
+        ) {
+          toast.info(
+            "Identity verification was cancelled. The user account was not created.",
+          );
+
+          return;
+        }
+
+        console.error(
+          "USER PROVISIONING CLIENT ERROR:",
+          error,
+        );
+
+        toast.error(
+          "The user account could not be provisioned.",
+        );
+      }
+    },
+  );
+}
 
 
   return (

@@ -33,7 +33,7 @@ model Student {
   sex         UserSex
   createdAt   DateTime     @default(now())
   parentId    String?
-  parent      Parent?      @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  parent      Parent?      @relation(fields: [parentId], references: [id], onDelete: SetNull)
   classId     Int
   class       Class        @relation(fields: [classId], references: [id])
   gradeId     Int
@@ -505,13 +505,13 @@ model Event {
   title       String
   description String
 
-  /*
+  /**
    * Kept because the existing event UI already
    * uses this field.
    */
   date DateTime @default(now())
 
-  /*
+  /**
    * Authoritative event scheduling values.
    */
   startTime DateTime
@@ -521,10 +521,9 @@ model Event {
 
   class Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
 
-  /*
+  /**
    * Incremented whenever notification-relevant
    * event details change.
-   *
    * This allows a rescheduled event to generate
    * a fresh set of scheduled reminders safely.
    */
@@ -592,8 +591,8 @@ model FeeMaster {
   status      FeeStatus @default(PENDING)
   createdAt   DateTime  @default(now())
 
-  details  Fee[]
-  payments FeePayment[]
+  details            Fee[]
+  payments           FeePayment[]
   whatsAppDeliveries WhatsAppDelivery[]
 }
 
@@ -671,9 +670,19 @@ model NotificationEvent {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                        EVENT TYPE
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -686,9 +695,19 @@ model NotificationEvent {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                       EVENT CONTENT
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -701,9 +720,19 @@ model NotificationEvent {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                      SOURCE ENTITY
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -723,16 +752,25 @@ model NotificationEvent {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                         ACTOR
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
   actorId   String?
   actorRole String?
   actorName String?
-
 
   source NotificationDispatchSource @default(UNKNOWN)
 
@@ -753,9 +791,19 @@ model NotificationEvent {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                       DELIVERIES
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -779,9 +827,19 @@ model Notification {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                          EVENT
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -793,9 +851,19 @@ model Notification {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                        RECIPIENT
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -806,9 +874,19 @@ model Notification {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                        USER STATE
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -847,9 +925,8 @@ model NotificationPreference {
 
   category NotificationCategory
 
-  /*
+  /**
    * Per-category delivery channels.
-   *
    * Only in-app is active right now.
    * The other channels remain disabled until
    * their transports are enabled globally.
@@ -869,14 +946,18 @@ model NotificationPreference {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, category])
-
   @@index([userId])
 }
 
-
-/* -------------------------------------------------------------------------- */
-/*                   SCHEDULED NOTIFICATION ENGINE                            */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * SCHEDULED NOTIFICATION ENGINE
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 model NotificationSchedulerRun {
   id Int @id @default(autoincrement())
@@ -889,7 +970,7 @@ model NotificationSchedulerRun {
   succeededCount Int @default(0)
   failedCount    Int @default(0)
 
-  startedAt   DateTime @default(now())
+  startedAt   DateTime  @default(now())
   completedAt DateTime?
 
   durationMs Int?
@@ -917,7 +998,7 @@ model NotificationSchedulerScannerRun {
 
   errorMessage String?
 
-  startedAt   DateTime @default(now())
+  startedAt   DateTime  @default(now())
   completedAt DateTime?
 
   durationMs Int?
@@ -927,7 +1008,7 @@ model NotificationSchedulerScannerRun {
   @@index([status, startedAt])
 }
 
-/*
+/**
  * Prevents two scheduler executions from processing
  * the same scanners simultaneously.
  */
@@ -957,7 +1038,6 @@ enum NotificationSchedulerScannerStatus {
   FAILED
 }
 
-
 enum NotificationCategory {
   ASSESSMENT
   REPORT_CARD
@@ -965,6 +1045,7 @@ enum NotificationCategory {
   ACADEMIC
   FINANCE
   ANNOUNCEMENT
+  ACCESS_CONTROL
   SYSTEM
   GENERAL
 }
@@ -981,9 +1062,19 @@ enum NotificationType {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                       ASSESSMENTS
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -999,9 +1090,19 @@ enum NotificationType {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                       REPORT CARDS
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -1019,9 +1120,19 @@ enum NotificationType {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                        ATTENDANCE
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -1034,9 +1145,19 @@ enum NotificationType {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                      ACADEMIC SETUP
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -1048,9 +1169,19 @@ enum NotificationType {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                         FINANCE
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -1063,9 +1194,19 @@ enum NotificationType {
    * --------------------------------------------------------
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /*                      ANNOUNCEMENTS
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
@@ -1075,30 +1216,69 @@ enum NotificationType {
    * --------------------------------------------------------
    */
 
-   /**
- * --------------------------------------------------------
- */
-/**
- * /*                       SCHOOL EVENTS
- */
-/**
- * /* --------------------------------------------------------
- */
+  /**
+   * --------------------------------------------------------
+   */
+  /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /*                       SCHOOL EVENTS
+   */
+  /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /* --------------------------------------------------------
+   */
 
-EVENT_PUBLISHED
-EVENT_UPDATED
-EVENT_CANCELLED
-EVENT_UPCOMING
-EVENT_STARTING_SOON
+  EVENT_PUBLISHED
+  EVENT_UPDATED
+  EVENT_CANCELLED
+  EVENT_UPCOMING
+  EVENT_STARTING_SOON
   /**
    * /*                         SYSTEM
    */
   /**
+   * /**
+   * /**
+   * /**
+   * /**
+   * /**
    * /* --------------------------------------------------------
    */
 
   SYSTEM_ALERT
   GENERAL
+
+  /**
+   * --------------------------------------------------------
+   * ACCESS CONTROL
+   * --------------------------------------------------------
+   */
+
+  DELEGATED_ACCESS_EXPIRING
+  DELEGATED_ACCESS_EXPIRES_SOON
+  DELEGATED_ACCESS_EXPIRING_URGENT
+  DELEGATED_ACCESS_EXPIRED
+
+  /**
+   * --------------------------------------------------------
+   * ACCESS REVIEWS
+   * --------------------------------------------------------
+   */
+
+  ACCESS_REVIEW_CAMPAIGN_STARTED
+
+  ACCESS_REVIEW_DUE_SOON
+  ACCESS_REVIEW_DUE_URGENT
+  ACCESS_REVIEW_OVERDUE
+
+  ACCESS_REVIEW_CAMPAIGN_COMPLETED
+  ACCESS_REVIEW_CAMPAIGN_CANCELLED
 }
 
 enum NotificationEntityType {
@@ -1117,6 +1297,8 @@ enum NotificationEntityType {
   ANNOUNCEMENT
   STUDENT
   CLASS
+  USER_ROLE_ASSIGNMENT
+  ACCESS_REVIEW_CAMPAIGN
   SYSTEM
 }
 
@@ -1138,18 +1320,15 @@ model NotificationUserSettings {
   @@index([userId])
 }
 
-
 model NotificationSystemSettings {
-  /*
+  /**
    * Singleton configuration record.
-   *
    * The application always reads/writes ID 1.
    */
   id Int @id @default(1)
 
-  /*
+  /**
    * Global channel availability.
-   *
    * A user's preference can enable a channel,
    * but delivery is still impossible when the
    * system-level channel is disabled.
@@ -1164,14 +1343,14 @@ model NotificationSystemSettings {
 
   smsEnabled Boolean @default(false)
 
-  /*
+  /**
    * Allows administrators to disable the quiet
    * hours feature globally without deleting
    * individual user configurations.
    */
   quietHoursEnabled Boolean @default(true)
 
-  /*
+  /**
    * Used later for operational policy display
    * and audit context.
    */
@@ -1182,7 +1361,6 @@ model NotificationSystemSettings {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
-
 enum NotificationDispatchSource {
   USER_ACTION
   SCHEDULED
@@ -1191,13 +1369,11 @@ enum NotificationDispatchSource {
   UNKNOWN
 }
 
-
 model NotificationDispatchAudit {
   id Int @id @default(autoincrement())
 
-  /*
+  /**
    * The logical NotificationEvent.
-   *
    * Nullable because a dispatch can be completely
    * suppressed before an event is created.
    */
@@ -1215,13 +1391,13 @@ model NotificationDispatchAudit {
 
   sourceKey String?
 
-  /*
+  /**
    * Was this notification protected from
    * ordinary user preference suppression?
    */
   mandatory Boolean @default(false)
 
-  /*
+  /**
    * Recipient accounting.
    */
   intendedRecipientCount Int @default(0)
@@ -1232,24 +1408,24 @@ model NotificationDispatchAudit {
 
   suppressedRecipientCount Int @default(0)
 
-  /*
+  /**
    * Reasons why intended recipients did not
    * receive an in-app delivery.
    */
   suppressedByPreferenceCount Int @default(0)
 
-  /*
+  /**
    * Useful once broader policy enforcement
    * is attached to in-app fan-out.
    */
   suppressedBySystemPolicyCount Int @default(0)
 
-  /*
+  /**
    * Retry/deduplication intelligence.
    */
   reusedExistingEvent Boolean @default(false)
 
-  /*
+  /**
    * Optional audit context.
    */
   actorId   String?
@@ -1270,8 +1446,6 @@ model NotificationDispatchAudit {
   @@index([mandatory, createdAt])
   @@index([eventId])
 }
-
-
 
 model AcademicWeighting {
   id Int @id @default(autoincrement())
@@ -1787,9 +1961,6 @@ model ReportCardActivity {
   @@index([actorId])
 }
 
-
-
-
 model WhatsAppDelivery {
   id Int @id @default(autoincrement())
 
@@ -1807,7 +1978,7 @@ model WhatsAppDelivery {
   failureCode    String?
   failureMessage String?
 
-  attemptCount Int      @default(0)
+  attemptCount  Int       @default(0)
   lastAttemptAt DateTime?
   nextAttemptAt DateTime?
 
@@ -1815,10 +1986,10 @@ model WhatsAppDelivery {
   notificationEvent   NotificationEvent? @relation(fields: [notificationEventId], references: [id], onDelete: SetNull)
 
   feeMasterId Int?
-  feeMaster   FeeMaster? @relation(fields: [feeMasterId],references: [id], onDelete: SetNull)
+  feeMaster   FeeMaster? @relation(fields: [feeMasterId], references: [id], onDelete: SetNull)
 
   studentId String?
-  student   Student? @relation(fields: [studentId],references: [id], onDelete: SetNull)
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
   queuedAt DateTime @default(now())
 
@@ -1831,7 +2002,6 @@ model WhatsAppDelivery {
   updatedAt DateTime @updatedAt
 
   @@unique([notificationEventId, recipientId])
-
   @@index([status, nextAttemptAt, queuedAt])
   @@index([recipientId, createdAt])
   @@index([feeMasterId])
@@ -1848,13 +2018,15 @@ enum WhatsAppDeliveryStatus {
   FAILED
 }
 
-
-
-
-
-/* -------------------------------------------------------------------------- */
-/*                         IDENTITY & ACCESS CONTROL                          */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * IDENTITY & ACCESS CONTROL
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 enum UserAccountStatus {
   ACTIVE
@@ -1893,13 +2065,214 @@ enum AccessAuditAction {
 
   PERMISSION_ADDED
   PERMISSION_REMOVED
+
+  ACCESS_REVIEW_CAMPAIGN_CREATED
+  ACCESS_REVIEW_CAMPAIGN_STARTED
+  ACCESS_REVIEW_CAMPAIGN_COMPLETED
+  ACCESS_REVIEW_CAMPAIGN_CANCELLED
+
+  ACCESS_REVIEW_CERTIFIED
+  ACCESS_REVIEW_MODIFIED
+  ACCESS_REVIEW_REVOKED
+
+  ACCESS_REVIEW_REPORT_EXPORTED
 }
 
+/**
+ * ==========================================================================
+ */
+/**
+ * ACCESS REVIEW & CERTIFICATION
+ */
+/**
+ * ==========================================================================
+ */
+
+enum AccessReviewCampaignStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum AccessReviewScope {
+  PRIVILEGED
+  TEMPORARY
+  PRIVILEGED_AND_TEMPORARY
+  ALL_ASSIGNMENTS
+}
+
+enum AccessReviewDecision {
+  PENDING
+  CERTIFIED
+  MODIFIED
+  REVOKED
+}
+
+/**
+ * ==========================================================================
+ */
+/**
+ * ACCESS REVIEW CAMPAIGN
+ */
+/**
+ * ==========================================================================
+ */
+
+model AccessReviewCampaign {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  description String?
+
+  status AccessReviewCampaignStatus @default(DRAFT)
+
+  scope AccessReviewScope
+
+  /**
+   * The campaign should normally be completed by
+   * this date.
+   */
+  dueAt DateTime
+
+  /**
+   * Optional academic-period context.
+   * These are snapshots rather than hard dependencies.
+   * Compliance history should remain meaningful even
+   * years later if academic configuration changes.
+   */
+  academicYearSnapshot String?
+
+  termSnapshot String?
+
+  /**
+   * Clerk/UserAccount ID of the administrator who
+   * created the review campaign.
+   * Stored as a snapshot identifier rather than a
+   * relation so campaign history survives account
+   * lifecycle changes.
+   */
+  createdBy String
+
+  createdByName String?
+
+  startedAt DateTime?
+
+  completedAt DateTime?
+
+  cancelledAt DateTime?
+
+  items AccessReviewItem[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([scope])
+  @@index([dueAt])
+  @@index([createdAt])
+  @@index([academicYearSnapshot])
+  @@index([termSnapshot])
+  @@index([academicYearSnapshot, termSnapshot])
+}
+
+/**
+ * ==========================================================================
+ */
+/**
+ * ACCESS REVIEW ITEM
+ */
+/**
+ * ==========================================================================
+ */
+
+model AccessReviewItem {
+  id Int @id @default(autoincrement())
+
+  campaignId Int
+
+  campaign AccessReviewCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  /**
+   * The live assignment may later be removed.
+   * Therefore this relation is nullable and uses SetNull.
+   * Review history must NOT disappear when access is revoked.
+   */
+  assignmentId Int?
+
+  assignment UserRoleAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  /**
+   * Snapshot identifiers.
+   * These remain even if the underlying assignment is
+   * later removed.
+   */
+  userId String
+
+  roleId Int
+
+  userDisplayName String?
+
+  username String?
+
+  roleName String
+
+  roleKey String
+
+  roleType AccessRoleType
+
+  roleProtected Boolean @default(false)
+
+  /**
+   * Snapshot of the assignment when the campaign
+   * was generated.
+   */
+  assignedAt DateTime
+
+  expiresAt DateTime?
+
+  source AccessAssignmentSource
+
+  decision AccessReviewDecision @default(PENDING)
+
+  /**
+   * Reviewer identity snapshots.
+   */
+  reviewedBy String?
+
+  reviewedByName String?
+
+  reviewedAt DateTime?
+
+  /**
+   * Reason / certification note supplied by reviewer.
+   */
+  reviewNote String?
+
+  /**
+   * Useful for recording what changed when MODIFY
+   * was selected.
+   */
+  decisionMetadata Json?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, assignmentId])
+  @@index([campaignId])
+  @@index([assignmentId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([decision])
+  @@index([expiresAt])
+}
 
 model UserAccount {
-  /*
+  /**
    * Clerk user ID.
-   *
    * Example:
    * user_34RzDpJ4n3UoxZi804lzXouQIJC
    */
@@ -1917,12 +2290,10 @@ model UserAccount {
 
   status UserAccountStatus @default(ACTIVE)
 
-  /*
+  /**
    * Optional hint only.
-   *
    * We keep the user's existing primary application role
    * during the transition.
-   *
    * Examples:
    * admin
    * teacher
@@ -1947,14 +2318,11 @@ model UserAccount {
   @@index([createdAt])
 }
 
-
-
 model AccessRole {
   id Int @id @default(autoincrement())
 
-  /*
+  /**
    * Stable machine-readable identifier.
-   *
    * Examples:
    * super_admin
    * admin
@@ -1963,7 +2331,7 @@ model AccessRole {
    */
   key String @unique
 
-  /*
+  /**
    * Human-readable name.
    */
   name String @unique
@@ -1972,13 +2340,13 @@ model AccessRole {
 
   type AccessRoleType @default(CUSTOM)
 
-  /*
+  /**
    * Protected roles cannot be deleted through
    * the normal Access Control Centre.
    */
   isProtected Boolean @default(false)
 
-  /*
+  /**
    * Allows a role to be retired without deleting
    * its historical assignments.
    */
@@ -1996,15 +2364,11 @@ model AccessRole {
   @@index([isActive])
 }
 
-
-
-
 model Permission {
   id Int @id @default(autoincrement())
 
-  /*
+  /**
    * Stable authorization key.
-   *
    * Example:
    * finance.payment.create
    */
@@ -2014,10 +2378,9 @@ model Permission {
 
   description String?
 
-  /*
+  /**
    * Used to group permissions in the future
    * permission matrix.
-   *
    * Examples:
    * USERS
    * ACADEMICS
@@ -2025,7 +2388,7 @@ model Permission {
    */
   group String
 
-  /*
+  /**
    * Determines ordering within the role editor.
    */
   sortOrder Int @default(0)
@@ -2042,9 +2405,6 @@ model Permission {
   @@index([isActive])
 }
 
-
-
-
 model RolePermission {
   roleId Int
 
@@ -2059,13 +2419,9 @@ model RolePermission {
   grantedBy String?
 
   @@id([roleId, permissionId])
-
   @@index([roleId])
   @@index([permissionId])
 }
-
-
-
 
 model UserRoleAssignment {
   id Int @id @default(autoincrement())
@@ -2086,21 +2442,20 @@ model UserRoleAssignment {
 
   expiresAt DateTime?
 
-  @@unique([userId, roleId])
+  reviewItems AccessReviewItem[]
 
+  @@unique([userId, roleId])
   @@index([userId])
   @@index([roleId])
   @@index([expiresAt])
 }
-
-
 
 model AccessAuditLog {
   id Int @id @default(autoincrement())
 
   action AccessAuditAction
 
-  /*
+  /**
    * Administrator/system that performed the change.
    */
   actorId String?
@@ -2111,7 +2466,7 @@ model AccessAuditLog {
 
   actorName String?
 
-  /*
+  /**
    * User whose access changed.
    */
   targetUserId String?
@@ -2122,7 +2477,7 @@ model AccessAuditLog {
 
   permissionId Int?
 
-  /*
+  /**
    * Flexible before/after contextual information.
    */
   metadata Json?

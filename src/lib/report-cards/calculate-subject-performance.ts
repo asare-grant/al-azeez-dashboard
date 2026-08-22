@@ -1,3 +1,4 @@
+// src/lib/report-cards/calculate-subject-performance.ts
 type ScoreRecord = {
   percentage: number;
   date: Date | string;

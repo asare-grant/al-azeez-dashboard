@@ -1,7 +1,11 @@
 // src/components/FormContainer.tsx
 import prisma from "@/lib/prisma";
+
 import FormModal from "./FormModal";
-import { auth } from "@clerk/nextjs/server";
+
+import { getCurrentAccessActor } from "@/lib/access-control";
+
+import { getFormRequiredPermission } from "@/lib/forms/form-access";
 
 export type FormContainerProps = {
   table:
@@ -29,12 +33,62 @@ export type FormContainerProps = {
   relatedData?: Record<string, any>; // <-- Add this
 };
 
-const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
-  let relatedData = {};
+const FormContainer = async ({
+  table,
+  type,
+  data,
+  id,
+  relatedData: incomingRelatedData,
+}: FormContainerProps) => {
+  let relatedData: Record<string, any> = {
+    ...(incomingRelatedData ?? {}),
+  };
 
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-  const currentUserId = userId;
+  /* -------------------------------------------------------------------------- */
+  /* ACCESS                                                                     */
+  /* -------------------------------------------------------------------------- */
+
+  const accessActor = await getCurrentAccessActor();
+
+  if (!accessActor) {
+    return null;
+  }
+
+  const actor = accessActor;
+
+  const requiredPermission = getFormRequiredPermission({
+    table,
+
+    type,
+  });
+
+  if (requiredPermission && !actor.can(requiredPermission)) {
+    return null;
+  }
+
+  const currentUserId = actor.actor.id;
+
+  /* -------------------------------------------------------------------------- */
+  /* OWNERSHIP SCOPE                                                            */
+  /* -------------------------------------------------------------------------- */
+
+  function hasTeacherOnlyGrant(permission: string) {
+    const grantingRoles = actor.activeAssignments.filter((assignment) =>
+      assignment.role.permissions.some(
+        (rolePermission) =>
+          rolePermission.permission.isActive &&
+          rolePermission.permission.key.trim().toLowerCase() ===
+            permission.trim().toLowerCase(),
+      ),
+    );
+
+    return (
+      grantingRoles.length > 0 &&
+      grantingRoles.every(
+        (assignment) => assignment.role.key.trim().toLowerCase() === "teacher",
+      )
+    );
+  }
 
   if (type !== "delete") {
     switch (table) {
@@ -75,13 +129,14 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         relatedData = { students: parentStudents };
         break;
       case "exam": {
+        const ownExamLessonsOnly = hasTeacherOnlyGrant("exams.manage");
         const [examLessons, examTerms, examYearRows] =
           await prisma.$transaction([
             prisma.lesson.findMany({
               where: {
-                ...(role === "teacher"
+                ...(ownExamLessonsOnly
                   ? {
-                      teacherId: currentUserId!,
+                      teacherId: currentUserId,
                     }
                   : {}),
               },
@@ -161,16 +216,37 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         break;
       }
-      case "result":
+      case "result": {
+        const ownResultsOnly = hasTeacherOnlyGrant("results.manage");
         const resultStudents = await prisma.student.findMany({
           select: { id: true, name: true, surname: true },
         });
         const resultClasses = await prisma.class.findMany({
-          select: { id: true, name: true },
+          where: {
+            ...(ownResultsOnly
+              ? {
+                  lessons: {
+                    some: {
+                      teacherId: currentUserId,
+                    },
+                  },
+                }
+              : {}),
+          },
+
+          select: {
+            id: true,
+
+            name: true,
+          },
+
+          orderBy: {
+            name: "asc",
+          },
         });
         const resultExams = await prisma.exam.findMany({
           where: {
-            ...(role === "teacher"
+            ...(ownResultsOnly
               ? {
                   lesson: {
                     teacherId: currentUserId!,
@@ -212,7 +288,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         const resultAssignments = await prisma.assignment.findMany({
           where: {
-            ...(role === "teacher"
+            ...(ownResultsOnly
               ? {
                   lesson: {
                     teacherId: currentUserId!,
@@ -258,6 +334,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           assignments: resultAssignments,
         };
         break;
+      }
       case "lesson":
         const lessonTeachers = await prisma.teacher.findMany({
           select: { id: true, name: true, surname: true },
@@ -276,11 +353,13 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         };
         break;
       case "assignment": {
+        const ownAssignmentLessonsOnly =
+          hasTeacherOnlyGrant("assignments.manage");
         const [assignmentLessons, assignmentTerms, assignmentYearRows] =
           await prisma.$transaction([
             prisma.lesson.findMany({
               where: {
-                ...(role === "teacher"
+                ...(ownAssignmentLessonsOnly
                   ? {
                       teacherId: currentUserId!,
                     }
@@ -408,6 +487,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         });
 
         relatedData = {
+          ...relatedData,
           students,
           classes,
           grades,

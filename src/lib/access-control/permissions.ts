@@ -1,3 +1,4 @@
+// src/lib/access-control/permissions.ts
 import "server-only";
 
 import type {

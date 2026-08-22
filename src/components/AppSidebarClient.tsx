@@ -1,3 +1,4 @@
+// src/components/AppSidebarClient.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -63,7 +64,14 @@ import {
   Layers3,
   Scale,
   Settings2,
+  Activity,
+  CalendarClock,
+  KeyRound,
+  Shield,
   ShieldCheck,
+  UserCog,
+  UsersRound,
+  UserCircle2Icon,
 } from "lucide-react";
 import {
   Collapsible,
@@ -72,108 +80,225 @@ import {
 } from "@/components/ui/collapsible";
 import { usePathname, useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
+
+import { formatRoleLabel, getRoleDashboardPath } from "@/lib/navigation/roles";
+
 import type { AppRole } from "@/lib/navigation/roles";
 
-import { getRoleDashboardPath } from "@/lib/navigation/roles";
+import {
+  canSeeSidebarItem,
+  type SidebarAccessRule,
+} from "@/lib/navigation/sidebar-access";
 
 export default function AppSidebarClient({
   role,
+  roleKey,
   name,
   username,
   imageUrl,
+  permissions,
 }: {
   role: AppRole;
+
+  roleKey: string;
 
   name: string;
 
   username: string;
 
   imageUrl: string;
+
+  permissions: string[];
 }) {
-  const menuItems = [
+  /* ======================================================================== */
+  /* NAVIGATION VISIBILITY                                                    */
+  /* ======================================================================== */
+  const effectivePermissions = new Set(
+    permissions.map((permission) => permission.trim().toLowerCase()),
+  );
+
+  function canSee(rule: SidebarAccessRule) {
+    return canSeeSidebarItem({
+      role,
+
+      permissions: effectivePermissions,
+
+      rule,
+    });
+  }
+
+  /* ========================================================================== */
+  /* OVERVIEW                                                                   */
+  /* ========================================================================== */
+
+  const overviewItems = [
     {
       icon: <Home size={18} className="text-blue-600" />,
+
       label: "Dashboard",
+
       href: getRoleDashboardPath(role),
-      visible: ["admin", "teacher", "student", "parent", "account"],
+
+      access: {
+        authenticated: true,
+      } satisfies SidebarAccessRule,
     },
+  ];
+
+  /* ========================================================================== */
+  /* PEOPLE                                                                     */
+  /* ========================================================================== */
+
+  const peopleItems = [
     {
       icon: <UserRound size={18} className="text-emerald-600" />,
       label: "Teachers",
       href: "/list/teachers",
-      visible: ["admin", "teacher", "account"],
+
+      access: {
+        permissionPrefixes: ["teachers."],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <GraduationCap size={18} className="text-violet-600" />,
       label: "Students",
       href: "/list/students",
-      visible: ["admin", "teacher", "account"],
+
+      access: {
+        permissionPrefixes: ["students."],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <Users size={18} className="text-orange-500" />,
-      label: "Parents",
+      label: "Parents & Guardians",
       href: "/list/parents",
-      visible: ["admin", "teacher"],
+
+      access: {
+        permissionPrefixes: ["parents."],
+      } satisfies SidebarAccessRule,
     },
   ];
 
-  const academics = [
+  /* ========================================================================== */
+  /* ACADEMICS                                                                  */
+  /* ========================================================================== */
+
+  const academicItems = [
     {
       icon: <BookOpenCheck size={18} className="text-indigo-600" />,
       label: "Subjects",
       href: "/list/subjects",
-      visible: ["admin"],
+
+      // Subjects
+      access: {
+        anyPermissions: [
+          "academics.subjects.view",
+          "academics.subjects.manage",
+        ],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <School size={18} className="text-sky-600" />,
       label: "Classes",
       href: "/list/classes",
-      visible: ["admin", "teacher", "account"],
+
+      // Classes
+      access: {
+        anyPermissions: ["academics.classes.view", "academics.classes.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <NotebookTabs size={18} className="text-amber-500" />,
       label: "Lessons",
       href: "/list/lessons",
-      visible: ["admin", "teacher"],
+
+      // Lessons
+      access: {
+        anyPermissions: ["academics.lessons.view", "academics.lessons.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <FileCheck2 size={18} className="text-rose-500" />,
       label: "Exams",
       href: "/list/exams",
-      visible: ["admin", "teacher", "student", "parent"],
+
+      // Exams
+      access: {
+        anyPermissions: ["exams.view", "exams.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <ClipboardList size={18} className="text-cyan-600" />,
       label: "Assignments",
       href: "/list/assignments",
-      visible: ["admin", "teacher", "student", "parent"],
+
+      // Assignments
+      access: {
+        anyPermissions: ["assignments.view", "assignments.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
-      icon: <BarChart3 size={18} className="text-purple-600" />,
-      label: "Results",
-      href: "/list/results",
-      visible: ["admin", "teacher", "student", "parent"],
-    },
-    {
-      icon: <ClipboardCheck size={18} className="text-green-600" />,
-      label: "Attendance",
-      href: "/list/attendance",
-      visible: ["admin", "teacher", "account"],
-    },
-    {
-      icon: <ClipboardList size={18} className="text-amber-300" />,
+      icon: <ClipboardList size={18} className="text-amber-500" />,
       label: "Assessments",
+
       href:
         role === "student"
           ? "/student/assessments"
           : role === "parent"
             ? "/parent/assessments"
             : "/list/assessments",
-      visible: ["admin", "teacher", "student", "parent"],
+
+      access: {
+        personas: ["student", "parent"],
+
+        anyPermissions: [
+          "assessments.view",
+          "assessments.create",
+          "assessments.publish",
+          "assessments.grade",
+        ],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <ClipboardCheck size={18} className="text-green-600" />,
+      label: "Attendance",
+      href: "/list/attendance",
+
+      access: {
+        anyPermissions: [
+          "attendance.view",
+          "attendance.record",
+          "attendance.modify",
+          "attendance.report",
+        ],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <BarChart3 size={18} className="text-purple-600" />,
+      label: "Results",
+      href: "/list/results",
+
+      // Results
+      access: {
+        anyPermissions: ["results.view", "results.manage"],
+      } satisfies SidebarAccessRule,
     },
   ];
 
-  const reportCards = [
+  /* ========================================================================== */
+  /* REPORTING & PERFORMANCE                                                    */
+  /* ========================================================================== */
+
+  const reportingItems = [
     {
       icon: <FileText size={18} className="text-blue-600" />,
 
@@ -195,108 +320,155 @@ export default function AppSidebarClient({
               ? "/teacher/classes"
               : "/list/report-cards",
 
-      visible: ["admin", "teacher", "student", "parent"],
+      access: {
+        personas: ["student", "parent", "teacher"],
+
+        anyPermissions: [
+          "report_cards.view",
+          "report_cards.edit",
+          "report_cards.submit",
+          "report_cards.review",
+          "report_cards.publish",
+        ],
+      } satisfies SidebarAccessRule,
     },
 
     {
       icon: <FilePlus2 size={18} className="text-emerald-600" />,
-
       label: "Generate Reports",
-
       href: "/list/report-cards/generate",
 
-      visible: ["admin"],
+      access: {
+        anyPermissions: ["report_cards.generate"],
+      } satisfies SidebarAccessRule,
     },
 
     {
       icon: <ClipboardCheck size={18} className="text-violet-600" />,
-
       label: "Bulk Review",
-
       href: "/list/report-cards/review",
 
-      visible: ["admin"],
+      access: {
+        anyPermissions: ["report_cards.review"],
+      } satisfies SidebarAccessRule,
     },
 
     {
       icon: <Scale size={18} className="text-amber-600" />,
-
       label: "Academic Weighting",
-
       href: "/list/academic-settings/weightings",
 
-      visible: ["admin"],
+      access: {
+        anyPermissions: ["report_cards.settings"],
+      } satisfies SidebarAccessRule,
     },
 
     {
       icon: <FileCog size={18} className="text-cyan-600" />,
-
       label: "Grading Scales",
-
       href: "/list/academic-settings/grading-scales",
 
-      visible: ["admin"],
+      access: {
+        anyPermissions: ["report_cards.settings"],
+      } satisfies SidebarAccessRule,
     },
   ];
 
-  const finances = [
+  /* ========================================================================== */
+  /* FINANCE                                                                    */
+  /* ========================================================================== */
+
+  const financeItems = [
     {
       icon: <Wallet size={18} className="text-emerald-600" />,
       label: "Fees",
       href: "/list/fee",
-      visible: ["admin"],
+
+      access: {
+        anyPermissions: [
+          "finance.invoices.manage",
+          "finance.payments.record",
+          "finance.payments.modify",
+        ],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <LayoutList size={18} className="text-violet-600" />,
       label: "Fee Structure",
       href: "/list/fee-structure",
-      visible: ["admin"],
+
+      access: {
+        anyPermissions: ["finance.structure.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <Tag size={18} className="text-orange-500" />,
       label: "Fee Type",
       href: "/list/fee-type",
-      visible: ["admin"],
+
+      access: {
+        anyPermissions: ["finance.structure.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <Folder size={18} className="text-cyan-600" />,
       label: "Fee Category",
       href: "/list/fee-category",
-      visible: ["admin"],
+
+      access: {
+        anyPermissions: ["finance.structure.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <Database size={18} className="text-indigo-600" />,
       label: "Fee Master",
       href: "/list/fee-master",
-      visible: ["admin"],
+
+      access: {
+        anyPermissions: ["finance.structure.manage"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <BarChart3 size={18} className="text-pink-600" />,
       label: "Fee Report",
       href: "/list/fee-report",
-      visible: ["admin"],
+
+      access: {
+        anyPermissions: ["finance.reports.view"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <FolderArchive size={18} className="text-amber-500" />,
       label: "Feeding Fees",
       href: "/list/feeding-fees",
-      visible: ["admin", "account"],
+
+      access: {
+        anyPermissions: ["finance.payments.record", "finance.payments.modify"],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <BusIcon size={18} className="text-sky-600" />,
       label: "Bus Fees",
       href: "/list/bus-fees",
-      visible: ["admin", "account"],
+
+      access: {
+        anyPermissions: ["finance.payments.record", "finance.payments.modify"],
+      } satisfies SidebarAccessRule,
     },
   ];
 
-  const visibleFinances = finances.filter((finance) =>
-    finance.visible.includes(role),
-  );
+  /* ========================================================================== */
+  /* COMMUNICATIONS                                                             */
+  /* ========================================================================== */
 
-  const canSeeFinance = visibleFinances.length > 0;
-
-  const communications = [
+  const communicationItems = [
     {
       icon: <BellRing size={18} className="text-violet-600" />,
 
@@ -304,26 +476,136 @@ export default function AppSidebarClient({
 
       href: "/notifications",
 
-      visible: ["admin", "teacher", "student", "parent", "account"],
+      access: {
+        authenticated: true,
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <CalendarDays size={18} className="text-blue-600" />,
+
       label: "Events",
+
       href: "/list/events",
-      visible: ["admin", "teacher", "student", "parent", "account"],
+
+      access: {
+        permissionPrefixes: ["communications.events."],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <Megaphone size={18} className="text-orange-500" />,
+
       label: "Announcements",
+
       href: "/list/announcements",
-      visible: ["admin", "teacher", "student", "parent", "account"],
+
+      access: {
+        permissionPrefixes: ["communications.announcements."],
+      } satisfies SidebarAccessRule,
     },
+
     {
       icon: <MessageCircle size={18} className="text-emerald-600" />,
+
       label: "Messages",
+
       href: "/list/messages",
-      visible: ["admin", "teacher", "student", "parent", "account"],
+
+      access: {
+        anyPermissions: [
+          "communications.messages.view",
+          "communications.messages.send",
+          "communications.messages.manage",
+        ],
+      } satisfies SidebarAccessRule,
     },
+  ];
+
+  /* ========================================================================== */
+  /* SECURITY & ADMINISTRATION                                                  */
+  /* ========================================================================== */
+
+  const securityItems = [
+    {
+      icon: <ShieldCheck size={18} className="text-blue-600" />,
+
+      label: "Access Control Centre",
+
+      href: "/list/access-control",
+
+      access: {
+        permissionPrefixes: [
+          "users.",
+          "roles.",
+          "permissions.",
+          "access_reviews.",
+          "audit.",
+        ],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <UsersRound size={18} className="text-cyan-600" />,
+
+      label: "Users & Identities",
+
+      href: "/list/access-control/users",
+
+      // Roles & Permissions
+      access: {
+        permissionPrefixes: ["users."],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <KeyRound size={18} className="text-violet-600" />,
+
+      label: "Roles & Permissions",
+
+      href: "/list/access-control/roles",
+
+      access: {
+        permissionPrefixes: ["roles.", "permissions."],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <CalendarClock size={18} className="text-amber-600" />,
+
+      label: "Delegated Access",
+
+      href: "/list/access-control/delegated-access",
+
+      access: {
+        anyPermissions: ["roles.manage_expiry"],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <Shield size={18} className="text-emerald-600" />,
+
+      label: "Access Reviews",
+
+      href: "/list/access-control/reviews",
+
+      access: {
+        permissionPrefixes: ["access_reviews."],
+      } satisfies SidebarAccessRule,
+    },
+
+    {
+      icon: <Activity size={18} className="text-rose-500" />,
+
+      label: "Access Activity",
+
+      href: "/list/access-control/activity",
+
+      access: {
+        anyPermissions: ["audit.view"],
+      } satisfies SidebarAccessRule,
+    },
+
     {
       icon: <ServerCog size={18} className="text-cyan-600" />,
 
@@ -331,18 +613,39 @@ export default function AppSidebarClient({
 
       href: "/list/notification-operations",
 
-      visible: ["admin"],
+      access: {
+        permissionPrefixes: ["notification_operations."],
+      } satisfies SidebarAccessRule,
     },
+
     {
-      icon: <ShieldCheck size={18} className="text-violet-600" />,
+      icon: <Settings size={18} className="text-slate-600" />,
 
-      label: "Access Control",
+      label: "School Settings",
 
-      href: "/list/access-control",
+      href: "/list/settings",
 
-      visible: ["admin"],
+      access: {
+        permissionPrefixes: ["settings."],
+      } satisfies SidebarAccessRule,
     },
   ];
+
+  const visibleOverview = overviewItems.filter((item) => canSee(item.access));
+
+  const visiblePeople = peopleItems.filter((item) => canSee(item.access));
+
+  const visibleAcademics = academicItems.filter((item) => canSee(item.access));
+
+  const visibleReporting = reportingItems.filter((item) => canSee(item.access));
+
+  const visibleFinance = financeItems.filter((item) => canSee(item.access));
+
+  const visibleCommunications = communicationItems.filter((item) =>
+    canSee(item.access),
+  );
+
+  const visibleSecurity = securityItems.filter((item) => canSee(item.access));
 
   const { signOut } = useClerk();
   const router = useRouter();
@@ -395,7 +698,7 @@ export default function AppSidebarClient({
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  const formattedRole = role.charAt(0).toUpperCase() + role.slice(1);
+  const formattedRole = formatRoleLabel(roleKey);
 
   function routeIsActive(href: string, exact = false) {
     /*
@@ -443,6 +746,16 @@ export default function AppSidebarClient({
     }
 
     /*
+     * Access Control overview should only be active on
+     * the actual overview page.
+     *
+     * Its child workspaces have dedicated navigation items.
+     */
+    if (href === "/list/access-control") {
+      return path === "/list/access-control";
+    }
+
+    /*
      * Normal nested-route matching.
      */
     return path === href || path.startsWith(`${href}/`);
@@ -477,140 +790,93 @@ export default function AppSidebarClient({
       <SidebarSeparator />
 
       <SidebarContent>
-        {/* HOME MENU */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Home Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map(
-                (menuItem) =>
-                  menuItem.visible.includes(role) && (
-                    <SidebarMenuItem key={menuItem.label}>
-                      <SidebarMenuButton asChild>
-                        <Link
-                          href={menuItem.href}
-                          className={menuLinkClass(menuItem.href)}
-                        >
-                          <span
-                            className={`transition-all duration-300 ${
-                              routeIsActive(menuItem.href)
-                                ? "scale-110 drop-shadow-md"
-                                : ""
-                            }`}
-                          >
-                            {menuItem.icon}
-                          </span>
-                          <span>{menuItem.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ),
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* ==================================================================== */}
+        {/* OVERVIEW                                                             */}
+        {/* ==================================================================== */}
 
-        {/* ACADEMICS */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Academics</SidebarGroupLabel>
-          <SidebarGroupAction>
-            <BookOpen size={18} className="text-blue-600" />
-          </SidebarGroupAction>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {academics.map(
-                (academic) =>
-                  academic.visible.includes(role) && (
-                    <SidebarMenuItem key={academic.label}>
-                      <SidebarMenuButton asChild>
-                        <Link
-                          href={academic.href}
-                          className={menuLinkClass(academic.href)}
-                        >
-                          <span
-                            className={`transition-all duration-300 ${
-                              routeIsActive(academic.href)
-                                ? "scale-110 drop-shadow-md"
-                                : ""
-                            }`}
-                          >
-                            {academic.icon}
-                          </span>
-                          <span>{academic.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ),
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* REPORT CARDS */}
-        <Collapsible
-          defaultOpen={
-            path.startsWith("/list/report-cards") ||
-            path.startsWith("/teacher/classes") ||
-            path.startsWith("/student/report-cards") ||
-            path.startsWith("/parent/children") ||
-            path.startsWith("/list/academic-settings")
-          }
-          className="group/report-cards"
-        >
+        {visibleOverview.length > 0 ? (
           <SidebarGroup>
-            <SidebarGroupLabel asChild>
-              <CollapsibleTrigger>
-                Report Cards
-                <ChevronDown
-                  size={16}
-                  className="ml-auto text-blue-500 transition-transform group-data-[state=open]/report-cards:rotate-180"
-                />
-              </CollapsibleTrigger>
+            <SidebarGroupLabel>Overview</SidebarGroupLabel>
+
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleOverview.map((item) => (
+                  <SidebarNavigationItem
+                    key={item.label}
+                    item={item}
+                    routeIsActive={routeIsActive}
+                    menuLinkClass={menuLinkClass}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
+
+        {/* ==================================================================== */}
+        {/* PEOPLE                                                               */}
+        {/* ==================================================================== */}
+
+        {/* ==================================================================== */}
+        {/* PEOPLE                                                               */}
+        {/* ==================================================================== */}
+
+        {visiblePeople.length > 0 ? (
+          <SidebarGroup>
+            <SidebarGroupLabel
+              className="
+        px-3
+        text-[10px]
+        font-black
+        uppercase
+        tracking-[0.14em]
+        text-slate-400
+        flex justify-between
+      "
+            >
+              Users
+              <UserCircle2Icon
+                className="
+        h-3
+        w-3
+        text-blue-500
+      "
+              />
             </SidebarGroupLabel>
 
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {reportCards.map((item) =>
-                    item.visible.includes(role) ? (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton asChild>
-                          <Link
-                            href={item.href}
-                            className={menuLinkClass(item.href)}
-                          >
-                            <span
-                              className={`transition-all duration-300 ${
-                                routeIsActive(item.href)
-                                  ? "scale-110 drop-shadow-md"
-                                  : ""
-                              }`}
-                            >
-                              {item.icon}
-                            </span>
-
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ) : null,
-                  )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visiblePeople.map((item) => (
+                  <SidebarNavigationItem
+                    key={item.label}
+                    item={item}
+                    routeIsActive={routeIsActive}
+                    menuLinkClass={menuLinkClass}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
           </SidebarGroup>
-        </Collapsible>
+        ) : null}
 
-        {/* FINANCE COLLAPSIBLE */}
-        {canSeeFinance ? (
-          <Collapsible defaultOpen className="group/finance">
+        {/* ==================================================================== */}
+        {/* ACADEMICS                                                            */}
+        {/* ==================================================================== */}
+
+        {visibleAcademics.length > 0 ? (
+          <Collapsible
+            defaultOpen={visibleAcademics.some((item) =>
+              routeIsActive(item.href),
+            )}
+            className="group/academics"
+          >
             <SidebarGroup>
               <SidebarGroupLabel asChild>
                 <CollapsibleTrigger>
-                  Finance
+                  Academics
                   <ChevronDown
                     size={16}
-                    className="ml-auto text-green-500 transition-transform group-data-[state=open]/finance:rotate-180"
+                    className="ml-auto text-blue-500 transition-transform group-data-[state=open]/academics:rotate-180"
                   />
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
@@ -618,27 +884,13 @@ export default function AppSidebarClient({
               <CollapsibleContent>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {visibleFinances.map((finance) => (
-                      <SidebarMenuItem key={finance.label}>
-                        <SidebarMenuButton asChild>
-                          <Link
-                            href={finance.href}
-                            className={menuLinkClass(finance.href)}
-                          >
-                            <span
-                              className={`transition-all duration-300 ${
-                                routeIsActive(finance.href)
-                                  ? "scale-110 drop-shadow-md"
-                                  : ""
-                              }`}
-                            >
-                              {finance.icon}
-                            </span>
-
-                            <span>{finance.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+                    {visibleAcademics.map((item) => (
+                      <SidebarNavigationItem
+                        key={item.label}
+                        item={item}
+                        routeIsActive={routeIsActive}
+                        menuLinkClass={menuLinkClass}
+                      />
                     ))}
                   </SidebarMenu>
                 </SidebarGroupContent>
@@ -647,61 +899,173 @@ export default function AppSidebarClient({
           </Collapsible>
         ) : null}
 
-        {/* COMMUNICATIONS */}
-        {/* COMMUNICATIONS */}
-        <Collapsible
-          defaultOpen={
-            path.startsWith("/notifications") ||
-            path.startsWith("/list/events") ||
-            path.startsWith("/list/announcements") ||
-            path.startsWith("/list/messages") ||
-            path.startsWith("/list/notification-operations")
-          }
-          className="group/communications"
-        >
+        {/* ==================================================================== */}
+        {/* REPORTING & PERFORMANCE                                              */}
+        {/* ==================================================================== */}
+
+        {visibleReporting.length > 0 ? (
+          <Collapsible
+            defaultOpen={
+              path.startsWith("/list/report-cards") ||
+              path.startsWith("/student/report-cards") ||
+              path.startsWith("/parent/children") ||
+              path.startsWith("/teacher/classes") ||
+              path.startsWith("/list/academic-settings")
+            }
+            className="group/reporting"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger>
+                  Reporting & Performance
+                  <ChevronDown
+                    size={16}
+                    className="ml-auto text-violet-500 transition-transform group-data-[state=open]/reporting:rotate-180"
+                  />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleReporting.map((item) => (
+                      <SidebarNavigationItem
+                        key={item.label}
+                        item={item}
+                        routeIsActive={routeIsActive}
+                        menuLinkClass={menuLinkClass}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ) : null}
+
+        {/* ==================================================================== */}
+        {/* FINANCE                                                              */}
+        {/* ==================================================================== */}
+
+        {visibleFinance.length > 0 ? (
+          <Collapsible
+            defaultOpen={visibleFinance.some((item) =>
+              routeIsActive(item.href),
+            )}
+            className="group/finance"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger>
+                  Finance
+                  <ChevronDown
+                    size={16}
+                    className="ml-auto text-emerald-500 transition-transform group-data-[state=open]/finance:rotate-180"
+                  />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleFinance.map((item) => (
+                      <SidebarNavigationItem
+                        key={item.label}
+                        item={item}
+                        routeIsActive={routeIsActive}
+                        menuLinkClass={menuLinkClass}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ) : null}
+
+        {/* ==================================================================== */}
+        {/* COMMUNICATIONS                                                       */}
+        {/* ==================================================================== */}
+
+        {visibleCommunications.length > 0 ? (
           <SidebarGroup>
-            <SidebarGroupLabel asChild>
-              <CollapsibleTrigger>
-                Communications
-                <ChevronDown
-                  size={16}
-                  className="ml-auto text-violet-500 transition-transform group-data-[state=open]/communications:rotate-180"
-                />
-              </CollapsibleTrigger>
+            <SidebarGroupLabel
+              className="
+        px-3
+        text-[10px]
+        font-black
+        uppercase
+        tracking-[0.14em]
+        text-slate-400
+        flex justify-between
+      "
+            >
+              Communications
+              <InfoIcon
+                className="
+        h-3
+        w-3
+        text-cyan-300
+      "
+              />
             </SidebarGroupLabel>
 
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {communications.map((item) =>
-                    item.visible.includes(role) ? (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton asChild>
-                          <Link
-                            href={item.href}
-                            className={menuLinkClass(item.href)}
-                          >
-                            <span
-                              className={`transition-all duration-300 ${
-                                routeIsActive(item.href)
-                                  ? "scale-110 drop-shadow-md"
-                                  : ""
-                              }`}
-                            >
-                              {item.icon}
-                            </span>
-
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ) : null,
-                  )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleCommunications.map((item) => (
+                  <SidebarNavigationItem
+                    key={item.label}
+                    item={item}
+                    routeIsActive={routeIsActive}
+                    menuLinkClass={menuLinkClass}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
           </SidebarGroup>
-        </Collapsible>
+        ) : null}
+
+        {/* ==================================================================== */}
+        {/* SECURITY & ADMINISTRATION                                            */}
+        {/* ==================================================================== */}
+
+        {visibleSecurity.length > 0 ? (
+          <Collapsible
+            defaultOpen={
+              path.startsWith("/list/access-control") ||
+              path.startsWith("/list/notification-operations") ||
+              path.startsWith("/list/settings")
+            }
+            className="group/security"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger>
+                  Security & Administration
+                  <ChevronDown
+                    size={16}
+                    className="ml-auto text-rose-500 transition-transform group-data-[state=open]/security:rotate-180"
+                  />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleSecurity.map((item) => (
+                      <SidebarNavigationItem
+                        key={item.label}
+                        item={item}
+                        routeIsActive={routeIsActive}
+                        menuLinkClass={menuLinkClass}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ) : null}
       </SidebarContent>
 
       {/* ========================================================== */}
@@ -910,7 +1274,9 @@ export default function AppSidebarClient({
 
                     {/* ADMIN SETTINGS */}
 
-                    {role === "admin" ? (
+                    {canSee({
+                      permissionPrefixes: ["settings."],
+                    }) ? (
                       <SidebarAccountMenuItem
                         href="/list/settings"
                         icon={Settings}
@@ -1037,5 +1403,56 @@ function SidebarAccountMenuItem({
         <ChevronRight className="h-4 w-4 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500" />
       </Link>
     </DropdownMenuItem>
+  );
+}
+
+function SidebarNavigationItem({
+  item,
+  routeIsActive,
+  menuLinkClass,
+}: {
+  item: {
+    icon: React.ReactNode;
+
+    label: string;
+
+    href: string;
+  };
+
+  routeIsActive: (href: string) => boolean;
+
+  menuLinkClass: (href: string) => string;
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild>
+        <Link
+          href={item.href}
+          className={`
+            ${menuLinkClass(item.href)}
+            min-h-9
+            px-4.5
+          `}
+        >
+          <span
+            className={`transition-all duration-300 ${
+              routeIsActive(item.href) ? "scale-110 drop-shadow-md" : ""
+            }`}
+          >
+            {item.icon}
+          </span>
+
+          <span
+            className="
+              truncate
+              text-[13px]
+              font-medium
+            "
+          >
+            {item.label}
+          </span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

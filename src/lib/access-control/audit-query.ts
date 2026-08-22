@@ -1,282 +1,286 @@
-// import "server-only";
+// src/lib/access-control/audit-query.ts
 
-// import {
-//   AccessAuditAction,
-//   Prisma,
-// } from "@prisma/client";
+import "server-only";
 
-// /* -------------------------------------------------------------------------- */
-// /*                                  TYPES                                     */
-// /* -------------------------------------------------------------------------- */
+import {
+  AccessAuditAction,
+  Prisma,
+} from "@prisma/client";
 
-// export type AuditQueryFilters = {
-//   action:
-//     AccessAuditAction | null;
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
 
-//   actor:
-//     string | null;
+export type AuditQueryFilters = {
+  action:
+    AccessAuditAction | null;
 
-//   from:
-//     Date | null;
+  actor:
+    string | null;
 
-//   to:
-//     Date | null;
-// };
+  from:
+    Date | null;
 
-// /* -------------------------------------------------------------------------- */
-// /*                         NORMALIZE SINGLE VALUE                             */
-// /* -------------------------------------------------------------------------- */
+  to:
+    Date | null;
+};
 
-// export function getSingleQueryValue(
-//   value:
-//     string |
-//     string[] |
-//     undefined,
-// ) {
-//   if (
-//     Array.isArray(
-//       value,
-//     )
-//   ) {
-//     return (
-//       value[0] ??
-//       ""
-//     ).trim();
-//   }
+/* ========================================================================== */
+/* NORMALIZE SINGLE VALUE                                                     */
+/* ========================================================================== */
 
-//   return (
-//     value ??
-//     ""
-//   ).trim();
-// }
+export function getSingleQueryValue(
+  value:
+    | string
+    | string[]
+    | undefined,
+) {
+  if (
+    Array.isArray(
+      value,
+    )
+  ) {
+    return (
+      value[0] ??
+      ""
+    ).trim();
+  }
 
-// /* -------------------------------------------------------------------------- */
-// /*                           PARSE AUDIT ACTION                               */
-// /* -------------------------------------------------------------------------- */
+  return (
+    value ??
+    ""
+  ).trim();
+}
 
-// export function parseAuditAction(
-//   value:
-//     string,
-// ): AccessAuditAction | null {
-//   if (
-//     !value
-//   ) {
-//     return null;
-//   }
+/* ========================================================================== */
+/* PARSE AUDIT ACTION                                                         */
+/* ========================================================================== */
 
-//   const actions =
-//     Object.values(
-//       AccessAuditAction,
-//     );
+export function parseAuditAction(
+  value:
+    string,
+): AccessAuditAction | null {
+  if (
+    !value
+  ) {
+    return null;
+  }
 
-//   return actions.includes(
-//     value as AccessAuditAction,
-//   )
-//     ? (
-//         value as AccessAuditAction
-//       )
-//     : null;
-// }
+  const actions =
+    Object.values(
+      AccessAuditAction,
+    );
 
-// /* -------------------------------------------------------------------------- */
-// /*                              PARSE DATE                                    */
-// /* -------------------------------------------------------------------------- */
+  return actions.includes(
+    value as
+      AccessAuditAction,
+  )
+    ? (
+        value as
+          AccessAuditAction
+      )
+    : null;
+}
 
-// function parseStartDate(
-//   value:
-//     string,
-// ) {
-//   if (
-//     !value
-//   ) {
-//     return null;
-//   }
+/* ========================================================================== */
+/* DATE HELPERS                                                               */
+/* ========================================================================== */
 
-//   const date =
-//     new Date(
-//       `${value}T00:00:00.000`,
-//     );
+function parseStartDate(
+  value:
+    string,
+) {
+  if (
+    !value
+  ) {
+    return null;
+  }
 
-//   return Number.isNaN(
-//     date.getTime(),
-//   )
-//     ? null
-//     : date;
-// }
+  const date =
+    new Date(
+      `${value}T00:00:00.000`,
+    );
 
-// function parseEndDate(
-//   value:
-//     string,
-// ) {
-//   if (
-//     !value
-//   ) {
-//     return null;
-//   }
+  return Number.isNaN(
+    date.getTime(),
+  )
+    ? null
+    : date;
+}
 
-//   const date =
-//     new Date(
-//       `${value}T23:59:59.999`,
-//     );
+function parseEndDate(
+  value:
+    string,
+) {
+  if (
+    !value
+  ) {
+    return null;
+  }
 
-//   return Number.isNaN(
-//     date.getTime(),
-//   )
-//     ? null
-//     : date;
-// }
+  const date =
+    new Date(
+      `${value}T23:59:59.999`,
+    );
 
-// /* -------------------------------------------------------------------------- */
-// /*                         BUILD AUDIT FILTERS                                */
-// /* -------------------------------------------------------------------------- */
+  return Number.isNaN(
+    date.getTime(),
+  )
+    ? null
+    : date;
+}
 
-// export function buildAuditFilters({
-//   action,
-//   actor,
-//   from,
-//   to,
-// }: {
-//   action?:
-//     string |
-//     string[] |
-//     undefined;
+/* ========================================================================== */
+/* BUILD FILTERS                                                              */
+/* ========================================================================== */
 
-//   actor?:
-//     string |
-//     string[] |
-//     undefined;
+export function buildAuditFilters({
+  action,
+  actor,
+  from,
+  to,
+}: {
+  action?:
+    | string
+    | string[]
+    | undefined;
 
-//   from?:
-//     string |
-//     string[] |
-//     undefined;
+  actor?:
+    | string
+    | string[]
+    | undefined;
 
-//   to?:
-//     string |
-//     string[] |
-//     undefined;
-// }): AuditQueryFilters {
-//   const actionValue =
-//     getSingleQueryValue(
-//       action,
-//     );
+  from?:
+    | string
+    | string[]
+    | undefined;
 
-//   const actorValue =
-//     getSingleQueryValue(
-//       actor,
-//     );
+  to?:
+    | string
+    | string[]
+    | undefined;
+}): AuditQueryFilters {
+  const actionValue =
+    getSingleQueryValue(
+      action,
+    );
 
-//   const fromValue =
-//     getSingleQueryValue(
-//       from,
-//     );
+  const actorValue =
+    getSingleQueryValue(
+      actor,
+    );
 
-//   const toValue =
-//     getSingleQueryValue(
-//       to,
-//     );
+  const fromValue =
+    getSingleQueryValue(
+      from,
+    );
 
-//   return {
-//     action:
-//       parseAuditAction(
-//         actionValue,
-//       ),
+  const toValue =
+    getSingleQueryValue(
+      to,
+    );
 
-//     actor:
-//       actorValue ||
-//       null,
+  return {
+    action:
+      parseAuditAction(
+        actionValue,
+      ),
 
-//     from:
-//       parseStartDate(
-//         fromValue,
-//       ),
+    actor:
+      actorValue ||
+      null,
 
-//     to:
-//       parseEndDate(
-//         toValue,
-//       ),
-//   };
-// }
+    from:
+      parseStartDate(
+        fromValue,
+      ),
 
-// /* -------------------------------------------------------------------------- */
-// /*                         BUILD PRISMA WHERE                                 */
-// /* -------------------------------------------------------------------------- */
+    to:
+      parseEndDate(
+        toValue,
+      ),
+  };
+}
 
-// export function buildUserAuditWhere({
-//   userId,
-//   filters,
-// }: {
-//   userId:
-//     string;
+/* ========================================================================== */
+/* BUILD USER AUDIT WHERE                                                     */
+/* ========================================================================== */
 
-//   filters:
-//     AuditQueryFilters;
-// }): Prisma.AccessAuditLogWhereInput {
-//   const AND:
-//     Prisma.AccessAuditLogWhereInput[] =
-//     [
-//       {
-//         targetUserId:
-//           userId,
-//       },
-//     ];
+export function buildUserAuditWhere({
+  userId,
+  filters,
+}: {
+  userId:
+    string;
 
-//   if (
-//     filters.action
-//   ) {
-//     AND.push({
-//       action:
-//         filters.action,
-//     });
-//   }
+  filters:
+    AuditQueryFilters;
+}): Prisma.AccessAuditLogWhereInput {
+  const AND:
+    Prisma.AccessAuditLogWhereInput[] =
+    [
+      {
+        targetUserId:
+          userId,
+      },
+    ];
 
-//   if (
-//     filters.actor
-//   ) {
-//     AND.push({
-//       OR: [
-//         {
-//           actorId:
-//             filters.actor,
-//         },
+  if (
+    filters.action
+  ) {
+    AND.push({
+      action:
+        filters.action,
+    });
+  }
 
-//         {
-//           actorName: {
-//             contains:
-//               filters.actor,
+  if (
+    filters.actor
+  ) {
+    AND.push({
+      OR: [
+        {
+          actorId:
+            filters.actor,
+        },
 
-//             mode:
-//               "insensitive",
-//           },
-//         },
-//       ],
-//     });
-//   }
+        {
+          actorName: {
+            contains:
+              filters.actor,
 
-//   if (
-//     filters.from ||
-//     filters.to
-//   ) {
-//     AND.push({
-//       createdAt: {
-//         ...(filters.from
-//           ? {
-//               gte:
-//                 filters.from,
-//             }
-//           : {}),
+            mode:
+              "insensitive",
+          },
+        },
+      ],
+    });
+  }
 
-//         ...(filters.to
-//           ? {
-//               lte:
-//                 filters.to,
-//             }
-//           : {}),
-//       },
-//     });
-//   }
+  if (
+    filters.from ||
+    filters.to
+  ) {
+    AND.push({
+      createdAt: {
+        ...(filters.from
+          ? {
+              gte:
+                filters.from,
+            }
+          : {}),
 
-//   return {
-//     AND,
-//   };
-// }
+        ...(filters.to
+          ? {
+              lte:
+                filters.to,
+            }
+          : {}),
+      },
+    });
+  }
+
+  return {
+    AND,
+  };
+}

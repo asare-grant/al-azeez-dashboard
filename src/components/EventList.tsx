@@ -1,14 +1,12 @@
 // src/components/EventList.tsx
 
-import { auth } from "@clerk/nextjs/server";
-
 import prisma from "@/lib/prisma";
 
 import { CalendarDays, Clock3 } from "lucide-react";
 
 import {
   getEventVisibilityWhere,
-  type EventViewerRole,
+  requireEventViewer,
 } from "@/lib/events/visibility";
 
 /* -------------------------------------------------------------------------- */
@@ -36,30 +34,25 @@ export default async function EventList({
 }: {
   dateParam: string | undefined;
 }) {
-  const { userId, sessionClaims } = await auth();
+  let viewer;
 
-  if (!userId) {
+  try {
+    viewer = await requireEventViewer();
+  } catch {
     return null;
   }
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role as EventViewerRole | undefined;
-
-  if (!role) {
-    return null;
-  }
+  const { userId, scope } = viewer;
 
   /* ---------------------------------------------------------------------- */
   /*                            VISIBILITY                                  */
   /* ---------------------------------------------------------------------- */
 
-  const visibility = getEventVisibilityWhere({
+  const visibility =
+  getEventVisibilityWhere({
     userId,
 
-    role,
+    scope,
   });
 
   /* ---------------------------------------------------------------------- */
@@ -122,7 +115,7 @@ export default async function EventList({
   console.log("EVENT LIST DEBUG:", {
     userId,
 
-    role,
+    scope,
 
     dateParam,
 

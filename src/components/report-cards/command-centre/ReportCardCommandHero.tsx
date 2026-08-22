@@ -1,135 +1,3 @@
-// import { Award, ClipboardCheck, FileCheck2, FilePlus2, GraduationCap, ShieldCheck } from "lucide-react";
-
-// import GenerateReportCardsButton from "./GenerateReportCardsButton";
-// import PublishClassReportCardsButton from "./PublishClassReportCardsButton";
-
-// import Link from "next/link";
-
-// type ReportCardCommandHeroProps = {
-//   selectedClassId?: number;
-//   selectedAcademicYear?: string;
-//   selectedTermId?: number;
-
-//   publishableCount: number;
-
-//   isAdmin: boolean;
-// };
-
-// export default function ReportCardCommandHero({
-//   selectedClassId,
-//   selectedAcademicYear,
-//   selectedTermId,
-//   publishableCount,
-//   isAdmin,
-// }: ReportCardCommandHeroProps) {
-//   const selectionComplete = Boolean(
-//     selectedClassId && selectedAcademicYear && selectedTermId,
-//   );
-
-//   return (
-//     <section className="relative overflow-hidden rounded-[32px] bg-slate-950 p-6 text-white shadow-[0_32px_90px_rgba(15,23,42,0.22)] sm:p-8 lg:p-10">
-//       <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
-
-//       <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
-
-//       <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-end">
-//         <div>
-//           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-blue-200 backdrop-blur">
-//             <GraduationCap className="h-4 w-4" />
-//             Academic Reporting
-//           </div>
-
-//           <h1 className="mt-5 max-w-3xl text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-//             Report Card Command Centre
-//           </h1>
-
-//           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-//             Generate, review, publish and preserve complete terminal report
-//             cards using the school&apos;s academic weighting and grading rules.
-//           </p>
-
-//           <div className="mt-7 flex flex-wrap gap-3">
-//             <Feature icon={FileCheck2} label="Calculated subject results" />
-
-//             <Feature icon={Award} label="Class and subject positions" />
-
-//             <Feature icon={ShieldCheck} label="Locked published records" />
-//           </div>
-//         </div>
-
-//         <div className="rounded-[26px] border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-//           <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-200">
-//             Generation Workspace
-//           </p>
-
-//           <p className="mt-3 text-sm leading-6 text-slate-300">
-//             {selectionComplete
-//               ? "The selected academic period is ready for report-card generation."
-//               : "Select a class, academic year and term from the filters below."}
-//           </p>
-
-//           <div className="mt-5 flex flex-col gap-3 sm:flex-row xl:flex-col 2xl:flex-row">
-//             <Link
-//               href={
-//                 selectedClassId && selectedAcademicYear && selectedTermId
-//                   ? `/list/report-cards/generate?classId=${selectedClassId}&academicYear=${encodeURIComponent(
-//                       selectedAcademicYear,
-//                     )}&termId=${selectedTermId}`
-//                   : "/list/report-cards/generate"
-//               }
-//               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
-//             >
-//               <FilePlus2 className="h-4 w-4" />
-//               Generate Reports
-//             </Link>
-
-//             {isAdmin ? (
-//             <Link
-//               href="/list/report-cards/review"
-//               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-//             >
-//               <ClipboardCheck className="h-4 w-4" />
-//               Bulk Review
-//             </Link>
-//             ) : null}
-
-//             <GenerateReportCardsButton
-//               classId={selectedClassId}
-//               academicYear={selectedAcademicYear}
-//               termId={selectedTermId}
-//             />
-
-//             <PublishClassReportCardsButton
-//               classId={selectedClassId}
-//               academicYear={selectedAcademicYear}
-//               termId={selectedTermId}
-//               publishableCount={publishableCount}
-//               isAdmin={isAdmin}
-//             />
-//           </div>
-//         </div>
-//       </div>
-//     </section>
-//   );
-// }
-
-// function Feature({ icon: Icon, label }: { icon: typeof Award; label: string }) {
-//   return (
-//     <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200">
-//       <Icon className="h-4 w-4 text-blue-300" />
-//       {label}
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
 import Link from "next/link";
 
 import {
@@ -156,7 +24,8 @@ type ReportCardCommandHeroProps = {
 
   publishableCount: number;
 
-  isAdmin: boolean;
+  canReview: boolean;
+  canPublish: boolean;
 };
 
 export default function ReportCardCommandHero({
@@ -164,21 +33,18 @@ export default function ReportCardCommandHero({
   selectedAcademicYear,
   selectedTermId,
   publishableCount,
-  isAdmin,
+  canReview,
+  canPublish,
 }: ReportCardCommandHeroProps) {
-  const selectionComplete =
-    Boolean(
-      selectedClassId &&
-        selectedAcademicYear &&
-        selectedTermId,
-    );
+  const selectionComplete = Boolean(
+    selectedClassId && selectedAcademicYear && selectedTermId,
+  );
 
-  const generateHref =
-    selectionComplete
-      ? `/list/report-cards/generate?classId=${selectedClassId}&academicYear=${encodeURIComponent(
-          selectedAcademicYear!,
-        )}&termId=${selectedTermId}`
-      : "/list/report-cards/generate";
+  const generateHref = selectionComplete
+    ? `/list/report-cards/generate?classId=${selectedClassId}&academicYear=${encodeURIComponent(
+        selectedAcademicYear!,
+      )}&termId=${selectedTermId}`
+    : "/list/report-cards/generate";
 
   return (
     <section className="relative overflow-hidden rounded-[30px] border border-slate-800/80 bg-[linear-gradient(125deg,#020617_0%,#07152d_38%,#0c2757_72%,#172554_100%)] text-white shadow-[0_34px_110px_rgba(15,23,42,0.26)] sm:rounded-[36px]">
@@ -199,8 +65,7 @@ export default function ReportCardCommandHero({
         style={{
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
-          backgroundSize:
-            "44px 44px",
+          backgroundSize: "44px 44px",
         }}
       />
 
@@ -219,20 +84,11 @@ export default function ReportCardCommandHero({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <HeroCapability
-              icon={FileCheck2}
-              label="Calculated Results"
-            />
+            <HeroCapability icon={FileCheck2} label="Calculated Results" />
 
-            <HeroCapability
-              icon={Trophy}
-              label="Ranked Performance"
-            />
+            <HeroCapability icon={Trophy} label="Ranked Performance" />
 
-            <HeroCapability
-              icon={ShieldCheck}
-              label="Protected Records"
-            />
+            <HeroCapability icon={ShieldCheck} label="Protected Records" />
           </div>
         </div>
 
@@ -262,8 +118,10 @@ export default function ReportCardCommandHero({
                   </h1>
 
                   <p className="mt-4 max-w-3xl text-sm font-medium leading-7 text-slate-300 sm:text-[15px]">
-                    Control the complete terminal reporting lifecycle
-                    from one authoritative workspace.       Generate, review, publish and preserve complete terminal report             cards using the school&apos;s academic weighting and grading rules.
+                    Control the complete terminal reporting lifecycle from one
+                    authoritative workspace. Generate, review, publish and
+                    preserve complete terminal report cards using the
+                    school&apos;s academic weighting and grading rules.
                   </p>
                 </div>
               </div>
@@ -313,17 +171,15 @@ export default function ReportCardCommandHero({
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white shadow-[0_14px_32px_rgba(37,99,235,0.24)] transition hover:-translate-y-0.5 hover:bg-blue-700"
               >
                 <FilePlus2 className="h-4 w-4" />
-
                 Generate Reports
               </Link>
 
-              {isAdmin ? (
+              {canReview ? (
                 <Link
                   href="/list/report-cards/review"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.10] bg-white/[0.06] px-5 text-sm font-black text-slate-200 backdrop-blur-xl transition hover:border-blue-400/20 hover:bg-blue-400/10 hover:text-blue-200"
                 >
                   <ClipboardCheck className="h-4 w-4" />
-
                   Open Bulk Review
                 </Link>
               ) : null}
@@ -386,9 +242,7 @@ export default function ReportCardCommandHero({
                     </p>
 
                     <p className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
-                      {selectionComplete
-                        ? "Ready"
-                        : "Awaiting Selection"}
+                      {selectionComplete ? "Ready" : "Awaiting Selection"}
                     </p>
                   </div>
 
@@ -421,18 +275,14 @@ export default function ReportCardCommandHero({
                   icon={GraduationCap}
                   label="Academic Period"
                   value={
-                    selectedAcademicYear
-                      ? selectedAcademicYear
-                      : "Not selected"
+                    selectedAcademicYear ? selectedAcademicYear : "Not selected"
                   }
                 />
 
                 <CommandMetric
                   icon={Award}
                   label="Ready to Publish"
-                  value={String(
-                    publishableCount,
-                  )}
+                  value={String(publishableCount)}
                 />
               </div>
 
@@ -445,33 +295,17 @@ export default function ReportCardCommandHero({
 
                 <div className="space-y-2.5 flex gap-3">
                   <GenerateReportCardsButton
-                    classId={
-                      selectedClassId
-                    }
-                    academicYear={
-                      selectedAcademicYear
-                    }
-                    termId={
-                      selectedTermId
-                    }
+                    classId={selectedClassId}
+                    academicYear={selectedAcademicYear}
+                    termId={selectedTermId}
                   />
 
                   <PublishClassReportCardsButton
-                    classId={
-                      selectedClassId
-                    }
-                    academicYear={
-                      selectedAcademicYear
-                    }
-                    termId={
-                      selectedTermId
-                    }
-                    publishableCount={
-                      publishableCount
-                    }
-                    isAdmin={
-                      isAdmin
-                    }
+                    classId={selectedClassId}
+                    academicYear={selectedAcademicYear}
+                    termId={selectedTermId}
+                    publishableCount={publishableCount}
+                    canPublish={canPublish}
                   />
                 </div>
               </div>
@@ -557,9 +391,7 @@ function WorkflowStep({
         </span>
       </div>
 
-      <p className="mt-3 text-xs font-black text-white">
-        {title}
-      </p>
+      <p className="mt-3 text-xs font-black text-white">{title}</p>
 
       <p className="mt-1 text-[9px] font-medium leading-4 text-slate-400">
         {description}
@@ -628,9 +460,7 @@ function CommandIndicator({
           {label}
         </p>
 
-        <p className="mt-1 text-xs font-black text-white">
-          {title}
-        </p>
+        <p className="mt-1 text-xs font-black text-white">{title}</p>
 
         <p className="mt-1 text-[10px] font-medium leading-4 text-slate-400">
           {description}

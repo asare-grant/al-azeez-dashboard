@@ -27,7 +27,8 @@ type ReportCardCommandCentreProps = {
   totalPages: number;
   total: number;
 
-  isAdmin: boolean;
+  canReview: boolean;
+  canPublish: boolean;
 
   detailsHref?: (reportCardId: number) => string;
 
@@ -50,7 +51,8 @@ export default function ReportCardCommandCentre({
   page,
   totalPages,
   total,
-  isAdmin,
+  canReview,
+  canPublish,
   detailsHref,
   printHref,
   reviewHref,
@@ -69,7 +71,8 @@ export default function ReportCardCommandCentre({
           selectedAcademicYear={selectedAcademicYear}
           selectedTermId={selectedTermId}
           publishableCount={metrics.publishable}
-          isAdmin={isAdmin}
+          canReview={canReview}
+          canPublish={canPublish}
         />
 
         <div className="mt-6">

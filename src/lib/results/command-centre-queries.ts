@@ -1,6 +1,10 @@
+// src/lib/results/command-centre-queries.ts
 import { Prisma, type ResultType } from "@prisma/client";
 
-import { auth } from "@clerk/nextjs/server";
+import {
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
 import prisma from "@/lib/prisma";
 
@@ -14,31 +18,62 @@ import type {
 const DEFAULT_PAGE_SIZE = 15;
 const MAXIMUM_PAGE_SIZE = 100;
 
+type ResultsManagerScope =
+  | "GLOBAL"
+  | "TEACHER_OWNED";
+
 type ResultsManager = {
   userId: string;
-  role: "admin" | "teacher";
+
+  scope: ResultsManagerScope;
 };
 
 async function requireResultsManager(): Promise<ResultsManager> {
-  const { userId, sessionClaims } = await auth();
+  const access =
+    await getCurrentAccessContext();
 
-  if (!userId) {
-    throw new Error("UNAUTHENTICATED");
+  if (
+    !access.authenticated ||
+    !access.userId
+  ) {
+    throw new Error(
+      "UNAUTHENTICATED",
+    );
   }
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (role !== "admin" && role !== "teacher") {
-    throw new Error("UNAUTHORISED");
+  if (
+    !contextHasPermission(
+      access,
+      "results.manage",
+    )
+  ) {
+    throw new Error(
+      "UNAUTHORISED",
+    );
   }
+
+  /*
+   * A user whose only active RBAC role is Teacher
+   * remains ownership-scoped.
+   *
+   * An Admin, Academic Director or future delegated
+   * management role with results.manage receives the
+   * global command-centre scope.
+   */
+  const teacherOnly =
+    access.roleKeys.has(
+      "teacher",
+    ) &&
+    access.roleKeys.size === 1;
 
   return {
-    userId,
-    role,
+    userId:
+      access.userId,
+
+    scope:
+      teacherOnly
+        ? "TEACHER_OWNED"
+        : "GLOBAL",
   };
 }
 
@@ -92,9 +127,12 @@ function getAcademicPeriodWhere({
 
 function getOwnershipWhere({
   userId,
-  role,
+  scope,
 }: ResultsManager): Prisma.ResultWhereInput {
-  if (role === "admin") {
+  if (
+    scope ===
+    "GLOBAL"
+  ) {
     return {};
   }
 
@@ -103,7 +141,8 @@ function getOwnershipWhere({
       {
         exam: {
           lesson: {
-            teacherId: userId,
+            teacherId:
+              userId,
           },
         },
       },
@@ -111,7 +150,8 @@ function getOwnershipWhere({
       {
         assignment: {
           lesson: {
-            teacherId: userId,
+            teacherId:
+              userId,
           },
         },
       },
@@ -119,7 +159,8 @@ function getOwnershipWhere({
       {
         assessment: {
           lesson: {
-            teacherId: userId,
+            teacherId:
+              userId,
           },
         },
       },
@@ -731,7 +772,7 @@ export async function getResultsCommandCentre({
 
     prisma.class.findMany({
       where:
-        manager.role === "teacher"
+        manager.scope === "TEACHER_OWNED"
           ? {
               lessons: {
                 some: {
@@ -753,7 +794,7 @@ export async function getResultsCommandCentre({
 
     prisma.subject.findMany({
       where:
-        manager.role === "teacher"
+       manager.scope === "TEACHER_OWNED"
           ? {
               lessons: {
                 some: {
@@ -775,7 +816,7 @@ export async function getResultsCommandCentre({
 
     prisma.student.findMany({
       where:
-        manager.role === "teacher"
+        manager.scope === "TEACHER_OWNED"
           ? {
               class: {
                 lessons: {

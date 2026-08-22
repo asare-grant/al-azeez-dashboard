@@ -1,14 +1,17 @@
 import Link from "next/link";
 
-import { ArrowLeft, Bell, Inbox, Settings2, Sparkles } from "lucide-react";
+import { ArrowLeft, Bell, Inbox, Settings2 } from "lucide-react";
 
-import { auth } from "@clerk/nextjs/server";
-
-import { getRoleDashboardPath, type AppRole } from "@/lib/navigation/roles";
+import { getRoleDashboardPath } from "@/lib/navigation/roles";
 
 import { getNotificationCentre } from "@/lib/notifications";
 
+import { getCurrentSchoolProfile } from "@/lib/users/current-school-profile";
+
 import NotificationCentre from "@/components/notifications/NotificationCentre";
+
+import { redirect } from "next/navigation";
+
 
 export const dynamic = "force-dynamic";
 
@@ -25,15 +28,17 @@ export default async function NotificationsPage({
 }: NotificationsPageProps) {
   const params = await searchParams;
 
-  const { sessionClaims } = await auth();
+  /* ========================================================================== */
+  /* IDENTITY                                                                   */
+  /* ========================================================================== */
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: AppRole;
-    }
-  )?.role;
+  const profile = await getCurrentSchoolProfile();
 
-  const dashboardPath = role ? getRoleDashboardPath(role) : "/";
+  if (!profile) {
+    redirect("/sign-in");
+  }
+
+  const dashboardPath = getRoleDashboardPath(profile.role);
 
   const page = Math.max(1, Number(params.page) || 1);
 
@@ -222,19 +227,13 @@ function PremiumHeroMetric({
           {label}
         </p>
 
-        <p className="mt-1 text-[11px] leading-5 text-slate-500">
-          {helper}
-        </p>
+        <p className="mt-1 text-[11px] leading-5 text-slate-500">{helper}</p>
       </div>
     </article>
   );
 }
 
-function HeroPill({
-  label,
-}: {
-  label: string;
-}) {
+function HeroPill({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-300 backdrop-blur-lg">
       {label}

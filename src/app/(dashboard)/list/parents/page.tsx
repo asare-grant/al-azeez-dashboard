@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Parent, Prisma, Student } from "@prisma/client";
 import Image from "next/image";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentAccessActor } from "@/lib/access-control";
 
 export const revalidate = 0; // ✅ Prevent caching for pagination consistency
 
@@ -18,17 +18,51 @@ export default async function ParentListPage(props: {
   // ✅ Fix for Next.js 15 — unwrap searchParams
   const searchParams = await props.searchParams;
 
-  const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+  /* ======================================================================== */
+  /* ACCESS                                                                   */
+  /* ======================================================================== */
+
+  const accessActor = await getCurrentAccessActor();
+
+  if (!accessActor) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const canViewParents = accessActor.can("parents.view");
+
+  const canCreateParents = accessActor.can("parents.create");
+
+  const canUpdateParents = accessActor.can("parents.update");
+
+  const canDeleteParents = accessActor.can("parents.delete");
+
+  if (!canViewParents) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const hasParentRowActions = canUpdateParents || canDeleteParents;
 
   // ✅ Define table columns
   const columns = [
     { header: "Info", accessor: "info" },
-    { header: "Student Names", accessor: "students", className: "hidden md:table-cell" },
+    {
+      header: "Student Names",
+      accessor: "students",
+      className: "hidden md:table-cell",
+    },
     { header: "Phone", accessor: "phone", className: "hidden lg:table-cell" },
-    { header: "Address", accessor: "address", className: "hidden lg:table-cell" },
-    ...(role === "admin"
-      ? [{ header: "Actions", accessor: "action" }]
+    {
+      header: "Address",
+      accessor: "address",
+      className: "hidden lg:table-cell",
+    },
+    ...(hasParentRowActions
+      ? [
+          {
+            header: "Actions",
+            accessor: "action",
+          },
+        ]
       : []),
   ];
 
@@ -49,16 +83,19 @@ export default async function ParentListPage(props: {
       </td>
       <td className="hidden md:table-cell">{item.phone}</td>
       <td className="hidden md:table-cell">{item.address}</td>
-      <td>
-        <div className="flex items-center gap-2">
-          {role === "admin" && (
-            <>
+      {hasParentRowActions ? (
+        <td>
+          <div className="flex items-center gap-2">
+            {canUpdateParents ? (
               <FormContainer table="parent" type="update" data={item} />
+            ) : null}
+
+            {canDeleteParents ? (
               <FormContainer table="parent" type="delete" id={item.id} />
-            </>
-          )}
-        </div>
-      </td>
+            ) : null}
+          </div>
+        </td>
+      ) : null}
     </tr>
   );
 
@@ -107,7 +144,9 @@ export default async function ParentListPage(props: {
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/sort.png" alt="Sort" width={14} height={14} />
             </button>
-            {role === "admin" && <FormContainer table="parent" type="create" />}
+            {canCreateParents ? (
+              <FormContainer table="parent" type="create" />
+            ) : null}
           </div>
         </div>
       </div>

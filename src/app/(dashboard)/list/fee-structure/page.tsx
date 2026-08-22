@@ -5,7 +5,7 @@ import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { FeeStructure, FeeType, Class, Grade, Prisma } from "@prisma/client";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentAccessActor } from "@/lib/access-control/current-actor";
 import Image from "next/image";
 
 export const revalidate = 0;
@@ -22,9 +22,14 @@ export default async function FeeStructureListPage(props: {
   // Fetch search params
   const searchParams = await props.searchParams;
 
-  // Fetch Clerk auth on server
-  const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+// Resolve RBAC access on server
+  const accessActor = await getCurrentAccessActor();
+
+  if (!accessActor || !accessActor.can("finance.structure.manage")) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const canManageStructure = accessActor.can("finance.structure.manage");
 
   // Pagination & filters
   const { page, classId, gradeId, typeId } = searchParams;
@@ -50,7 +55,7 @@ export default async function FeeStructureListPage(props: {
   // Table columns
   const columns = [
     { header: "Grade", accessor: "classGrade" },
-    { header: "Fee Type", accessor: "type", className: "hidden lg:table-cell", },
+    { header: "Fee Type", accessor: "type", className: "hidden lg:table-cell" },
     {
       header: "Student Type",
       accessor: "studentType",
@@ -62,7 +67,9 @@ export default async function FeeStructureListPage(props: {
       className: "hidden lg:table-cell",
     },
     { header: "Amount", accessor: "amount" },
-    ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
+    ...(canManageStructure
+  ? [{ header: "Actions", accessor: "action" }]
+  : []),
   ];
 
   // Row renderer
@@ -76,7 +83,7 @@ export default async function FeeStructureListPage(props: {
       <td className="hidden lg:table-cell">{item.studentType}</td>
       <td className="hidden lg:table-cell">{item.boardingType}</td>
       <td>{item.amount.toFixed(2)}</td>
-      {role === "admin" && (
+      {canManageStructure && (
         <td>
           <div className="flex items-center gap-2">
             <FormContainer table="fee-structure" type="update" data={item} />
@@ -103,7 +110,7 @@ export default async function FeeStructureListPage(props: {
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" && (
+            {canManageStructure && (
               <FormContainer table="fee-structure" type="create" />
             )}
           </div>

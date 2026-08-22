@@ -1,37 +1,120 @@
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
-
 import prisma from "@/lib/prisma";
 
-/* -------------------------------------------------------------------------- */
-/*                               ADMIN GUARD                                  */
-/* -------------------------------------------------------------------------- */
+import {
+  getCurrentAccessActor,
+} from "./current-actor";
 
-async function requireLegacyAdmin() {
-  const { userId, sessionClaims } = await auth();
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+/* ========================================================================== */
+/* ACCESS CONTROL GUARD                                                       */
+/* ========================================================================== */
 
-  /*
-   * IMPORTANT:
-   *
-   * Phase 10C still uses the EXISTING Clerk role
-   * as the protection boundary.
-   *
-   * RBAC is not enforcing access yet.
-   */
-  if (!userId || role !== "admin") {
-    throw new Error("Unauthorized");
+async function requireAccessControlAccess() {
+  const accessActor =
+    await getCurrentAccessActor();
+
+  if (
+    !accessActor
+  ) {
+    throw new Error(
+      "Unauthorized",
+    );
   }
 
-  return {
-    userId,
-  };
+  const actor =
+    accessActor.actor;
+
+  const roleKeys =
+    new Set(
+      accessActor.activeAssignments.map(
+        (
+          assignment,
+        ) =>
+          assignment.role.key
+            .trim()
+            .toLowerCase(),
+      ),
+    );
+
+  const legacyRole =
+    actor.legacyRole
+      ?.trim()
+      .toLowerCase() ??
+    null;
+
+  /* ------------------------------------------------------------------------ */
+  /* SYSTEM ADMINISTRATORS                                                    */
+  /* ------------------------------------------------------------------------ */
+
+  /*
+   * During the remaining migration period, Admin and
+   * Super Admin identities retain Access Control access.
+   *
+   * We check both:
+   *
+   * 1. the synchronized legacy role
+   * 2. active RBAC assignments
+   *
+   * This means a properly provisioned super_admin works
+   * even though it is not literally "admin".
+   */
+  const administrativeIdentity =
+    legacyRole ===
+      "admin" ||
+    legacyRole ===
+      "super_admin" ||
+    roleKeys.has(
+      "admin",
+    ) ||
+    roleKeys.has(
+      "super_admin",
+    );
+
+  /* ------------------------------------------------------------------------ */
+  /* DELEGATED ACCESS CONTROL AUTHORITY                                       */
+  /* ------------------------------------------------------------------------ */
+
+  /*
+   * Custom roles may also enter Access Control when they
+   * have been deliberately granted Access Control powers.
+   *
+   * We do not require the role itself to be called Admin.
+   */
+  const delegatedAuthority =
+    accessActor.can(
+      "users.update",
+    ) ||
+    accessActor.can(
+      "users.manage_status",
+    ) ||
+    accessActor.can(
+      "users.reset_password",
+    ) ||
+    accessActor.can(
+      "roles.assign",
+    ) ||
+    accessActor.can(
+      "roles.remove",
+    ) ||
+    accessActor.can(
+      "roles.manage_expiry",
+    ) ||
+    accessActor.can(
+      "access_reviews.view",
+    );
+
+  if (
+    !administrativeIdentity &&
+    !delegatedAuthority
+  ) {
+    throw new Error(
+      "Unauthorized",
+    );
+  }
+
+  return accessActor;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -39,7 +122,7 @@ async function requireLegacyAdmin() {
 /* -------------------------------------------------------------------------- */
 
 export async function getAccessControlOverview() {
-  await requireLegacyAdmin();
+  await requireAccessControlAccess();
 
   const now = new Date();
 
@@ -255,7 +338,7 @@ export async function getAccessControlUsers({
   role,
   status = "ALL",
 }: GetAccessControlUsersInput = {}) {
-  await requireLegacyAdmin();
+  await requireAccessControlAccess();
 
   const safePage = Math.max(1, Math.floor(page));
 
@@ -507,7 +590,7 @@ export async function getAccessControlUsers({
 /* -------------------------------------------------------------------------- */
 
 export async function getAccessControlRolesAndPermissions() {
-  await requireLegacyAdmin();
+  await requireAccessControlAccess();
 
   const [rawRoles, rawPermissions, totalAssignments] = await Promise.all([
     /* ------------------------------------------------------------------ */
@@ -808,7 +891,7 @@ export async function getAccessControlRolesAndPermissions() {
 /* -------------------------------------------------------------------------- */
 
 export async function getAccessControlRoleDetail(roleId: number) {
-  await requireLegacyAdmin();
+  await requireAccessControlAccess();
 
   if (!Number.isInteger(roleId) || roleId <= 0) {
     return null;
@@ -986,7 +1069,7 @@ export async function getCustomRoleBuilderData({
 }: {
   cloneRoleId?: number;
 } = {}) {
-  await requireLegacyAdmin();
+  await requireAccessControlAccess();
 
   const [permissions, sourceRole] = await Promise.all([
     prisma.permission.findMany({
@@ -1090,7 +1173,7 @@ export async function getCustomRoleBuilderData({
 /* -------------------------------------------------------------------------- */
 
 export async function getCreateUserWizardData() {
-  await requireLegacyAdmin();
+  await requireAccessControlAccess();
 
   const [roles, classes, subjects, parents, students] = await Promise.all([
     prisma.accessRole.findMany({

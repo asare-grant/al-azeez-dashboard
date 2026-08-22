@@ -1,9 +1,15 @@
+// src/assessments/queries.ts
 import prisma from "@/lib/prisma";
 import type { Prisma, AssessmentStatus } from "@prisma/client";
 
 import { synchronizeAssessmentStatuses } from "./status";
 
-import { requireAssessmentManager, requireAssessmentStudent } from "./auth";
+import {
+  requireAssessmentManagementViewer,
+  requireAssessmentParent,
+  requireAssessmentPermission,
+  requireAssessmentStudent,
+} from "./auth";
 
 import type {
   AssessmentAcademicPeriodOption,
@@ -24,7 +30,6 @@ import { deterministicShuffle } from "./shuffle";
 
 import { hasAttemptExpired } from "./timing";
 import { synchronizeExpiredAttempts } from "./attempt-status";
-import { auth } from "@clerk/nextjs/server";
 
 /* -------------------------------------------------------------------------- */
 /*                           TEACHER LESSON OPTIONS                           */
@@ -33,11 +38,14 @@ import { auth } from "@clerk/nextjs/server";
 export async function getAssessmentLessonOptions(): Promise<
   AssessmentLessonOption[]
 > {
-  const { userId, role } = await requireAssessmentManager();
+ const { userId, scope } =
+  await requireAssessmentPermission(
+    "assessments.create",
+  );
 
   const lessons = await prisma.lesson.findMany({
     where:
-      role === "teacher"
+      scope === "OWN_LESSONS"
         ? {
             teacherId: userId,
           }
@@ -92,13 +100,16 @@ export async function getAssessmentLessonOptions(): Promise<
 /* -------------------------------------------------------------------------- */
 
 export async function getManageableAssessment(assessmentId: number) {
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } =
+  await requireAssessmentPermission(
+    "assessments.create",
+  );
 
   return prisma.assessment.findFirst({
     where: {
       id: assessmentId,
 
-      ...(role === "teacher"
+      ...(scope === "OWN_LESSONS"
         ? {
             lesson: {
               teacherId: userId,
@@ -231,13 +242,13 @@ export async function getTeacherAssessmentList({
 }: AssessmentListFilters = {}) {
   await synchronizeAssessmentStatuses();
 
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } = await  requireAssessmentManagementViewer();
 
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(Math.max(1, pageSize), 50);
 
   const lessonFilter: Prisma.LessonWhereInput = {
-    ...(role === "teacher"
+    ...(scope === "OWN_LESSONS"
       ? {
           teacherId: userId,
         }
@@ -491,10 +502,10 @@ export async function getStudentAccessibleAssessment(assessmentId: number) {
 export async function getAssessmentDashboardMetrics() {
   await synchronizeAssessmentStatuses();
 
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } = await requireAssessmentManagementViewer();
 
   const ownershipWhere: Prisma.AssessmentWhereInput =
-    role === "teacher"
+    scope === "OWN_LESSONS"
       ? {
           lesson: {
             teacherId: userId,
@@ -645,11 +656,11 @@ export async function getAssessmentDashboardMetrics() {
 /* -------------------------------------------------------------------------- */
 
 export async function getAssessmentFilterOptions() {
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } = await requireAssessmentManagementViewer();
 
   const lessons = await prisma.lesson.findMany({
     where:
-      role === "teacher"
+      scope === "OWN_LESSONS"
         ? {
             teacherId: userId,
           }
@@ -2054,13 +2065,16 @@ export async function getTeacherAssessmentSubmissions(
 ): Promise<TeacherAssessmentSubmissionSummary | null> {
   await synchronizeAssessmentStatuses();
 
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } =
+  await requireAssessmentPermission(
+    "assessments.grade",
+  );
 
   const assessment = await prisma.assessment.findFirst({
     where: {
       id: assessmentId,
 
-      ...(role === "teacher"
+      ...(scope === "OWN_LESSONS"
         ? {
             lesson: {
               teacherId: userId,
@@ -2423,13 +2437,16 @@ export async function getTeacherAssessmentAnalytics(
 ): Promise<TeacherAssessmentAnalytics | null> {
   await synchronizeAssessmentStatuses();
 
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } =
+  await requireAssessmentPermission(
+    "assessments.grade",
+  );
 
   const assessment = await prisma.assessment.findFirst({
     where: {
       id: assessmentId,
 
-      ...(role === "teacher"
+      ...(scope === "OWN_LESSONS"
         ? {
             lesson: {
               teacherId: userId,
@@ -2805,13 +2822,16 @@ export async function getTeacherStudentSubmissionReview({
 }): Promise<TeacherStudentSubmissionReview | null> {
   await synchronizeAssessmentStatuses();
 
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } =
+  await requireAssessmentPermission(
+    "assessments.grade",
+  );
 
   const assessment = await prisma.assessment.findFirst({
     where: {
       id: assessmentId,
 
-      ...(role === "teacher"
+      ...(scope === "OWN_LESSONS"
         ? {
             lesson: {
               teacherId: userId,
@@ -2820,7 +2840,7 @@ export async function getTeacherStudentSubmissionReview({
         : {}),
 
       lesson: {
-        ...(role === "teacher"
+        ...(scope === "OWN_LESSONS"
           ? {
               teacherId: userId,
             }
@@ -3256,7 +3276,9 @@ export async function getTeacherStudentSubmissionReview({
 export async function getAssessmentAcademicPeriods(): Promise<
   AssessmentAcademicPeriodOption[]
 > {
-  await requireAssessmentManager();
+await requireAssessmentPermission(
+  "assessments.create",
+);
 
   const terms = await prisma.schoolTerm.findMany({
     select: {
@@ -3474,10 +3496,10 @@ export async function getStudentAssessmentWidget() {
 }
 
 export async function getTeacherAssessmentWidget() {
-  const { userId, role } = await requireAssessmentManager();
+  const { userId, scope } = await requireAssessmentManagementViewer();
 
   const ownershipWhere =
-    role === "teacher"
+    scope === "OWN_LESSONS"
       ? {
           lesson: {
             teacherId: userId,
@@ -3605,17 +3627,7 @@ export async function getTeacherAssessmentWidget() {
 export async function getParentChildrenAssessmentSummary(): Promise<
   ParentChildAssessmentSummary[]
 > {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (!userId || role !== "parent") {
-    throw new Error("UNAUTHORIZED");
-  }
+  const { userId } = await requireAssessmentParent();
 
   const now = new Date();
 
@@ -3818,17 +3830,15 @@ export async function getParentChildAssessmentResult({
   assessmentId: number;
   attemptId: number;
 }) {
-  const { userId, sessionClaims } = await auth();
+  let parent;
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (!userId || role !== "parent") {
+  try {
+    parent = await requireAssessmentParent();
+  } catch {
     return null;
   }
+
+  const { userId } = parent;
 
   const child = await prisma.student.findFirst({
     where: {

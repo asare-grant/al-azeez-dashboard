@@ -5,7 +5,7 @@ import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { FeeType, FeeCategory, Prisma } from "@prisma/client";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentAccessActor } from "@/lib/access-control/current-actor";
 import Image from "next/image";
 
 export const revalidate = 0;
@@ -16,9 +16,14 @@ export default async function FeeTypeListPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const searchParams = await props.searchParams;
-  const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
 
+  const accessActor = await getCurrentAccessActor();
+
+  if (!accessActor || !accessActor.can("finance.structure.manage")) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const canManageStructure = accessActor.can("finance.structure.manage");
   const columns = [
     { header: "Fee Type", accessor: "name" },
     {
@@ -26,7 +31,7 @@ export default async function FeeTypeListPage(props: {
       accessor: "category",
       className: "hidden md:table-cell",
     },
-    ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
+    ...(canManageStructure ? [{ header: "Actions", accessor: "action" }] : []),
   ];
 
   const renderRow = (item: FeeTypeList) => (
@@ -40,7 +45,7 @@ export default async function FeeTypeListPage(props: {
       </td>
       <td>
         <div className="flex items-center gap-2">
-          {role === "admin" && (
+          {canManageStructure && (
             <>
               <FormContainer table="fee-type" type="update" data={item} />
               <FormContainer table="fee-type" type="delete" id={item.id} />
@@ -88,7 +93,7 @@ export default async function FeeTypeListPage(props: {
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" && (
+            {canManageStructure && (
               <FormContainer table="fee-type" type="create" />
             )}
           </div>

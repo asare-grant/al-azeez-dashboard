@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
 
-import { requireReportCardUser } from "./auth";
+import { requireReportCardPermission } from "./auth";
 
 import {
   bulkApproveReportCardsSchema,
@@ -37,18 +37,6 @@ import {
 /* -------------------------------------------------------------------------- */
 /*                              SHARED HELPERS                                */
 /* -------------------------------------------------------------------------- */
-
-async function requireReportCardAdmin() {
-  const { userId, role } = await requireReportCardUser();
-
-  if (role !== "admin") {
-    throw new Error("ADMIN_REQUIRED");
-  }
-
-  return {
-    userId,
-  };
-}
 
 function revalidateBulkReviewRoutes() {
   revalidatePath("/list/report-cards");
@@ -147,7 +135,7 @@ export async function bulkApproveReportCards(
   }
 
   try {
-    const { userId } = await requireReportCardAdmin();
+    const { userId } = await requireReportCardPermission("report_cards.review");
 
     const { reportCardIds, reviewNote } = parsed.data;
 
@@ -339,8 +327,8 @@ export async function bulkApproveReportCards(
     console.error("BULK APPROVE REPORT CARDS ERROR:", error);
 
     return reportCardFailure(
-      error instanceof Error && error.message === "ADMIN_REQUIRED"
-        ? "Only an administrator can approve report cards."
+      error instanceof Error && error.message === "UNAUTHORISED"
+        ? "You do not have permission to approve report cards."
         : "The selected report cards could not be approved.",
     );
   }
@@ -363,7 +351,7 @@ export async function bulkRequestReportCardChanges(
   }
 
   try {
-    const { userId } = await requireReportCardAdmin();
+    const { userId } = await requireReportCardPermission("report_cards.review");
 
     const { reportCardIds, reviewNote } = parsed.data;
 
@@ -542,8 +530,8 @@ export async function bulkRequestReportCardChanges(
     console.error("BULK REQUEST REPORT CHANGES ERROR:", error);
 
     return reportCardFailure(
-      error instanceof Error && error.message === "ADMIN_REQUIRED"
-        ? "Only an administrator can request report-card corrections."
+      error instanceof Error && error.message === "UNAUTHORISED"
+        ? "You do not have permission to request report-card corrections."
         : "The correction request could not be completed.",
     );
   }
@@ -566,7 +554,9 @@ export async function bulkPublishReportCards(
   }
 
   try {
-    const { userId } = await requireReportCardAdmin();
+    const { userId } = await requireReportCardPermission(
+      "report_cards.publish",
+    );
 
     const { reportCardIds } = parsed.data;
 
@@ -744,8 +734,8 @@ export async function bulkPublishReportCards(
     console.error("BULK PUBLISH REPORT CARDS ERROR:", error);
 
     return reportCardFailure(
-      error instanceof Error && error.message === "ADMIN_REQUIRED"
-        ? "Only an administrator can publish report cards."
+      error instanceof Error && error.message === "UNAUTHORISED"
+        ? "You do not have permission to publish report cards."
         : "The selected report cards could not be published.",
     );
   }

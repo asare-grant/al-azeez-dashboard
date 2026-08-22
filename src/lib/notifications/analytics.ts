@@ -1,6 +1,9 @@
+// src/lib/notifications/analytics.ts
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
+import {
+  requireNotificationOperationsPermission,
+} from "./operations-auth";
 
 import type {
   NotificationCategory,
@@ -195,25 +198,13 @@ function percentage(
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              ADMIN GUARD                                   */
+/*                             ANALYTICS ACCESS                                     */
 /* -------------------------------------------------------------------------- */
 
-async function requireAdmin() {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (!userId || role !== "admin") {
-    throw new Error("Unauthorized");
-  }
-
-  return {
-    userId,
-  };
+async function requireAnalyticsViewer() {
+  return requireNotificationOperationsPermission(
+    "notification_operations.analytics.view",
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -225,7 +216,7 @@ export async function getNotificationAnalytics({
 }: {
   range?: NotificationAnalyticsRange;
 } = {}): Promise<NotificationAnalyticsData> {
-  await requireAdmin();
+  await requireAnalyticsViewer();
 
   const safeRange: NotificationAnalyticsRange =
     range === "today" || range === "7d" || range === "30d" ? range : "7d";

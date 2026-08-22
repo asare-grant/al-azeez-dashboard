@@ -11,6 +11,10 @@ import {
 
 import prisma from "@/lib/prisma";
 
+import {
+  getCurrentAccessActor,
+} from "@/lib/access-control";
+
 import type {
   NotificationCategory,
 } from "@prisma/client";
@@ -694,42 +698,37 @@ export async function updateNotificationSystemSettings({
   quietHoursEnabled:
     boolean;
 }) {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
+  const accessActor =
+  await getCurrentAccessActor();
 
-  if (
-    !userId
-  ) {
-    return {
-      success:
-        false,
+if (
+  !accessActor
+) {
+  return {
+    success:
+      false,
 
-      message:
-        "You must be signed in.",
-    };
-  }
+    message:
+      "You must be signed in.",
+  };
+}
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+if (
+  !accessActor.can(
+    "notification_operations.policy.manage",
+  )
+) {
+  return {
+    success:
+      false,
 
-  if (
-    role !==
-    "admin"
-  ) {
-    return {
-      success:
-        false,
+    message:
+      "You do not have permission to manage global notification policy.",
+  };
+}
 
-      message:
-        "Only administrators can change global notification settings.",
-    };
-  }
+const userId =
+  accessActor.actor.id;
 
   try {
     const settings =

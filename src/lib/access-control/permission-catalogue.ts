@@ -1,1214 +1,1017 @@
+// src/lib/access-control/permission-catalogue.ts
 export type PermissionDefinition = {
-  key:
-    string;
+  key: string;
 
-  name:
-    string;
+  name: string;
 
-  description:
-    string;
+  description: string;
 
-  group:
-    string;
+  group: string;
 
-  sortOrder:
-    number;
+  sortOrder: number;
 };
 
-export const permissionCatalogue:
-  PermissionDefinition[] = [
-    /* ---------------------------------------------------------------------- */
-    /* USERS & ACCESS                                                        */
-    /* ---------------------------------------------------------------------- */
+export const permissionCatalogue: PermissionDefinition[] = [
+  /* ---------------------------------------------------------------------- */
+  /* USERS & ACCESS                                                        */
+  /* ---------------------------------------------------------------------- */
 
-    {
-      key:
-        "users.view",
+  {
+    key: "users.view",
 
-      name:
-        "View Users",
+    name: "View Users",
 
-      description:
-        "View user accounts and school identities.",
+    description: "View user accounts and school identities.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        10,
-    },
+    sortOrder: 10,
+  },
 
-    {
-      key:
-        "users.create",
+  {
+    key: "users.create",
 
-      name:
-        "Create Users",
+    name: "Create Users",
 
-      description:
-        "Create new system user accounts.",
+    description: "Create new system user accounts.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        20,
-    },
+    sortOrder: 20,
+  },
 
-    {
-      key:
-        "users.update",
+  {
+    key: "users.update",
 
-      name:
-        "Update Users",
+    name: "Update Users",
 
-      description:
-        "Edit user account information.",
+    description: "Edit user account information.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        30,
-    },
+    sortOrder: 30,
+  },
 
-    {
-      key:
-        "users.disable",
+  {
+    key: "users.disable",
 
-      name:
-        "Disable Users",
+    name: "Disable Users",
 
-      description:
-        "Suspend or disable user access.",
+    description: "Suspend or disable user access.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        40,
-    },
+    sortOrder: 40,
+  },
 
-    {
-      key:
-        "roles.view",
+  {
+    key: "users.manage_status",
 
-      name:
-        "View Roles",
+    name: "Manage User Account Status",
 
-      description:
-        "View roles and their assigned permissions.",
+    description: "Suspend, reactivate and disable user accounts.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        50,
-    },
+    sortOrder: 42,
+  },
 
-    {
-      key:
-        "roles.manage",
+  {
+    key: "users.reset_password",
 
-      name:
-        "Manage Roles",
+    name: "Reset User Passwords",
 
-      description:
-        "Create, update and retire roles.",
+    description:
+      "Initiate administrator-controlled password recovery and reset workflows.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        60,
-    },
+    sortOrder: 44,
+  },
 
-    {
-      key:
-        "permissions.manage",
+  {
+    key: "roles.view",
 
-      name:
-        "Manage Role Permissions",
+    name: "View Roles",
 
-      description:
-        "Grant and revoke permissions from roles.",
+    description: "View roles and their assigned permissions.",
 
-      group:
-        "USERS_ACCESS",
+    group: "USERS_ACCESS",
 
-      sortOrder:
-        70,
-    },
+    sortOrder: 50,
+  },
 
-    /* ---------------------------------------------------------------------- */
-    /* STUDENTS                                                              */
-    /* ---------------------------------------------------------------------- */
+  {
+    key: "roles.manage",
 
-    {
-      key:
-        "students.view",
+    name: "Manage Roles",
 
-      name:
-        "View Students",
+    description: "Create, update and retire roles.",
 
-      description:
-        "View student profiles and enrolment information.",
+    group: "USERS_ACCESS",
 
-      group:
-        "STUDENTS",
+    sortOrder: 60,
+  },
 
-      sortOrder:
-        100,
-    },
+  {
+    key: "roles.assign",
 
-    {
-      key:
-        "students.create",
+    name: "Assign Roles",
 
-      name:
-        "Create Students",
+    description: "Assign access-control roles to user accounts.",
 
-      description:
-        "Register new students.",
+    group: "USERS_ACCESS",
 
-      group:
-        "STUDENTS",
+    sortOrder: 62,
+  },
 
-      sortOrder:
-        110,
-    },
+  {
+    key: "roles.remove",
 
-    {
-      key:
-        "students.update",
+    name: "Remove Roles",
 
-      name:
-        "Update Students",
+    description: "Remove role assignments from user accounts.",
 
-      description:
-        "Edit student records.",
+    group: "USERS_ACCESS",
 
-      group:
-        "STUDENTS",
+    sortOrder: 64,
+  },
 
-      sortOrder:
-        120,
-    },
+  {
+    key: "roles.manage_expiry",
 
-    {
-      key:
-        "students.delete",
+    name: "Manage Delegated Role Expiry",
 
-      name:
-        "Delete Students",
+    description:
+      "Create, extend, shorten, convert or expire temporary role assignments.",
 
-      description:
-        "Remove student records where permitted.",
+    group: "USERS_ACCESS",
 
-      group:
-        "STUDENTS",
+    sortOrder: 66,
+  },
 
-      sortOrder:
-        130,
-    },
+  {
+    key: "permissions.manage",
 
-    /* ---------------------------------------------------------------------- */
-    /* TEACHERS                                                              */
-    /* ---------------------------------------------------------------------- */
+    name: "Manage Role Permissions",
 
-    {
-      key:
-        "teachers.view",
+    description: "Grant and revoke permissions from roles.",
 
-      name:
-        "View Teachers",
+    group: "USERS_ACCESS",
 
-      description:
-        "View teaching staff information.",
+    sortOrder: 70,
+  },
 
-      group:
-        "TEACHERS",
+  /* ---------------------------------------------------------------------- */
+  /* STUDENTS                                                              */
+  /* ---------------------------------------------------------------------- */
 
-      sortOrder:
-        200,
-    },
+  {
+    key: "students.view",
 
-    {
-      key:
-        "teachers.create",
+    name: "View Students",
 
-      name:
-        "Create Teachers",
+    description: "View student profiles and enrolment information.",
 
-      description:
-        "Register teaching staff.",
+    group: "STUDENTS",
 
-      group:
-        "TEACHERS",
+    sortOrder: 100,
+  },
 
-      sortOrder:
-        210,
-    },
+  {
+    key: "students.create",
 
-    {
-      key:
-        "teachers.update",
+    name: "Create Students",
 
-      name:
-        "Update Teachers",
+    description: "Register new students.",
 
-      description:
-        "Edit teacher information.",
+    group: "STUDENTS",
 
-      group:
-        "TEACHERS",
+    sortOrder: 110,
+  },
 
-      sortOrder:
-        220,
-    },
+  {
+    key: "students.update",
 
-    {
-      key:
-        "teachers.delete",
+    name: "Update Students",
 
-      name:
-        "Delete Teachers",
+    description: "Edit student records.",
 
-      description:
-        "Remove teaching staff records where permitted.",
+    group: "STUDENTS",
 
-      group:
-        "TEACHERS",
+    sortOrder: 120,
+  },
 
-      sortOrder:
-        230,
-    },
+  {
+    key: "students.delete",
 
-    /* ---------------------------------------------------------------------- */
-    /* PARENTS                                                               */
-    /* ---------------------------------------------------------------------- */
+    name: "Delete Students",
 
-    {
-      key:
-        "parents.view",
+    description: "Remove student records where permitted.",
 
-      name:
-        "View Parents",
+    group: "STUDENTS",
 
-      description:
-        "View parent and guardian information.",
+    sortOrder: 130,
+  },
 
-      group:
-        "PARENTS",
+  /* ---------------------------------------------------------------------- */
+  /* TEACHERS                                                              */
+  /* ---------------------------------------------------------------------- */
 
-      sortOrder:
-        300,
-    },
+  {
+    key: "teachers.view",
 
-    {
-      key:
-        "parents.create",
+    name: "View Teachers",
 
-      name:
-        "Create Parents",
+    description: "View teaching staff information.",
 
-      description:
-        "Register parent and guardian accounts.",
+    group: "TEACHERS",
 
-      group:
-        "PARENTS",
+    sortOrder: 200,
+  },
 
-      sortOrder:
-        310,
-    },
+  {
+    key: "teachers.create",
 
-    {
-      key:
-        "parents.update",
+    name: "Create Teachers",
 
-      name:
-        "Update Parents",
+    description: "Register teaching staff.",
 
-      description:
-        "Edit parent and guardian records.",
+    group: "TEACHERS",
 
-      group:
-        "PARENTS",
+    sortOrder: 210,
+  },
 
-      sortOrder:
-        320,
-    },
+  {
+    key: "teachers.update",
 
-    {
-      key:
-        "parents.delete",
+    name: "Update Teachers",
 
-      name:
-        "Delete Parents",
+    description: "Edit teacher information.",
 
-      description:
-        "Remove parent records where permitted.",
+    group: "TEACHERS",
 
-      group:
-        "PARENTS",
+    sortOrder: 220,
+  },
 
-      sortOrder:
-        330,
-    },
+  {
+    key: "teachers.delete",
 
-    /* ---------------------------------------------------------------------- */
-    /* ACADEMICS                                                             */
-    /* ---------------------------------------------------------------------- */
+    name: "Delete Teachers",
 
-    {
-      key:
-        "academics.subjects.view",
+    description: "Remove teaching staff records where permitted.",
 
-      name:
-        "View Subjects",
+    group: "TEACHERS",
 
-      description:
-        "View school subjects.",
+    sortOrder: 230,
+  },
 
-      group:
-        "ACADEMICS",
+  /* ---------------------------------------------------------------------- */
+  /* PARENTS                                                               */
+  /* ---------------------------------------------------------------------- */
 
-      sortOrder:
-        400,
-    },
+  {
+    key: "parents.view",
 
-    {
-      key:
-        "academics.subjects.manage",
+    name: "View Parents",
 
-      name:
-        "Manage Subjects",
+    description: "View parent and guardian information.",
 
-      description:
-        "Create, update and remove subjects.",
+    group: "PARENTS",
 
-      group:
-        "ACADEMICS",
+    sortOrder: 300,
+  },
 
-      sortOrder:
-        410,
-    },
+  {
+    key: "parents.create",
 
-    {
-      key:
-        "academics.classes.view",
+    name: "Create Parents",
 
-      name:
-        "View Classes",
+    description: "Register parent and guardian accounts.",
 
-      description:
-        "View classes and class membership.",
+    group: "PARENTS",
 
-      group:
-        "ACADEMICS",
+    sortOrder: 310,
+  },
 
-      sortOrder:
-        420,
-    },
+  {
+    key: "parents.update",
 
-    {
-      key:
-        "academics.classes.manage",
+    name: "Update Parents",
 
-      name:
-        "Manage Classes",
+    description: "Edit parent and guardian records.",
 
-      description:
-        "Create, update and configure classes.",
+    group: "PARENTS",
 
-      group:
-        "ACADEMICS",
+    sortOrder: 320,
+  },
 
-      sortOrder:
-        430,
-    },
+  {
+    key: "parents.delete",
 
-    {
-      key:
-        "academics.lessons.view",
+    name: "Delete Parents",
 
-      name:
-        "View Lessons",
+    description: "Remove parent records where permitted.",
 
-      description:
-        "View lessons and timetables.",
+    group: "PARENTS",
 
-      group:
-        "ACADEMICS",
+    sortOrder: 330,
+  },
 
-      sortOrder:
-        440,
-    },
+  /* ---------------------------------------------------------------------- */
+  /* ACADEMICS                                                             */
+  /* ---------------------------------------------------------------------- */
 
-    {
-      key:
-        "academics.lessons.manage",
+  {
+    key: "academics.subjects.view",
 
-      name:
-        "Manage Lessons",
+    name: "View Subjects",
 
-      description:
-        "Create and update lessons and schedules.",
+    description: "View school subjects.",
 
-      group:
-        "ACADEMICS",
+    group: "ACADEMICS",
 
-      sortOrder:
-        450,
-    },
+    sortOrder: 400,
+  },
 
-    /* ---------------------------------------------------------------------- */
-    /* EXAMS & ASSIGNMENTS                                                   */
-    /* ---------------------------------------------------------------------- */
+  {
+    key: "academics.subjects.manage",
 
-    {
-      key:
-        "exams.view",
+    name: "Manage Subjects",
 
-      name:
-        "View Exams",
+    description: "Create, update and remove subjects.",
 
-      description:
-        "View examination records.",
+    group: "ACADEMICS",
 
-      group:
-        "EXAMS",
+    sortOrder: 410,
+  },
 
-      sortOrder:
-        500,
-    },
+  {
+    key: "academics.classes.view",
 
-    {
-      key:
-        "exams.manage",
+    name: "View Classes",
 
-      name:
-        "Manage Exams",
+    description: "View classes and class membership.",
 
-      description:
-        "Create, update and remove examinations.",
+    group: "ACADEMICS",
 
-      group:
-        "EXAMS",
+    sortOrder: 420,
+  },
 
-      sortOrder:
-        510,
-    },
+  {
+    key: "academics.classes.manage",
 
-    {
-      key:
-        "assignments.view",
+    name: "Manage Classes",
 
-      name:
-        "View Assignments",
+    description: "Create, update and configure classes.",
 
-      description:
-        "View assignments.",
+    group: "ACADEMICS",
 
-      group:
-        "ASSIGNMENTS",
+    sortOrder: 430,
+  },
 
-      sortOrder:
-        520,
-    },
+  {
+    key: "academics.lessons.view",
 
-    {
-      key:
-        "assignments.manage",
+    name: "View Lessons",
 
-      name:
-        "Manage Assignments",
+    description: "View lessons and timetables.",
 
-      description:
-        "Create, update and remove assignments.",
+    group: "ACADEMICS",
 
-      group:
-        "ASSIGNMENTS",
+    sortOrder: 440,
+  },
 
-      sortOrder:
-        530,
-    },
+  {
+    key: "academics.lessons.manage",
 
-    {
-      key:
-        "results.view",
+    name: "Manage Lessons",
 
-      name:
-        "View Results",
+    description: "Create and update lessons and schedules.",
 
-      description:
-        "View student results.",
+    group: "ACADEMICS",
 
-      group:
-        "RESULTS",
+    sortOrder: 450,
+  },
 
-      sortOrder:
-        540,
-    },
+  /* ---------------------------------------------------------------------- */
+  /* EXAMS & ASSIGNMENTS                                                   */
+  /* ---------------------------------------------------------------------- */
 
-    {
-      key:
-        "results.manage",
+  {
+    key: "exams.view",
 
-      name:
-        "Manage Results",
+    name: "View Exams",
 
-      description:
-        "Create and modify academic results.",
+    description: "View examination records.",
 
-      group:
-        "RESULTS",
+    group: "EXAMS",
 
-      sortOrder:
-        550,
-    },
+    sortOrder: 500,
+  },
 
-    /* ---------------------------------------------------------------------- */
-    /* ASSESSMENTS                                                           */
-    /* ---------------------------------------------------------------------- */
+  {
+    key: "exams.manage",
 
-    {
-      key:
-        "assessments.view",
+    name: "Manage Exams",
 
-      name:
-        "View Assessments",
+    description: "Create, update and remove examinations.",
 
-      description:
-        "View assessments and assessment activity.",
+    group: "EXAMS",
 
-      group:
-        "ASSESSMENTS",
+    sortOrder: 510,
+  },
 
-      sortOrder:
-        600,
-    },
+  {
+    key: "assignments.view",
 
-    {
-      key:
-        "assessments.create",
+    name: "View Assignments",
 
-      name:
-        "Create Assessments",
+    description: "View assignments.",
 
-      description:
-        "Create student assessments.",
+    group: "ASSIGNMENTS",
 
-      group:
-        "ASSESSMENTS",
+    sortOrder: 520,
+  },
 
-      sortOrder:
-        610,
-    },
+  {
+    key: "assignments.manage",
 
-    {
-      key:
-        "assessments.publish",
+    name: "Manage Assignments",
 
-      name:
-        "Publish Assessments",
+    description: "Create, update and remove assignments.",
 
-      description:
-        "Publish assessments to students.",
+    group: "ASSIGNMENTS",
 
-      group:
-        "ASSESSMENTS",
+    sortOrder: 530,
+  },
 
-      sortOrder:
-        620,
-    },
+  {
+    key: "results.view",
 
-    {
-      key:
-        "assessments.grade",
+    name: "View Results",
 
-      name:
-        "Grade Assessments",
+    description: "View student results.",
 
-      description:
-        "Grade assessment attempts and provide feedback.",
+    group: "RESULTS",
 
-      group:
-        "ASSESSMENTS",
+    sortOrder: 540,
+  },
 
-      sortOrder:
-        630,
-    },
+  {
+    key: "results.manage",
 
-    /* ---------------------------------------------------------------------- */
-    /* ATTENDANCE                                                            */
-    /* ---------------------------------------------------------------------- */
+    name: "Manage Results",
 
-    {
-      key:
-        "attendance.view",
+    description: "Create and modify academic results.",
 
-      name:
-        "View Attendance",
+    group: "RESULTS",
 
-      description:
-        "View student attendance records.",
+    sortOrder: 550,
+  },
 
-      group:
-        "ATTENDANCE",
+  /* ---------------------------------------------------------------------- */
+  /* ASSESSMENTS                                                           */
+  /* ---------------------------------------------------------------------- */
 
-      sortOrder:
-        700,
-    },
+  {
+    key: "assessments.view",
 
-    {
-      key:
-        "attendance.record",
+    name: "View Assessments",
 
-      name:
-        "Record Attendance",
+    description: "View assessments and assessment activity.",
 
-      description:
-        "Record attendance for assigned students or classes.",
+    group: "ASSESSMENTS",
 
-      group:
-        "ATTENDANCE",
+    sortOrder: 600,
+  },
 
-      sortOrder:
-        710,
-    },
+  {
+    key: "assessments.create",
 
-    {
-      key:
-        "attendance.modify",
+    name: "Create Assessments",
 
-      name:
-        "Modify Attendance",
+    description: "Create student assessments.",
 
-      description:
-        "Correct previously entered attendance.",
+    group: "ASSESSMENTS",
 
-      group:
-        "ATTENDANCE",
+    sortOrder: 610,
+  },
 
-      sortOrder:
-        720,
-    },
+  {
+    key: "assessments.publish",
 
-    {
-      key:
-        "attendance.report",
+    name: "Publish Assessments",
 
-      name:
-        "View Attendance Reports",
+    description: "Publish assessments to students.",
 
-      description:
-        "Access attendance summaries and completeness reports.",
+    group: "ASSESSMENTS",
 
-      group:
-        "ATTENDANCE",
+    sortOrder: 620,
+  },
 
-      sortOrder:
-        730,
-    },
+  {
+    key: "assessments.grade",
 
-    /* ---------------------------------------------------------------------- */
-    /* REPORT CARDS                                                          */
-    /* ---------------------------------------------------------------------- */
+    name: "Grade Assessments",
 
-    {
-      key:
-        "report_cards.view",
+    description: "Grade assessment attempts and provide feedback.",
 
-      name:
-        "View Report Cards",
+    group: "ASSESSMENTS",
 
-      description:
-        "View permitted report cards.",
+    sortOrder: 630,
+  },
 
-      group:
-        "REPORT_CARDS",
+  /* ---------------------------------------------------------------------- */
+  /* ATTENDANCE                                                            */
+  /* ---------------------------------------------------------------------- */
 
-      sortOrder:
-        800,
-    },
+  {
+    key: "attendance.view",
 
-    {
-      key:
-        "report_cards.generate",
+    name: "View Attendance",
 
-      name:
-        "Generate Report Cards",
+    description: "View student attendance records.",
 
-      description:
-        "Generate report cards.",
+    group: "ATTENDANCE",
 
-      group:
-        "REPORT_CARDS",
+    sortOrder: 700,
+  },
 
-      sortOrder:
-        810,
-    },
+  {
+    key: "attendance.record",
 
-    {
-      key:
-        "report_cards.edit",
+    name: "Record Attendance",
 
-      name:
-        "Edit Report Cards",
+    description: "Record attendance for assigned students or classes.",
 
-      description:
-        "Edit draft report cards.",
+    group: "ATTENDANCE",
 
-      group:
-        "REPORT_CARDS",
+    sortOrder: 710,
+  },
 
-      sortOrder:
-        820,
-    },
+  {
+    key: "attendance.modify",
 
-    {
-      key:
-        "report_cards.submit",
+    name: "Modify Attendance",
 
-      name:
-        "Submit Report Cards",
+    description: "Correct previously entered attendance.",
 
-      description:
-        "Submit report cards for review.",
+    group: "ATTENDANCE",
 
-      group:
-        "REPORT_CARDS",
+    sortOrder: 720,
+  },
 
-      sortOrder:
-        830,
-    },
+  {
+    key: "attendance.report",
 
-    {
-      key:
-        "report_cards.review",
+    name: "View Attendance Reports",
 
-      name:
-        "Review Report Cards",
+    description: "Access attendance summaries and completeness reports.",
 
-      description:
-        "Review submitted report cards.",
+    group: "ATTENDANCE",
 
-      group:
-        "REPORT_CARDS",
+    sortOrder: 730,
+  },
 
-      sortOrder:
-        840,
-    },
+  /* ---------------------------------------------------------------------- */
+  /* REPORT CARDS                                                          */
+  /* ---------------------------------------------------------------------- */
 
-    {
-      key:
-        "report_cards.publish",
+  {
+    key: "report_cards.view",
 
-      name:
-        "Publish Report Cards",
+    name: "View Report Cards",
 
-      description:
-        "Publish approved report cards.",
+    description: "View permitted report cards.",
 
-      group:
-        "REPORT_CARDS",
+    group: "REPORT_CARDS",
 
-      sortOrder:
-        850,
-    },
+    sortOrder: 800,
+  },
 
-    {
-      key:
-        "report_cards.settings",
+  {
+    key: "report_cards.generate",
 
-      name:
-        "Manage Report Configuration",
+    name: "Generate Report Cards",
 
-      description:
-        "Manage academic weighting, grading scales and report settings.",
+    description: "Generate report cards.",
 
-      group:
-        "REPORT_CARDS",
+    group: "REPORT_CARDS",
 
-      sortOrder:
-        860,
-    },
+    sortOrder: 810,
+  },
 
-    /* ---------------------------------------------------------------------- */
-    /* FINANCE                                                               */
-    /* ---------------------------------------------------------------------- */
+  {
+    key: "report_cards.edit",
 
-    {
-      key:
-        "finance.dashboard.view",
+    name: "Edit Report Cards",
 
-      name:
-        "View Finance Dashboard",
+    description: "Edit draft report cards.",
 
-      description:
-        "View finance dashboard and summary metrics.",
+    group: "REPORT_CARDS",
 
-      group:
-        "FINANCE",
+    sortOrder: 820,
+  },
 
-      sortOrder:
-        900,
-    },
+  {
+    key: "report_cards.submit",
 
-    {
-      key:
-        "finance.invoices.view",
+    name: "Submit Report Cards",
 
-      name:
-        "View Invoices",
+    description: "Submit report cards for review.",
 
-      description:
-        "View student fee accounts and invoices.",
+    group: "REPORT_CARDS",
 
-      group:
-        "FINANCE",
+    sortOrder: 830,
+  },
 
-      sortOrder:
-        910,
-    },
+  {
+    key: "report_cards.review",
 
-    {
-      key:
-        "finance.invoices.manage",
+    name: "Review Report Cards",
 
-      name:
-        "Manage Invoices",
+    description: "Review submitted report cards.",
 
-      description:
-        "Generate and modify school fee invoices.",
+    group: "REPORT_CARDS",
 
-      group:
-        "FINANCE",
+    sortOrder: 840,
+  },
 
-      sortOrder:
-        920,
-    },
+  {
+    key: "report_cards.publish",
 
-    {
-      key:
-        "finance.payments.record",
+    name: "Publish Report Cards",
 
-      name:
-        "Record Payments",
+    description: "Publish approved report cards.",
 
-      description:
-        "Record payments received from students or parents.",
+    group: "REPORT_CARDS",
 
-      group:
-        "FINANCE",
+    sortOrder: 850,
+  },
 
-      sortOrder:
-        930,
-    },
+  {
+    key: "report_cards.settings",
 
-    {
-      key:
-        "finance.payments.modify",
+    name: "Manage Report Configuration",
 
-      name:
-        "Modify Payments",
+    description:
+      "Manage academic weighting, grading scales and report settings.",
 
-      description:
-        "Correct existing payment records.",
+    group: "REPORT_CARDS",
 
-      group:
-        "FINANCE",
+    sortOrder: 860,
+  },
 
-      sortOrder:
-        940,
-    },
+  /* ---------------------------------------------------------------------- */
+  /* FINANCE                                                               */
+  /* ---------------------------------------------------------------------- */
 
-    {
-      key:
-        "finance.structure.manage",
+  {
+    key: "finance.dashboard.view",
 
-      name:
-        "Manage Fee Structure",
+    name: "View Finance Dashboard",
 
-      description:
-        "Configure fee categories, fee types and fee structures.",
+    description: "View finance dashboard and summary metrics.",
 
-      group:
-        "FINANCE",
+    group: "FINANCE",
 
-      sortOrder:
-        950,
-    },
+    sortOrder: 900,
+  },
 
-    {
-      key:
-        "finance.reports.view",
+  {
+    key: "finance.invoices.view",
 
-      name:
-        "View Finance Reports",
+    name: "View Invoices",
 
-      description:
-        "Access financial reports and outstanding balances.",
+    description: "View student fee accounts and invoices.",
 
-      group:
-        "FINANCE",
+    group: "FINANCE",
 
-      sortOrder:
-        960,
-    },
+    sortOrder: 910,
+  },
 
-    {
-      key:
-        "finance.statements.generate",
+  {
+    key: "finance.invoices.manage",
 
-      name:
-        "Generate Fee Statements",
+    name: "Manage Invoices",
 
-      description:
-        "Generate and download fee statements.",
+    description: "Generate and modify school fee invoices.",
 
-      group:
-        "FINANCE",
+    group: "FINANCE",
 
-      sortOrder:
-        970,
-    },
+    sortOrder: 920,
+  },
 
-    {
-      key:
-        "finance.reminders.send",
+  {
+    key: "finance.payments.record",
 
-      name:
-        "Send Fee Reminders",
+    name: "Record Payments",
 
-      description:
-        "Send outstanding-fee reminders to parents.",
+    description: "Record payments received from students or parents.",
 
-      group:
-        "FINANCE",
+    group: "FINANCE",
 
-      sortOrder:
-        980,
-    },
+    sortOrder: 930,
+  },
 
-    /* ---------------------------------------------------------------------- */
-    /* COMMUNICATIONS                                                        */
-    /* ---------------------------------------------------------------------- */
+  {
+    key: "finance.payments.modify",
 
-    {
-      key:
-        "communications.events.view",
+    name: "Modify Payments",
 
-      name:
-        "View Events",
+    description: "Correct existing payment records.",
 
-      description:
-        "View permitted school events.",
+    group: "FINANCE",
 
-      group:
-        "COMMUNICATIONS",
+    sortOrder: 940,
+  },
 
-      sortOrder:
-        1000,
-    },
+  {
+    key: "finance.structure.manage",
 
-    {
-      key:
-        "communications.events.manage",
+    name: "Manage Fee Structure",
 
-      name:
-        "Manage Events",
+    description: "Configure fee categories, fee types and fee structures.",
 
-      description:
-        "Create and modify school events.",
+    group: "FINANCE",
 
-      group:
-        "COMMUNICATIONS",
+    sortOrder: 950,
+  },
 
-      sortOrder:
-        1010,
-    },
+  {
+    key: "finance.reports.view",
 
-    {
-      key:
-        "communications.announcements.view",
+    name: "View Finance Reports",
 
-      name:
-        "View Announcements",
+    description: "Access financial reports and outstanding balances.",
 
-      description:
-        "View school announcements.",
+    group: "FINANCE",
 
-      group:
-        "COMMUNICATIONS",
+    sortOrder: 960,
+  },
 
-      sortOrder:
-        1020,
-    },
+  {
+    key: "finance.statements.generate",
 
-    {
-      key:
-        "communications.announcements.manage",
+    name: "Generate Fee Statements",
 
-      name:
-        "Manage Announcements",
+    description: "Generate and download fee statements.",
 
-      description:
-        "Create and modify school announcements.",
+    group: "FINANCE",
 
-      group:
-        "COMMUNICATIONS",
+    sortOrder: 970,
+  },
 
-      sortOrder:
-        1030,
-    },
+  {
+    key: "finance.reminders.send",
 
-    {
-      key:
-        "communications.notifications.view",
+    name: "Send Fee Reminders",
 
-      name:
-        "View Notifications",
+    description: "Send outstanding-fee reminders to parents.",
 
-      description:
-        "Access personal notification activity.",
+    group: "FINANCE",
 
-      group:
-        "COMMUNICATIONS",
+    sortOrder: 980,
+  },
 
-      sortOrder:
-        1040,
-    },
+  /* ---------------------------------------------------------------------- */
+  /* COMMUNICATIONS                                                        */
+  /* ---------------------------------------------------------------------- */
 
-    /* ---------------------------------------------------------------------- */
-    /* NOTIFICATION OPERATIONS                                               */
-    /* ---------------------------------------------------------------------- */
+  {
+    key: "communications.events.view",
 
-    {
-      key:
-        "notification_operations.view",
+    name: "View Events",
 
-      name:
-        "View Notification Operations",
+    description: "View permitted school events.",
 
-      description:
-        "View notification scheduler and delivery health.",
+    group: "COMMUNICATIONS",
 
-      group:
-        "OPERATIONS",
+    sortOrder: 1000,
+  },
 
-      sortOrder:
-        1100,
-    },
+  {
+    key: "communications.events.manage",
 
-    {
-      key:
-        "notification_operations.policy.manage",
+    name: "Manage Events",
 
-      name:
-        "Manage Notification Policy",
+    description: "Create and modify school events.",
 
-      description:
-        "Manage school-wide notification delivery policy.",
+    group: "COMMUNICATIONS",
 
-      group:
-        "OPERATIONS",
+    sortOrder: 1010,
+  },
 
-      sortOrder:
-        1110,
-    },
+  {
+    key: "communications.announcements.view",
 
-    {
-      key:
-        "notification_operations.analytics.view",
+    name: "View Announcements",
 
-      name:
-        "View Notification Analytics",
+    description: "View school announcements.",
 
-      description:
-        "View delivery analytics and audit intelligence.",
+    group: "COMMUNICATIONS",
 
-      group:
-        "OPERATIONS",
+    sortOrder: 1020,
+  },
 
-      sortOrder:
-        1120,
-    },
+  {
+    key: "communications.announcements.manage",
 
-    {
-      key:
-        "notification_operations.scheduler.run",
+    name: "Manage Announcements",
 
-      name:
-        "Run Notification Scheduler",
+    description: "Create and modify school announcements.",
 
-      description:
-        "Manually execute scheduled notification processing.",
+    group: "COMMUNICATIONS",
 
-      group:
-        "OPERATIONS",
+    sortOrder: 1030,
+  },
 
-      sortOrder:
-        1130,
-    },
+  {
+    key: "communications.notifications.view",
 
-    /* ---------------------------------------------------------------------- */
-    /* SETTINGS                                                              */
-    /* ---------------------------------------------------------------------- */
+    name: "View Notifications",
 
-    {
-      key:
-        "settings.view",
+    description: "Access personal notification activity.",
 
-      name:
-        "View School Settings",
+    group: "COMMUNICATIONS",
 
-      description:
-        "View administrative school configuration.",
+    sortOrder: 1040,
+  },
 
-      group:
-        "SETTINGS",
+  {
+    key: "communications.messages.view",
 
-      sortOrder:
-        1200,
-    },
+    name: "View Messages",
 
-    {
-      key:
-        "settings.manage",
+    description: "View permitted school communication messages.",
 
-      name:
-        "Manage School Settings",
+    group: "COMMUNICATIONS",
 
-      description:
-        "Modify school-wide configuration.",
+    sortOrder: 1045,
+  },
 
-      group:
-        "SETTINGS",
+  {
+    key: "communications.messages.send",
 
-      sortOrder:
-        1210,
-    },
+    name: "Send Messages",
 
-    /* ---------------------------------------------------------------------- */
-    /* AUDITING                                                              */
-    /* ---------------------------------------------------------------------- */
+    description: "Send school communication messages to permitted recipients.",
 
-    {
-      key:
-        "audit.view",
+    group: "COMMUNICATIONS",
 
-      name:
-        "View Audit Logs",
+    sortOrder: 1050,
+  },
 
-      description:
-        "View security and administrative activity history.",
+  {
+    key: "communications.messages.manage",
 
-      group:
-        "AUDIT",
+    name: "Manage Messages",
 
-      sortOrder:
-        1300,
-    },
-  ];
+    description: "Manage administrative school messaging activity.",
+
+    group: "COMMUNICATIONS",
+
+    sortOrder: 1060,
+  },
+
+  /* ---------------------------------------------------------------------- */
+  /* NOTIFICATION OPERATIONS                                               */
+  /* ---------------------------------------------------------------------- */
+
+  {
+    key: "notification_operations.view",
+
+    name: "View Notification Operations",
+
+    description: "View notification scheduler and delivery health.",
+
+    group: "OPERATIONS",
+
+    sortOrder: 1100,
+  },
+
+  {
+    key: "notification_operations.policy.manage",
+
+    name: "Manage Notification Policy",
+
+    description: "Manage school-wide notification delivery policy.",
+
+    group: "OPERATIONS",
+
+    sortOrder: 1110,
+  },
+
+  {
+    key: "notification_operations.analytics.view",
+
+    name: "View Notification Analytics",
+
+    description: "View delivery analytics and audit intelligence.",
+
+    group: "OPERATIONS",
+
+    sortOrder: 1120,
+  },
+
+  {
+    key: "notification_operations.scheduler.run",
+
+    name: "Run Notification Scheduler",
+
+    description: "Manually execute scheduled notification processing.",
+
+    group: "OPERATIONS",
+
+    sortOrder: 1130,
+  },
+
+  /* ---------------------------------------------------------------------- */
+  /* SETTINGS                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  {
+    key: "settings.view",
+
+    name: "View School Settings",
+
+    description: "View administrative school configuration.",
+
+    group: "SETTINGS",
+
+    sortOrder: 1200,
+  },
+
+  {
+    key: "settings.manage",
+
+    name: "Manage School Settings",
+
+    description: "Modify school-wide configuration.",
+
+    group: "SETTINGS",
+
+    sortOrder: 1210,
+  },
+
+  /* ---------------------------------------------------------------------- */
+  /* AUDITING                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  {
+    key: "audit.view",
+
+    name: "View Audit Logs",
+
+    description: "View security and administrative activity history.",
+
+    group: "AUDIT",
+
+    sortOrder: 1300,
+  },
+  {
+    key: "access_reviews.view",
+    name: "View Access Reviews",
+    description:
+      "View access review campaigns, assignments and certification history.",
+    group: "ACCESS_CONTROL",
+    sortOrder: 1300,
+  },
+
+  {
+    key: "access_reviews.create",
+    name: "Create Access Reviews",
+    description: "Create privileged and delegated-access review campaigns.",
+    group: "ACCESS_CONTROL",
+    sortOrder: 1300,
+  },
+
+  {
+    key: "access_reviews.manage",
+    name: "Manage Access Reviews",
+    description: "Start, complete or cancel access review campaigns.",
+    group: "ACCESS_CONTROL",
+    sortOrder: 1300,
+  },
+
+  {
+    key: "access_reviews.decide",
+    name: "Certify Access Reviews",
+    description:
+      "Certify, modify or revoke access assignments under formal review.",
+    group: "ACCESS_CONTROL",
+    sortOrder: 1300,
+  },
+  {
+    key: "access_reviews.export",
+
+    name: "Export Access Review Compliance Reports",
+
+    description:
+      "Generate and download formal access review compliance and executive governance reports.",
+
+    group: "ACCESS_CONTROL",
+    sortOrder: 1300,
+  },
+];

@@ -1,50 +1,76 @@
+// src/app/(dashboard)/list/results/legacy/page.tsx
+
 import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
+
 import prisma from "@/lib/prisma";
+
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import Image from "next/image";
+
+import { requireResultsManagementAccess } from "@/lib/results/result-access";
+
 import { Prisma } from "@prisma/client";
-import { auth } from "@clerk/nextjs/server";
 
-export const revalidate = 0; // ✅ Disable caching
+import Image from "next/image";
 
-// type ResultList = {
-//   id: number;
-//   title: string;
-//   studentName: string;
-//   studentSurname: string;
-//   teacherName: string;
-//   teacherSurname: string;
-//   score: number;
-//   className: string;
-//   startTime: Date;
-// };
+export const revalidate = 0;
+
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
 
 type ResultList = {
   id: number;
+
   title: string;
 
   studentName: string;
+
   studentSurname: string;
 
   teacherName: string;
+
   teacherSurname: string;
 
   score: number;
+
   totalMarks: number | null;
+
   percentage: number | null;
 
-  resultType: "EXAM" | "ASSIGNMENT" | "ASSESSMENT";
+  /*
+   * Keep `type` because ResultForm expects
+   * the normal Result type property.
+   */
+  type: "EXAM" | "ASSIGNMENT" | "ASSESSMENT";
+
+  /*
+   * IDs required by the Result update form.
+   */
+  studentId: string;
+
+  examId: number | null;
+
+  assignmentId: number | null;
+
+  assessmentId: number | null;
 
   className: string;
+
   startTime: Date;
 };
 
+/* ========================================================================== */
+/* FORMAT PERCENTAGE                                                          */
+/* ========================================================================== */
+
 function formatPercentage(
   percentage: number | null,
+
   score: number,
+
   totalMarks: number | null,
 ) {
   if (percentage !== null) {
@@ -60,163 +86,297 @@ function formatPercentage(
   return "—";
 }
 
+/* ========================================================================== */
+/* PAGE                                                                       */
+/* ========================================================================== */
+
 export default async function ResultListPage(props: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<{
+    [key: string]: string | string[] | undefined;
+  }>;
 }) {
-  // ✅ Fix for Next.js 15 — unwrap searchParams
+  /* ------------------------------------------------------------------------ */
+  /* SEARCH PARAMS                                                            */
+  /* ------------------------------------------------------------------------ */
+
   const searchParams = await props.searchParams;
 
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-  const currentUserId = userId;
+  /* ------------------------------------------------------------------------ */
+  /* AUTHORIZATION                                                            */
+  /* ------------------------------------------------------------------------ */
 
-  // ✅ Define table columns
+  /*
+   * This is now the authorization boundary
+   * for the manual Results Entry workspace.
+   *
+   * Possible scopes:
+   *
+   * GLOBAL
+   * TEACHER_OWNED
+   */
+  const access = await requireResultsManagementAccess();
+
+  const currentUserId = access.userId;
+
+  const teacherOwned = access.scope === "TEACHER_OWNED";
+
+  /* ------------------------------------------------------------------------ */
+  /* COLUMNS                                                                  */
+  /* ------------------------------------------------------------------------ */
+
   const columns = [
-    { header: "Title", accessor: "title" },
-    { header: "Student", accessor: "student" },
+    {
+      header: "Title",
+
+      accessor: "title",
+    },
+
+    {
+      header: "Student",
+
+      accessor: "student",
+    },
+
     {
       header: "Score (%)",
+
       accessor: "score",
+
       className: "hidden md:table-cell",
     },
+
     {
       header: "Teacher",
+
       accessor: "teacher",
+
       className: "hidden md:table-cell",
     },
-    { header: "Class", accessor: "class", className: "hidden md:table-cell" },
-    { header: "Date", accessor: "date", className: "hidden md:table-cell" },
-    ...(role === "admin" || role === "teacher"
-      ? [{ header: "Actions", accessor: "action" }]
-      : []),
+
+    {
+      header: "Class",
+
+      accessor: "class",
+
+      className: "hidden md:table-cell",
+    },
+
+    {
+      header: "Date",
+
+      accessor: "date",
+
+      className: "hidden md:table-cell",
+    },
+
+    {
+      header: "Actions",
+
+      accessor: "action",
+    },
   ];
 
-  // ✅ Render table rows
+  /* ------------------------------------------------------------------------ */
+  /* ROW RENDERER                                                             */
+  /* ------------------------------------------------------------------------ */
+
   const renderRow = (item: ResultList) => (
     <tr
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
+      {/* TITLE */}
+
       <td className="flex items-center gap-4 p-4">{item.title}</td>
+
+      {/* STUDENT */}
+
       <td>{`${item.studentName} ${item.studentSurname}`}</td>
-      {/* <td className="hidden md:table-cell">{item.score}</td> */}
+
+      {/* SCORE */}
+
       <td className="hidden md:table-cell">
-        {item.resultType === "ASSESSMENT" ? (
-          <div>
-            <p className="text-base font-black text-blue-700">
-              {formatPercentage(item.percentage, item.score, item.totalMarks)}
-            </p>
+        <div>
+          <p className="text-base font-black text-blue-700">
+            {formatPercentage(
+              item.percentage,
 
-            <p className="mt-1 text-xs font-semibold text-slate-400">
-              {item.score}
-              {item.totalMarks !== null ? `/${item.totalMarks}` : ""} marks
-            </p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-base font-black text-blue-700">
-              {formatPercentage(item.percentage, item.score, item.totalMarks)}
-            </p>
+              item.score,
 
-            <p className="mt-1 text-xs font-semibold text-slate-400">
-              {item.score}
-              {item.totalMarks !== null ? `/${item.totalMarks}` : ""} marks
-            </p>
-          </div>
-        )}
+              item.totalMarks,
+            )}
+          </p>
+
+          <p className="mt-1 text-xs font-semibold text-slate-400">
+            {item.score}
+            {item.totalMarks !== null ? `/${item.totalMarks}` : ""} marks
+          </p>
+        </div>
       </td>
-      <td className="hidden md:table-cell">{`${item.teacherName} ${item.teacherSurname}`}</td>
+
+      {/* TEACHER */}
+
+      <td className="hidden md:table-cell">
+        {`${item.teacherName} ${item.teacherSurname}`}
+      </td>
+
+      {/* CLASS */}
+
       <td className="hidden md:table-cell">{item.className}</td>
+
+      {/* DATE */}
+
       <td className="hidden md:table-cell">
         {new Intl.DateTimeFormat("en-US").format(item.startTime)}
       </td>
-      {(role === "admin" || role === "teacher") && (
-        <td>
+
+      {/* ACTIONS */}
+
+      <td>
+        {item.type === "ASSESSMENT" ? (
+          /*
+           * Assessment results belong to the
+           * Assessment subsystem.
+           *
+           * They are visible here because they
+           * contribute to the unified academic
+           * result/report-card architecture,
+           * but they must not be manually edited
+           * or deleted here.
+           */
+          <span className="text-xs font-semibold text-slate-400">
+            <small>Managed in <br/>Assessments </small>
+          </span>
+        ) : (
           <div className="flex items-center gap-2">
             <FormContainer table="result" type="update" data={item} />
+
             <FormContainer table="result" type="delete" id={item.id} />
           </div>
-        </td>
-      )}
+        )}
+      </td>
     </tr>
   );
 
-  // ✅ Extract and parse pagination
+  /* ------------------------------------------------------------------------ */
+  /* PAGINATION                                                               */
+  /* ------------------------------------------------------------------------ */
+
   const { page, ...queryParams } = searchParams;
-  const p = page ? parseInt(page as string) : 1;
-  console.log("Rendering results page:", p);
 
-  // ✅ Build dynamic Prisma query
-  const query: Prisma.ResultWhereInput = {};
+  const parsedPage = Number(Array.isArray(page) ? page[0] : page);
 
-  for (const [key, value] of Object.entries(queryParams)) {
-    if (value !== undefined) {
-      switch (key) {
-        case "studentId":
-          query.studentId = value as string;
-          break;
-        case "search":
-          query.OR = [
-            {
-              exam: {
-                title: {
-                  contains: value as string,
-                  mode: "insensitive",
-                },
-              },
-            },
+  const p = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
-            {
-              assignment: {
-                title: {
-                  contains: value as string,
-                  mode: "insensitive",
-                },
-              },
-            },
+  /* ------------------------------------------------------------------------ */
+  /* QUERY CONDITIONS                                                         */
+  /* ------------------------------------------------------------------------ */
 
-            {
-              assessment: {
-                title: {
-                  contains: value as string,
-                  mode: "insensitive",
-                },
-              },
-            },
+  /*
+   * IMPORTANT:
+   *
+   * Search and Teacher ownership are built as
+   * separate conditions.
+   *
+   * The previous implementation assigned query.OR
+   * twice, causing Teacher ownership to overwrite
+   * the search OR conditions.
+   */
+  const conditions: Prisma.ResultWhereInput[] = [];
 
-            {
-              student: {
-                name: {
-                  contains: value as string,
-                  mode: "insensitive",
-                },
-              },
-            },
+  /* ------------------------------------------------------------------------ */
+  /* STUDENT FILTER                                                           */
+  /* ------------------------------------------------------------------------ */
 
-            {
-              student: {
-                surname: {
-                  contains: value as string,
-                  mode: "insensitive",
-                },
-              },
-            },
-          ];
-          break;
-        default:
-          break;
-      }
-    }
+  const studentIdParam = queryParams.studentId;
+
+  const studentId = Array.isArray(studentIdParam)
+    ? studentIdParam[0]
+    : studentIdParam;
+
+  if (studentId) {
+    conditions.push({
+      studentId,
+    });
   }
 
-  // ✅ Role-based filtering
-  switch (role) {
-    case "teacher":
-      query.OR = [
+  /* ------------------------------------------------------------------------ */
+  /* SEARCH FILTER                                                            */
+  /* ------------------------------------------------------------------------ */
+
+  const searchParam = queryParams.search;
+
+  const search = Array.isArray(searchParam) ? searchParam[0] : searchParam;
+
+  const normalizedSearch = search?.trim();
+
+  if (normalizedSearch) {
+    conditions.push({
+      OR: [
+        {
+          exam: {
+            title: {
+              contains: normalizedSearch,
+
+              mode: "insensitive",
+            },
+          },
+        },
+
+        {
+          assignment: {
+            title: {
+              contains: normalizedSearch,
+
+              mode: "insensitive",
+            },
+          },
+        },
+
+        {
+          assessment: {
+            title: {
+              contains: normalizedSearch,
+
+              mode: "insensitive",
+            },
+          },
+        },
+
+        {
+          student: {
+            name: {
+              contains: normalizedSearch,
+
+              mode: "insensitive",
+            },
+          },
+        },
+
+        {
+          student: {
+            surname: {
+              contains: normalizedSearch,
+
+              mode: "insensitive",
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* TEACHER OWNERSHIP                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  if (teacherOwned) {
+    conditions.push({
+      OR: [
         {
           exam: {
             lesson: {
-              teacherId: currentUserId!,
+              teacherId: currentUserId,
             },
           },
         },
@@ -224,7 +384,7 @@ export default async function ResultListPage(props: {
         {
           assignment: {
             lesson: {
-              teacherId: currentUserId!,
+              teacherId: currentUserId,
             },
           },
         },
@@ -232,89 +392,155 @@ export default async function ResultListPage(props: {
         {
           assessment: {
             lesson: {
-              teacherId: currentUserId!,
+              teacherId: currentUserId,
             },
           },
         },
-      ];
-      break;
-    case "student":
-      query.studentId = currentUserId!;
-      break;
-    case "parent":
-      query.student = { parentId: currentUserId! };
-      break;
-    default:
-      break;
+      ],
+    });
   }
 
-  // ✅ Fetch paginated results
+  /* ------------------------------------------------------------------------ */
+  /* FINAL QUERY                                                              */
+  /* ------------------------------------------------------------------------ */
+
+  const query: Prisma.ResultWhereInput =
+    conditions.length > 0
+      ? {
+          AND: conditions,
+        }
+      : {};
+
+  /* ------------------------------------------------------------------------ */
+  /* FETCH RESULTS                                                            */
+  /* ------------------------------------------------------------------------ */
+
   const [dataRes, count] = await prisma.$transaction([
     prisma.result.findMany({
       where: query,
+
       include: {
-        student: { select: { name: true, surname: true } },
+        student: {
+          select: {
+            id: true,
+
+            name: true,
+
+            surname: true,
+          },
+        },
+
         exam: {
           include: {
             lesson: {
               select: {
-                class: { select: { name: true } },
-                teacher: { select: { name: true, surname: true } },
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                teacher: {
+                  select: {
+                    name: true,
+
+                    surname: true,
+                  },
+                },
               },
             },
           },
         },
+
         assignment: {
           include: {
             lesson: {
               select: {
-                class: { select: { name: true } },
-                teacher: { select: { name: true, surname: true } },
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                teacher: {
+                  select: {
+                    name: true,
+
+                    surname: true,
+                  },
+                },
               },
             },
           },
         },
+
         assessment: {
           include: {
             lesson: {
               include: {
                 subject: true,
-                class: { select: { name: true } },
-                teacher: { select: { name: true, surname: true } },
+
+                class: {
+                  select: {
+                    name: true,
+                  },
+                },
+
+                teacher: {
+                  select: {
+                    name: true,
+
+                    surname: true,
+                  },
+                },
               },
             },
           },
         },
+
         assessmentAttempt: true,
       },
+
       take: ITEM_PER_PAGE,
+
       skip: ITEM_PER_PAGE * (p - 1),
+
+      orderBy: {
+        id: "desc",
+      },
     }),
-    prisma.result.count({ where: query }),
+
+    prisma.result.count({
+      where: query,
+    }),
   ]);
 
-  // ✅ Transform data for table
+  /* ------------------------------------------------------------------------ */
+  /* TRANSFORM TABLE DATA                                                     */
+  /* ------------------------------------------------------------------------ */
+
   const data = dataRes
-    .map((item) => {
+    .map((item): ResultList | null => {
       const academicItem = item.exam ?? item.assignment ?? item.assessment;
 
       if (!academicItem) {
         return null;
       }
 
-      let resultType: "EXAM" | "ASSIGNMENT" | "ASSESSMENT";
+      let type: "EXAM" | "ASSIGNMENT" | "ASSESSMENT";
 
       let startTime: Date;
 
       if (item.exam) {
-        resultType = "EXAM";
+        type = "EXAM";
+
         startTime = item.exam.startTime;
       } else if (item.assignment) {
-        resultType = "ASSIGNMENT";
+        type = "ASSIGNMENT";
 
         startTime = item.assignment.startDate;
       } else {
-        resultType = "ASSESSMENT";
+        type = "ASSESSMENT";
 
         startTime = item.assessment!.startDate;
       }
@@ -323,6 +549,8 @@ export default async function ResultListPage(props: {
         id: item.id,
 
         title: academicItem.title,
+
+        studentId: item.studentId,
 
         studentName: item.student.name,
 
@@ -338,7 +566,13 @@ export default async function ResultListPage(props: {
 
         percentage: item.percentage,
 
-        resultType,
+        type,
+
+        examId: item.examId,
+
+        assignmentId: item.assignmentId,
+
+        assessmentId: item.assessmentId,
 
         className: academicItem.lesson.class.name,
 
@@ -347,57 +581,51 @@ export default async function ResultListPage(props: {
     })
     .filter((item): item is ResultList => item !== null);
 
-  //   const data = dataRes
-  //     .map((item) => {
-  //       const assessment = item.exam || item.assignment || item.assessment;
+  /* ------------------------------------------------------------------------ */
+  /* PAGE                                                                     */
+  /* ------------------------------------------------------------------------ */
 
-  //       if (!assessment) return null;
-
-  //       const isExam = "startTime" in assessment;
-
-  //       return {
-  //         id: item.id,
-  //         title: assessment.title,
-  //         studentName: item.student.name,
-  //         studentSurname: item.student.surname,
-  //         teacherName: assessment.lesson.teacher.name,
-  //         teacherSurname: assessment.lesson.teacher.surname,
-  //         score: item.score,
-  //         className: assessment.lesson.class.name,
-  //         startTime: isExam
-  //           ? assessment.startTime
-  //           : ((assessment as any).startDate ?? new Date()),
-  //       };
-  //     })
-  //     .filter(Boolean) as ResultList[];
-
-  // ✅ Page layout
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
       {/* TOP */}
+
       <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">All Results</h1>
+        <div>
+          <h1 className="hidden md:block text-lg font-semibold">
+            Academic Results Entry
+          </h1>
+
+          <p className="mt-1 hidden text-xs text-slate-400 md:block">
+            Record and manage examination and assignment scores.
+          </p>
+        </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
+
           <div className="flex items-center gap-4 self-end">
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/filter.png" alt="Filter" width={14} height={14} />
             </button>
+
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/sort.png" alt="Sort" width={14} height={14} />
             </button>
-            {(role === "admin" || role === "teacher") && (
-              <FormContainer table="result" type="create" />
-            )}
+
+            {/*
+             * Permission-gated manual result creation 
+             */}
+            <FormContainer table="result" type="create" />
           </div>
         </div>
       </div>
 
-      {/* LIST */}
+      {/* TABLE */}
+
       <Table columns={columns} renderRow={renderRow} data={data} />
 
       {/* PAGINATION */}
+
       <Pagination page={p} count={count} />
     </div>
   );

@@ -1,58 +1,36 @@
+// src/app/api/academic-period-options/route.ts
+
 import {
   NextResponse,
 } from "next/server";
 
-import prisma from "@/lib/prisma";
-
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  requireAcademicOptionsAccess,
+} from "@/lib/academics/options-auth";
+
+import prisma from "@/lib/prisma";
 
 export const dynamic =
   "force-dynamic";
 
-export const revalidate = 0;
+export const revalidate =
+  0;
+
+/* ========================================================================== */
+/* GET                                                                        */
+/* ========================================================================== */
 
 export async function GET() {
   try {
-    const {
-      userId,
-      sessionClaims,
-    } = await auth();
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          message:
-            "Unauthenticated",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
+    await requireAcademicOptionsAccess();
 
-    const role = (
-      sessionClaims
-        ?.metadata as {
-        role?: string;
-      }
-    )?.role;
-
-    if (
-      role !== "admin" &&
-      role !== "teacher"
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Unauthorised",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
+    /* ---------------------------------------------------------------------- */
+    /* OPTIONS                                                                */
+    /* ---------------------------------------------------------------------- */
 
     const [
       terms,
@@ -61,11 +39,20 @@ export async function GET() {
       await prisma.$transaction([
         prisma.schoolTerm.findMany({
           select: {
-            id: true,
-            name: true,
-            startDate: true,
-            endDate: true,
-            isActive: true,
+            id:
+              true,
+
+            name:
+              true,
+
+            startDate:
+              true,
+
+            endDate:
+              true,
+
+            isActive:
+              true,
           },
 
           orderBy: [
@@ -73,6 +60,7 @@ export async function GET() {
               isActive:
                 "desc",
             },
+
             {
               startDate:
                 "desc",
@@ -82,7 +70,8 @@ export async function GET() {
 
         prisma.academicWeighting.findMany({
           where: {
-            isActive: true,
+            isActive:
+              true,
           },
 
           distinct: [
@@ -106,19 +95,26 @@ export async function GET() {
         new Set(
           academicYearRows
             .map(
-              (row) =>
+              (
+                row,
+              ) =>
                 row.academicYear
                   .trim(),
             )
-            .filter(Boolean),
+            .filter(
+              Boolean,
+            ),
         ),
       );
 
     const activeTerm =
       terms.find(
-        (term) =>
+        (
+          term,
+        ) =>
           term.isActive,
-      ) ?? null;
+      ) ??
+      null;
 
     return NextResponse.json({
       academicYears,
@@ -133,19 +129,59 @@ export async function GET() {
         activeTerm?.id ??
         null,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "ACADEMIC PERIOD OPTIONS ERROR:",
       error,
     );
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "UNAUTHENTICATED"
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Unauthenticated",
+        },
+
+        {
+          status:
+            401,
+        },
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Unauthorised",
+        },
+
+        {
+          status:
+            403,
+        },
+      );
+    }
 
     return NextResponse.json(
       {
         message:
           "Academic-period options could not be loaded.",
       },
+
       {
-        status: 500,
+        status:
+          500,
       },
     );
   }

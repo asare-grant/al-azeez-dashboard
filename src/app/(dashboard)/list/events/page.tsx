@@ -7,10 +7,9 @@ import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Class, Event, Prisma } from "@prisma/client";
 import Image from "next/image";
-import { auth } from "@clerk/nextjs/server";
 import {
   getEventVisibilityWhere,
-  type EventViewerRole,
+  requireEventViewer,
 } from "@/lib/events/visibility";
 
 export const revalidate = 0; // ✅ Disable caching for live updates
@@ -23,9 +22,7 @@ export default async function EventListPage(props: {
   // ✅ Fix for Next.js 15 — unwrap searchParams
   const searchParams = await props.searchParams;
 
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-  const currentUserId = userId;
+  const { userId, scope, canManage } = await requireEventViewer();
 
   // ✅ Define table columns
   const columns = [
@@ -42,7 +39,15 @@ export default async function EventListPage(props: {
       accessor: "endTime",
       className: "hidden md:table-cell",
     },
-    ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
+    ...(canManage
+      ? [
+          {
+            header: "Actions",
+
+            accessor: "action",
+          },
+        ]
+      : []),
   ];
 
   // ✅ Row Renderer
@@ -63,23 +68,24 @@ export default async function EventListPage(props: {
         }).format(item.startTime)}
       </td>
       <td className="hidden md:table-cell">
-        {item.startTime.toLocaleTimeString( "en-GH", {
+        {item.startTime.toLocaleTimeString("en-GH", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         })}
       </td>
       <td className="hidden md:table-cell">
-        {item.endTime.toLocaleTimeString( "en-GH", {
+        {item.endTime.toLocaleTimeString("en-GH", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         })}
       </td>
-      {role === "admin" && (
+      {canManage && (
         <td>
           <div className="flex items-center gap-2">
             <FormContainer table="event" type="update" data={item} />
+
             <FormContainer table="event" type="delete" id={item.id} />
           </div>
         </td>
@@ -114,14 +120,10 @@ export default async function EventListPage(props: {
     }
   }
 
-  if (!currentUserId || !role) {
-    throw new Error("Unauthorized");
-  }
-
   const visibility = getEventVisibilityWhere({
-    userId: currentUserId,
+    userId,
 
-    role: role as EventViewerRole,
+    scope,
   });
 
   const query: Prisma.EventWhereInput = {
@@ -166,7 +168,7 @@ export default async function EventListPage(props: {
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAE27C]">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" && <FormContainer table="event" type="create" />}
+            {canManage && <FormContainer table="event" type="create" />}
           </div>
         </div>
       </div>

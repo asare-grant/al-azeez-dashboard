@@ -1,35 +1,176 @@
+// src/lib/events/visibility.ts
+
 import "server-only";
 
 import type {
   Prisma,
 } from "@prisma/client";
 
-export type EventViewerRole =
-  | "admin"
-  | "teacher"
-  | "student"
-  | "parent";
+import {
+  getCurrentAccessActor,
+} from "@/lib/access-control";
 
-export function getEventVisibilityWhere({
-  userId,
-  role,
-}: {
+import {
+  normalizeAppRole,
+} from "@/lib/navigation/roles";
+
+import type {
+  AppRole,
+} from "@/lib/navigation/roles";
+
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
+
+export type EventVisibilityScope =
+  | "GLOBAL"
+  | "TEACHER"
+  | "STUDENT"
+  | "PARENT"
+  | "SCHOOL_WIDE_ONLY";
+
+export type EventViewerContext = {
   userId:
     string;
 
   role:
-    EventViewerRole;
-}): Prisma.EventWhereInput {
+    AppRole;
+
+  scope:
+    EventVisibilityScope;
+
+  canManage:
+    boolean;
+};
+
+/* ========================================================================== */
+/* CURRENT VIEWER                                                             */
+/* ========================================================================== */
+
+export async function requireEventViewer(): Promise<
+  EventViewerContext
+> {
+  const accessActor =
+    await getCurrentAccessActor();
+
   if (
+    !accessActor
+  ) {
+    throw new Error(
+      "UNAUTHENTICATED",
+    );
+  }
+
+  if (
+    !accessActor.can(
+      "communications.events.view",
+    )
+  ) {
+    throw new Error(
+      "UNAUTHORIZED",
+    );
+  }
+
+  const legacyRole =
+    accessActor.actor
+      .legacyRole
+      ?.trim()
+      .toLowerCase();
+
+  const activeRoleKey =
+    accessActor
+      .activeAssignments[0]
+      ?.role.key
+      ?.trim()
+      .toLowerCase();
+
+  const role =
+    normalizeAppRole(
+      legacyRole ||
+      activeRoleKey ||
+      "custom",
+    );
+
+  const canManage =
+    accessActor.can(
+      "communications.events.manage",
+    );
+
+  let scope:
+    EventVisibilityScope;
+
+  if (
+    canManage
+  ) {
+    scope =
+      "GLOBAL";
+  } else if (
     role ===
-    "admin"
+    "teacher"
+  ) {
+    scope =
+      "TEACHER";
+  } else if (
+    role ===
+    "student"
+  ) {
+    scope =
+      "STUDENT";
+  } else if (
+    role ===
+    "parent"
+  ) {
+    scope =
+      "PARENT";
+  } else {
+    scope =
+      "SCHOOL_WIDE_ONLY";
+  }
+
+  return {
+    userId:
+      accessActor.actor.id,
+
+    role,
+
+    scope,
+
+    canManage,
+  };
+}
+
+/* ========================================================================== */
+/* VISIBILITY WHERE                                                           */
+/* ========================================================================== */
+
+export function getEventVisibilityWhere({
+  userId,
+  scope,
+}: {
+  userId:
+    string;
+
+  scope:
+    EventVisibilityScope;
+}): Prisma.EventWhereInput {
+  /* ------------------------------------------------------------------------ */
+  /* GLOBAL                                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  if (
+    scope ===
+    "GLOBAL"
   ) {
     return {};
   }
 
+  /* ------------------------------------------------------------------------ */
+  /* STUDENT                                                                  */
+  /* ------------------------------------------------------------------------ */
+
   if (
-    role ===
-    "student"
+    scope ===
+    "STUDENT"
   ) {
     return {
       OR: [
@@ -52,9 +193,13 @@ export function getEventVisibilityWhere({
     };
   }
 
+  /* ------------------------------------------------------------------------ */
+  /* PARENT                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   if (
-    role ===
-    "parent"
+    scope ===
+    "PARENT"
   ) {
     return {
       OR: [
@@ -77,37 +222,54 @@ export function getEventVisibilityWhere({
     };
   }
 
-  /*
-   * Teachers see:
-   *
-   * - school-wide events
-   * - events for classes they supervise
-   * - events for classes they teach
-   */
-  return {
-    OR: [
-      {
-        classId:
-          null,
-      },
+  /* ------------------------------------------------------------------------ */
+  /* TEACHER                                                                  */
+  /* ------------------------------------------------------------------------ */
 
-      {
-        class: {
-          supervisorId:
-            userId,
+  if (
+    scope ===
+    "TEACHER"
+  ) {
+    return {
+      OR: [
+        {
+          classId:
+            null,
         },
-      },
 
-      {
-        class: {
-          lessons: {
-            some: {
-              teacherId:
-                userId,
+        {
+          class: {
+            supervisorId:
+              userId,
+          },
+        },
+
+        {
+          class: {
+            lessons: {
+              some: {
+                teacherId:
+                  userId,
+              },
             },
           },
         },
-      },
-    ],
+      ],
+    };
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* OTHER AUTHENTICATED EVENT VIEWERS                                        */
+  /* ------------------------------------------------------------------------ */
+
+  /*
+   * Read-only/custom staff who possess
+   * communications.events.view but do not possess
+   * communications.events.manage only see school-wide
+   * events.
+   */
+  return {
+    classId:
+      null,
   };
 }

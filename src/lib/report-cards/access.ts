@@ -5,6 +5,7 @@ import type {
 } from "@prisma/client";
 
 import type {
+  ReportCardManagementScope,
   ReportCardRole,
 } from "./auth";
 
@@ -186,8 +187,6 @@ export function buildReportCardReadWhere({
   }
 }
 
-
-
 /* -------------------------------------------------------------------------- */
 /*                       MANAGER MUTATION ACCESS                              */
 /* -------------------------------------------------------------------------- */
@@ -195,41 +194,63 @@ export function buildReportCardReadWhere({
 export function buildReportCardManagerWhere({
   reportCardId,
   userId,
-  role,
+  scope,
 }: {
   reportCardId: number;
 
   userId: string;
 
-  role: ReportCardRole;
+  scope: ReportCardManagementScope;
 }): Prisma.ReportCardWhereInput | null {
-  /*
-   * Only administrators and teachers can mutate
-   * report-card review state.
-   */
   if (
-    role !== "admin" &&
-    role !== "teacher"
+    !Number.isInteger(
+      reportCardId,
+    ) ||
+    reportCardId <= 0
   ) {
     return null;
   }
 
   /*
-   * The manager ownership policy is the same
-   * ownership rule already used for reading.
+   * GLOBAL
+   * ------------------------------------------------------------------------
+   * A delegated/global report-card manager may operate on any report card
+   * permitted by the action-level RBAC capability.
    *
-   * Admin:
-   *   any report
-   *
-   * Teacher:
-   *   only reports belonging to a class in which
-   *   the teacher has at least one assigned lesson.
+   * Examples:
+   * - Admin
+   * - Super Admin
+   * - Academic Director
+   * - Head Teacher
+   * - future delegated custom roles
    */
-  return buildReportCardReadWhere({
-    reportCardId,
+  if (
+    scope ===
+    "GLOBAL"
+  ) {
+    return {
+      id:
+        reportCardId,
+    };
+  }
 
-    userId,
+  /*
+   * TEACHER_OWNED
+   * ------------------------------------------------------------------------
+   * Teacher-only management authority remains restricted to report cards
+   * belonging to classes where the authenticated teacher has a lesson.
+   */
+  return {
+    id:
+      reportCardId,
 
-    role,
-  });
+    class: {
+      lessons: {
+        some: {
+          teacherId:
+            userId,
+        },
+      },
+    },
+  };
 }

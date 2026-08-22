@@ -1,104 +1,91 @@
 import "server-only";
 
-import {
-  processAssessmentDueSoonNotifications,
-} from "./assessment-due-soon";
+import { processAssessmentDueSoonNotifications } from "./assessment-due-soon";
 
-import {
-  processAttendanceAbsenceNotifications,
-} from "./attendance-absence";
+import { processAttendanceAbsenceNotifications } from "./attendance-absence";
 
-import {
-  processAttendanceCompletenessNotifications,
-} from "./attendance-completeness";
+import { processAttendanceCompletenessNotifications } from "./attendance-completeness";
 
-import {
-  processFeeBalanceReminders,
-} from "./fee-balance-reminders";
+import { processFeeBalanceReminders } from "./fee-balance-reminders";
 
-import {
-  processUpcomingEventNotifications,
-} from "./process-upcoming-events";
+import { processUpcomingEventNotifications } from "./process-upcoming-events";
 
-import type {
-  ScheduledScannerKey,
-} from "./scheduler-types";
+import { processDelegatedAccessExpiryNotifications } from "./delegated-access-expiry";
+
+import { processAccessReviewDeadlineNotifications } from "./access-review-deadlines";
+
+import type { ScheduledScannerKey } from "./scheduler-types";
 
 /* -------------------------------------------------------------------------- */
 /*                                  TYPES                                     */
 /* -------------------------------------------------------------------------- */
 
 export type ScheduledNotificationScanner = {
-  key:
-    ScheduledScannerKey;
+  key: ScheduledScannerKey;
 
-  label:
-    string;
+  label: string;
 
-  run:
-    () =>
-      Promise<unknown>;
+  run: () => Promise<unknown>;
 };
 
 /* -------------------------------------------------------------------------- */
 /*                             SCANNER REGISTRY                               */
 /* -------------------------------------------------------------------------- */
 
-export const scheduledNotificationScanners:
-  readonly ScheduledNotificationScanner[] =
+export const scheduledNotificationScanners: readonly ScheduledNotificationScanner[] =
   [
     {
-      key:
-        "assessment-due-soon",
+      key: "assessment-due-soon",
 
-      label:
-        "Assessment Due Soon",
+      label: "Assessment Due Soon",
 
-      run:
-        processAssessmentDueSoonNotifications,
+      run: processAssessmentDueSoonNotifications,
     },
 
     {
-      key:
-        "attendance-absence",
+      key: "attendance-absence",
 
-      label:
-        "Attendance Absence",
+      label: "Attendance Absence",
 
-      run:
-        processAttendanceAbsenceNotifications,
+      run: processAttendanceAbsenceNotifications,
     },
 
     {
-      key:
-        "attendance-completeness",
+      key: "attendance-completeness",
 
-      label:
-        "Attendance Completeness",
+      label: "Attendance Completeness",
 
-      run:
-        processAttendanceCompletenessNotifications,
+      run: processAttendanceCompletenessNotifications,
     },
 
     {
-      key:
-        "fee-balance-reminders",
+      key: "fee-balance-reminders",
 
-      label:
-        "Outstanding Fee Reminders",
+      label: "Outstanding Fee Reminders",
 
-      run:
-        processFeeBalanceReminders,
+      run: processFeeBalanceReminders,
     },
 
     {
-      key:
-        "upcoming-events",
+      key: "upcoming-events",
 
-      label:
-        "Upcoming Academic Events",
+      label: "Upcoming Academic Events",
 
-      run:
-        processUpcomingEventNotifications,
+      run: processUpcomingEventNotifications,
+    },
+
+    {
+      key: "delegated-access-expiry",
+
+      label: "Delegated Access Expiry",
+
+      run: processDelegatedAccessExpiryNotifications,
+    },
+    {
+      key: "access-review-deadlines",
+
+      label: "Access Review Deadlines",
+
+      run: processAccessReviewDeadlineNotifications,
     },
   ] as const;

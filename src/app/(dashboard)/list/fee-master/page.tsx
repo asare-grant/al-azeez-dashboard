@@ -1,75 +1,250 @@
-// /app/(dashboard)/list/fee-master/page.tsx
-// Server component — NO "use client"
-import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
-import Pagination from "@/components/Pagination";
+// src/app/(dashboard)/list/fee-master/page.tsx
+
+import type {
+  FeeMaster,
+  Prisma,
+  Student,
+} from "@prisma/client";
+
 import FeeMasterHeader from "@/components/fee-master/FeeMasterHeader";
 import FeeMasterTable from "@/components/fee-master/FeeMasterTable";
-import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Prisma, FeeMaster, Student } from "@prisma/client";
+import Pagination from "@/components/Pagination";
 
-export const revalidate = 0;
+import {
+  getCurrentAccessActor,
+} from "@/lib/access-control";
 
-type FeeMasterList = FeeMaster & {
-  student: Student;
-};
+import prisma from "@/lib/prisma";
+import {
+  ITEM_PER_PAGE,
+} from "@/lib/settings";
 
-export default async function FeeMasterListPage(props: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const searchParams = await props.searchParams;
+export const revalidate =
+  0;
 
-  // Server-side auth
-  const { sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role || "";
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
 
-  // pagination + searcH
-  const { page, search } = searchParams;
-  const p = page ? parseInt(page as string, 10) : 1;
+type FeeMasterList =
+  FeeMaster & {
+    student:
+      Student;
+  };
 
-  const query: Prisma.FeeMasterWhereInput = {};
-  if (search) {
+/* ========================================================================== */
+/* PAGE                                                                       */
+/* ========================================================================== */
+
+export default async function FeeMasterListPage(
+  props: {
+    searchParams: Promise<{
+      [key: string]:
+        | string
+        | string[]
+        | undefined;
+    }>;
+  },
+) {
+  const searchParams =
+    await props.searchParams;
+
+  /* ------------------------------------------------------------------------ */
+  /* ACCESS                                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  const accessActor =
+    await getCurrentAccessActor();
+
+  if (
+    !accessActor
+  ) {
+    throw new Error(
+      "UNAUTHENTICATED",
+    );
+  }
+
+  /*
+   * At minimum, someone entering the invoice list
+   * must be able to view invoices.
+   */
+  if (
+    !accessActor.can(
+      "finance.invoices.view",
+    ) &&
+    !accessActor.can(
+      "finance.invoices.manage",
+    )
+  ) {
+    throw new Error(
+      "UNAUTHORIZED",
+    );
+  }
+
+  const canManageInvoices =
+    accessActor.can(
+      "finance.invoices.manage",
+    );
+
+  const canRecordPayments =
+    accessActor.can(
+      "finance.payments.record",
+    );
+
+  const canModifyPayments =
+    accessActor.can(
+      "finance.payments.modify",
+    );
+
+  /* ------------------------------------------------------------------------ */
+  /* PAGINATION / SEARCH                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const {
+    page,
+    search,
+  } =
+    searchParams;
+
+  const p =
+    Math.max(
+      1,
+      page
+        ? parseInt(
+            page as string,
+            10,
+          ) || 1
+        : 1,
+    );
+
+  const query:
+    Prisma.FeeMasterWhereInput =
+    {};
+
+  if (
+    typeof search ===
+      "string" &&
+    search.trim()
+  ) {
+    const searchValue =
+      search.trim();
+
     query.OR = [
       {
         student: {
-          name: { contains: search as string, mode: "insensitive" },
+          name: {
+            contains:
+              searchValue,
+
+            mode:
+              "insensitive",
+          },
         },
       },
+
       {
         student: {
-          surname: { contains: search as string, mode: "insensitive" },
+          surname: {
+            contains:
+              searchValue,
+
+            mode:
+              "insensitive",
+          },
         },
       },
+
       {
-        term: { contains: search as string, mode: "insensitive" },
+        term: {
+          contains:
+            searchValue,
+
+          mode:
+            "insensitive",
+        },
       },
+
       {
-        academicYear : { contains: search as string, mode: "insensitive"}
+        academicYear: {
+          contains:
+            searchValue,
+
+          mode:
+            "insensitive",
+        },
       },
     ];
   }
 
-  const [data, count] = await prisma.$transaction([
-    prisma.feeMaster.findMany({
-      where: query,
-      include: { student: true },
-      take: ITEM_PER_PAGE,
-      skip: ITEM_PER_PAGE * (p - 1),
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.feeMaster.count({ where: query }),
-  ]);
+  /* ------------------------------------------------------------------------ */
+  /* DATA                                                                     */
+  /* ------------------------------------------------------------------------ */
+
+  const [
+    data,
+    count,
+  ] =
+    await prisma.$transaction([
+      prisma.feeMaster.findMany({
+        where:
+          query,
+
+        include: {
+          student:
+            true,
+        },
+
+        take:
+          ITEM_PER_PAGE,
+
+        skip:
+          ITEM_PER_PAGE *
+          (p - 1),
+
+        orderBy: {
+          createdAt:
+            "desc",
+        },
+      }),
+
+      prisma.feeMaster.count({
+        where:
+          query,
+      }),
+    ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* UI                                                                       */
+  /* ------------------------------------------------------------------------ */
 
   return (
-    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
-      {/* Header (client) */}
-      <FeeMasterHeader role={role} />
+    <div className="m-4 mt-0 flex-1 rounded-md bg-white p-4">
+      <FeeMasterHeader
+        canManageInvoices={
+          canManageInvoices
+        }
+      />
 
-      {/* Table (client) */}
-      <FeeMasterTable role={role} data={data as FeeMasterList[]} />
+      <FeeMasterTable
+        data={
+          data as
+            FeeMasterList[]
+        }
+        canManageInvoices={
+          canManageInvoices
+        }
+        canRecordPayments={
+          canRecordPayments
+        }
+        canModifyPayments={
+          canModifyPayments
+        }
+      />
 
-      {/* Pagination (server-rendered) */}
-      <Pagination page={p} count={count} />
+      <Pagination
+        page={p}
+        count={count}
+      />
     </div>
   );
 }

@@ -1,37 +1,28 @@
-import type {
-  ReportCardCalculationStatus,
-  TermName,
-} from "@prisma/client";
+// src/lib/report-cards/generation-validator.ts
+import type { ReportCardCalculationStatus, TermName } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 
 import {
-  requireReportCardUser,
+  requireReportCardGenerationAccess,
+  requireReportCardPermission,
 } from "./auth";
 
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
 
-export type ReportCardGenerationCheckSeverity =
-  | "SUCCESS"
-  | "WARNING"
-  | "ERROR";
+export type ReportCardGenerationCheckSeverity = "SUCCESS" | "WARNING" | "ERROR";
 
-export type ReportCardGenerationCheckStatus =
-  | "READY"
-  | "PARTIAL"
-  | "BLOCKED";
+export type ReportCardGenerationCheckStatus = "READY" | "PARTIAL" | "BLOCKED";
 
 export type ReportCardGenerationCheck = {
   id: string;
   title: string;
 
-  status:
-    ReportCardGenerationCheckStatus;
+  status: ReportCardGenerationCheckStatus;
 
-  severity:
-    ReportCardGenerationCheckSeverity;
+  severity: ReportCardGenerationCheckSeverity;
 
   message: string;
 
@@ -56,7 +47,6 @@ export type ReportCardGenerationValidationSummary = {
   archivedCards: number;
 };
 
-
 export type ReportCardGenerationSubjectSummary = {
   subjectId: number;
   subjectName: string;
@@ -75,8 +65,7 @@ export type ReportCardGenerationSubjectSummary = {
   missingAssessmentResults: number;
   missingExaminationResults: number;
 
-  calculationStatus:
-    ReportCardCalculationStatus;
+  calculationStatus: ReportCardCalculationStatus;
 };
 
 export type ReportCardGenerationValidation = {
@@ -118,23 +107,17 @@ export type ReportCardGenerationValidation = {
     };
   } | null;
 
-  summary:
-    ReportCardGenerationValidationSummary;
+  summary: ReportCardGenerationValidationSummary;
 
-  subjects:
-    ReportCardGenerationSubjectSummary[];
+  subjects: ReportCardGenerationSubjectSummary[];
 
-  checks:
-    ReportCardGenerationCheck[];
+  checks: ReportCardGenerationCheck[];
 
-  errors:
-    ReportCardGenerationCheck[];
+  errors: ReportCardGenerationCheck[];
 
-  warnings:
-    ReportCardGenerationCheck[];
+  warnings: ReportCardGenerationCheck[];
 
-  successes:
-    ReportCardGenerationCheck[];
+  successes: ReportCardGenerationCheck[];
 };
 
 /* -------------------------------------------------------------------------- */
@@ -150,25 +133,9 @@ export async function validateReportCardGeneration({
   academicYear: string;
   termId: number;
 }): Promise<ReportCardGenerationValidation> {
-  const {
-    userId,
-    role,
-  } = await requireReportCardUser();
+  const normalizedAcademicYear = academicYear.trim();
 
-  if (
-    role !== "admin" &&
-    role !== "teacher"
-  ) {
-    throw new Error(
-      "UNAUTHORISED",
-    );
-  }
-
-  const normalizedAcademicYear =
-    academicYear.trim();
-
-  const emptySummary:
-    ReportCardGenerationValidationSummary = {
+  const emptySummary: ReportCardGenerationValidationSummary = {
     students: 0,
     subjects: 0,
 
@@ -193,14 +160,12 @@ export async function validateReportCardGeneration({
     termId <= 0 ||
     !normalizedAcademicYear
   ) {
-    const check:
-      ReportCardGenerationCheck = {
+    const check: ReportCardGenerationCheck = {
       id: "selection",
       title: "Academic selection",
       status: "BLOCKED",
       severity: "ERROR",
-      message:
-        "Select a valid class, academic year, and school term.",
+      message: "Select a valid class, academic year, and school term.",
     };
 
     return {
@@ -211,13 +176,11 @@ export async function validateReportCardGeneration({
       class: null,
       term: null,
 
-      academicYear:
-        normalizedAcademicYear,
+      academicYear: normalizedAcademicYear,
 
       weighting: null,
 
-      summary:
-        emptySummary,
+      summary: emptySummary,
 
       subjects: [],
 
@@ -228,24 +191,19 @@ export async function validateReportCardGeneration({
     };
   }
 
-  const [
-    classRecord,
-    term,
-  ] = await Promise.all([
-    prisma.class.findFirst({
+  /*
+   * Generation authority is resource-aware.
+   *
+   * Global generators may work with any permitted class.
+   * Otherwise, the authenticated teacher must directly supervise
+   * this specific class.
+   */
+  await requireReportCardGenerationAccess(classId);
+
+  const [classRecord, term] = await Promise.all([
+    prisma.class.findUnique({
       where: {
         id: classId,
-
-        ...(role === "teacher"
-          ? {
-              lessons: {
-                some: {
-                  teacherId:
-                    userId,
-                },
-              },
-            }
-          : {}),
       },
 
       select: {
@@ -293,13 +251,9 @@ export async function validateReportCardGeneration({
     }),
   ]);
 
-  const checks:
-    ReportCardGenerationCheck[] = [];
+  const checks: ReportCardGenerationCheck[] = [];
 
-  function addCheck(
-    check:
-      ReportCardGenerationCheck,
-  ) {
+  function addCheck(check: ReportCardGenerationCheck) {
     checks.push(check);
   }
 
@@ -320,21 +274,12 @@ export async function validateReportCardGeneration({
       title: "School term",
       status: "BLOCKED",
       severity: "ERROR",
-      message:
-        "The selected school term could not be found.",
+      message: "The selected school term could not be found.",
     });
   }
 
-  if (
-    !classRecord ||
-    !term
-  ) {
-    const errors =
-      checks.filter(
-        (check) =>
-          check.severity ===
-          "ERROR",
-      );
+  if (!classRecord || !term) {
+    const errors = checks.filter((check) => check.severity === "ERROR");
 
     return {
       ready: false,
@@ -343,26 +288,21 @@ export async function validateReportCardGeneration({
 
       class: classRecord
         ? {
-            id:
-              classRecord.id,
+            id: classRecord.id,
 
-            name:
-              classRecord.name,
+            name: classRecord.name,
 
-            grade:
-              classRecord.grade,
+            grade: classRecord.grade,
           }
         : null,
 
       term,
 
-      academicYear:
-        normalizedAcademicYear,
+      academicYear: normalizedAcademicYear,
 
       weighting: null,
 
-      summary:
-        emptySummary,
+      summary: emptySummary,
 
       subjects: [],
 
@@ -373,208 +313,175 @@ export async function validateReportCardGeneration({
     };
   }
 
-  const studentIds =
-    classRecord.students.map(
-      (student) =>
-        student.id,
-    );
+  const studentIds = classRecord.students.map((student) => student.id);
 
-  const lessonIds =
-    classRecord.lessons.map(
-      (lesson) =>
-        lesson.id,
-    );
+  const lessonIds = classRecord.lessons.map((lesson) => lesson.id);
 
-  const [
-     gradeWeighting,
+  const [gradeWeighting, assignments, assessments, examinations] =
+    await prisma.$transaction([
+      prisma.academicWeighting.findFirst({
+        where: {
+          academicYear: normalizedAcademicYear,
 
-    assignments,
-    assessments,
-    examinations,
+          termId: term.id,
 
-    existingStatusGroups,
-  ] = await prisma.$transaction([
-    prisma.academicWeighting.findFirst({
-      where: {
-        academicYear:
-          normalizedAcademicYear,
+          gradeId: classRecord.grade.id,
 
-        termId:
-          term.id,
+          isActive: true,
+        },
 
-        gradeId:
-          classRecord.grade.id,
+        select: {
+          id: true,
 
-        isActive: true,
-      },
+          assignmentWeight: true,
+          assessmentWeight: true,
+          examWeight: true,
 
-      select: {
-        id: true,
+          passMark: true,
 
-        assignmentWeight: true,
-        assessmentWeight: true,
-        examWeight: true,
+          gradingScale: {
+            select: {
+              id: true,
+              name: true,
 
-        passMark: true,
-
-        gradingScale: {
-          select: {
-            id: true,
-            name: true,
-
-            boundaries: {
-              select: {
-                id: true,
+              boundaries: {
+                select: {
+                  id: true,
+                },
               },
             },
           },
         },
-      },
 
-      orderBy: {
-        updatedAt: "desc",
-      },
-    }),
+        orderBy: {
+          updatedAt: "desc",
+        },
+      }),
 
-    prisma.assignment.findMany({
-      where: {
-        lessonId: {
-          in: lessonIds,
+      prisma.assignment.findMany({
+        where: {
+          lessonId: {
+            in: lessonIds,
+          },
+
+          academicYear: normalizedAcademicYear,
+
+          termId: term.id,
         },
 
-        academicYear:
-          normalizedAcademicYear,
+        select: {
+          id: true,
+          lessonId: true,
 
-        termId:
-          term.id,
-      },
+          results: {
+            where: {
+              studentId: {
+                in: studentIds,
+              },
+            },
 
-      select: {
-        id: true,
-        lessonId: true,
-
-        results: {
-          where: {
-            studentId: {
-              in: studentIds,
+            select: {
+              id: true,
+              studentId: true,
             },
           },
+        },
+      }),
 
-          select: {
-            id: true,
-            studentId: true,
+      prisma.assessment.findMany({
+        where: {
+          lessonId: {
+            in: lessonIds,
           },
-        },
-      },
-    }),
 
-    prisma.assessment.findMany({
-      where: {
-        lessonId: {
-          in: lessonIds,
+          academicYear: normalizedAcademicYear,
+
+          termId: term.id,
         },
 
-        academicYear:
-          normalizedAcademicYear,
+        select: {
+          id: true,
+          lessonId: true,
 
-        termId:
-          term.id,
-      },
+          results: {
+            where: {
+              studentId: {
+                in: studentIds,
+              },
+            },
 
-      select: {
-        id: true,
-        lessonId: true,
-
-        results: {
-          where: {
-            studentId: {
-              in: studentIds,
+            select: {
+              id: true,
+              studentId: true,
             },
           },
+        },
+      }),
 
-          select: {
-            id: true,
-            studentId: true,
+      prisma.exam.findMany({
+        where: {
+          lessonId: {
+            in: lessonIds,
           },
-        },
-      },
-    }),
 
-    prisma.exam.findMany({
-      where: {
-        lessonId: {
-          in: lessonIds,
+          academicYear: normalizedAcademicYear,
+
+          termId: term.id,
         },
 
-        academicYear:
-          normalizedAcademicYear,
+        select: {
+          id: true,
+          lessonId: true,
 
-        termId:
-          term.id,
-      },
+          results: {
+            where: {
+              studentId: {
+                in: studentIds,
+              },
+            },
 
-      select: {
-        id: true,
-        lessonId: true,
-
-        results: {
-          where: {
-            studentId: {
-              in: studentIds,
+            select: {
+              id: true,
+              studentId: true,
             },
           },
-
-          select: {
-            id: true,
-            studentId: true,
-          },
         },
-      },
-    }),
+      }),
+    ]);
 
-    prisma.reportCard.groupBy({
-      by: ["status"],
+  const existingStatusGroups = await prisma.reportCard.groupBy({
+    by: ["status"],
 
-      where: {
-        classId:
-          classRecord.id,
+    where: {
+      classId: classRecord.id,
+      academicYear: normalizedAcademicYear,
+      termId: term.id,
+    },
 
-        academicYear:
-          normalizedAcademicYear,
+    _count: {
+      id: true,
+    },
 
-        termId:
-          term.id,
-      },
+    orderBy: {
+      status: "asc",
+    },
+  });
 
-      _count: {
-        _all: true,
-      },
-    }),
-  ]);
-
-  const selectedWeighting =
-    gradeWeighting;
+  const selectedWeighting = gradeWeighting;
 
   /* ------------------------------------------------------------------------ */
   /*                          FOUNDATION CHECKS                               */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    classRecord.students.length >
-    0
-  ) {
+  if (classRecord.students.length > 0) {
     addCheck({
       id: "students",
       title: "Students",
       status: "READY",
       severity: "SUCCESS",
-      count:
-        classRecord.students.length,
+      count: classRecord.students.length,
       message: `${classRecord.students.length} student${
-        classRecord.students.length ===
-        1
-          ? ""
-          : "s"
+        classRecord.students.length === 1 ? "" : "s"
       } found in ${classRecord.name}.`,
     });
   } else {
@@ -584,27 +491,23 @@ export async function validateReportCardGeneration({
       status: "BLOCKED",
       severity: "ERROR",
       count: 0,
-      message:
-        "The selected class has no students.",
+      message: "The selected class has no students.",
     });
   }
 
-  if (
-    classRecord.lessons.length >
-    0
-  ) {
+  const distinctSubjectCount = new Set(
+    classRecord.lessons.map((lesson) => lesson.subject.id),
+  ).size;
+
+  if (distinctSubjectCount > 0) {
     addCheck({
       id: "subjects",
       title: "Subjects",
       status: "READY",
       severity: "SUCCESS",
-      count:
-        classRecord.lessons.length,
-      message: `${classRecord.lessons.length} subject${
-        classRecord.lessons.length ===
-        1
-          ? ""
-          : "s"
+      count: distinctSubjectCount,
+      message: `${distinctSubjectCount} subject${
+        distinctSubjectCount === 1 ? "" : "s"
       } found for the class.`,
     });
   } else {
@@ -614,8 +517,7 @@ export async function validateReportCardGeneration({
       status: "BLOCKED",
       severity: "ERROR",
       count: 0,
-      message:
-        "The selected class has no lessons or subjects.",
+      message: "The selected class has no lessons or subjects.",
     });
   }
 
@@ -630,18 +532,11 @@ export async function validateReportCardGeneration({
     });
   } else {
     const totalWeight =
-      selectedWeighting
-        .assignmentWeight +
-      selectedWeighting
-        .assessmentWeight +
-      selectedWeighting
-        .examWeight;
+      selectedWeighting.assignmentWeight +
+      selectedWeighting.assessmentWeight +
+      selectedWeighting.examWeight;
 
-    if (
-      Math.abs(
-        totalWeight - 100,
-      ) <= 0.001
-    ) {
+    if (Math.abs(totalWeight - 100) <= 0.001) {
       addCheck({
         id: "weighting",
         title: "Academic weighting",
@@ -659,26 +554,20 @@ export async function validateReportCardGeneration({
         title: "Academic weighting",
         status: "BLOCKED",
         severity: "ERROR",
-        message:
-          `The configured academic weights total ${totalWeight}% instead of 100%.`,
+        message: `The configured academic weights total ${totalWeight}% instead of 100%.`,
       });
     }
 
     if (
-      selectedWeighting
-        .gradingScale &&
-      selectedWeighting
-        .gradingScale
-        .boundaries.length >
-        0
+      selectedWeighting.gradingScale &&
+      selectedWeighting.gradingScale.boundaries.length > 0
     ) {
       addCheck({
         id: "grading-scale",
         title: "Grading scale",
         status: "READY",
         severity: "SUCCESS",
-        message:
-          `${selectedWeighting.gradingScale.name} is connected and contains grade boundaries.`,
+        message: `${selectedWeighting.gradingScale.name} is connected and contains grade boundaries.`,
       });
     } else {
       addCheck({
@@ -696,214 +585,180 @@ export async function validateReportCardGeneration({
   /*                          SUBJECT ANALYSIS                                */
   /* ------------------------------------------------------------------------ */
 
-  const subjectSummaries:
-    ReportCardGenerationSubjectSummary[] =
-    classRecord.lessons.map(
-      (lesson) => {
-        const lessonAssignments =
-          assignments.filter(
-            (item) =>
-              item.lessonId ===
-              lesson.id,
-          );
+  /* ------------------------------------------------------------------------ */
+  /*                          SUBJECT ANALYSIS                                */
+  /* ------------------------------------------------------------------------ */
 
-        const lessonAssessments =
-          assessments.filter(
-            (item) =>
-              item.lessonId ===
-              lesson.id,
-          );
+  /*
+   * A Lesson represents a scheduled teaching instance, not a unique
+   * report-card subject.
+   *
+   * A class can therefore contain several Lesson records for the same
+   * subject (for example, Mathematics on Monday, Wednesday and Friday).
+   *
+   * Report-card generation must aggregate those lesson records into one
+   * academic subject before analysing readiness.
+   */
+  const subjectGroups = new Map<
+    number,
+    {
+      subjectId: number;
+      subjectName: string;
+      lessonIds: number[];
+    }
+  >();
 
-        const lessonExaminations =
-          examinations.filter(
-            (item) =>
-              item.lessonId ===
-              lesson.id,
-          );
+  for (const lesson of classRecord.lessons) {
+    const subjectId = lesson.subject.id;
 
-        const assignmentStudentIds =
-          new Set(
-            lessonAssignments.flatMap(
-              (item) =>
-                item.results.map(
-                  (result) =>
-                    result.studentId,
-                ),
-            ),
-          );
+    const existingGroup = subjectGroups.get(subjectId);
 
-        const assessmentStudentIds =
-          new Set(
-            lessonAssessments.flatMap(
-              (item) =>
-                item.results.map(
-                  (result) =>
-                    result.studentId,
-                ),
-            ),
-          );
+    if (existingGroup) {
+      existingGroup.lessonIds.push(lesson.id);
 
-        const examinationStudentIds =
-          new Set(
-            lessonExaminations.flatMap(
-              (item) =>
-                item.results.map(
-                  (result) =>
-                    result.studentId,
-                ),
-            ),
-          );
+      continue;
+    }
 
-        const assignmentRequired =
-          (selectedWeighting
-            ?.assignmentWeight ??
-            0) > 0;
+    subjectGroups.set(subjectId, {
+      subjectId,
+      subjectName: lesson.subject.name,
+      lessonIds: [lesson.id],
+    });
+  }
 
-        const assessmentRequired =
-          (selectedWeighting
-            ?.assessmentWeight ??
-            0) > 0;
+  const subjectSummaries: ReportCardGenerationSubjectSummary[] = Array.from(
+    subjectGroups.values(),
+  ).map((subjectGroup) => {
+    const subjectLessonIds = new Set(subjectGroup.lessonIds);
 
-        const examinationRequired =
-          (selectedWeighting
-            ?.examWeight ??
-            0) > 0;
-
-        const missingAssignmentResults =
-          assignmentRequired
-            ? studentIds.filter(
-                (studentId) =>
-                  !assignmentStudentIds.has(
-                    studentId,
-                  ),
-              ).length
-            : 0;
-
-        const missingAssessmentResults =
-          assessmentRequired
-            ? studentIds.filter(
-                (studentId) =>
-                  !assessmentStudentIds.has(
-                    studentId,
-                  ),
-              ).length
-            : 0;
-
-        const missingExaminationResults =
-          examinationRequired
-            ? studentIds.filter(
-                (studentId) =>
-                  !examinationStudentIds.has(
-                    studentId,
-                  ),
-              ).length
-            : 0;
-
-        const hasBlockingConfiguration =
-          (assignmentRequired &&
-            lessonAssignments.length ===
-              0) ||
-          (assessmentRequired &&
-            lessonAssessments.length ===
-              0) ||
-          (examinationRequired &&
-            lessonExaminations.length ===
-              0);
-
-        const hasMissingResults =
-          missingAssignmentResults >
-            0 ||
-          missingAssessmentResults >
-            0 ||
-          missingExaminationResults >
-            0;
-
-        const calculationStatus:
-          ReportCardCalculationStatus =
-          hasBlockingConfiguration
-            ? "BLOCKED"
-            : hasMissingResults
-              ? "PARTIAL"
-              : "READY";
-
-        return {
-          subjectId:
-            lesson.subject.id,
-
-          subjectName:
-            lesson.subject.name,
-
-          studentCount:
-            studentIds.length,
-
-          assignmentCount:
-            lessonAssignments.length,
-
-          assessmentCount:
-            lessonAssessments.length,
-
-          examinationCount:
-            lessonExaminations.length,
-
-          assignmentResultCount:
-            lessonAssignments.reduce(
-              (
-                total,
-                item,
-              ) =>
-                total +
-                item.results.length,
-
-              0,
-            ),
-
-          assessmentResultCount:
-            lessonAssessments.reduce(
-              (
-                total,
-                item,
-              ) =>
-                total +
-                item.results.length,
-
-              0,
-            ),
-
-          examinationResultCount:
-            lessonExaminations.reduce(
-              (
-                total,
-                item,
-              ) =>
-                total +
-                item.results.length,
-
-              0,
-            ),
-
-          missingAssignmentResults,
-          missingAssessmentResults,
-          missingExaminationResults,
-
-          calculationStatus,
-        };
-      },
+    /*
+     * Collect every academic record belonging to any scheduled lesson
+     * for this subject.
+     */
+    const subjectAssignments = assignments.filter((item) =>
+      subjectLessonIds.has(item.lessonId),
     );
 
-  for (
-    const subject of
-    subjectSummaries
-  ) {
-    if (
-      subject.calculationStatus ===
-      "READY"
-    ) {
-      addCheck({
-        id:
-          `subject-${subject.subjectId}`,
+    const subjectAssessments = assessments.filter((item) =>
+      subjectLessonIds.has(item.lessonId),
+    );
 
-        title:
-          subject.subjectName,
+    const subjectExaminations = examinations.filter((item) =>
+      subjectLessonIds.has(item.lessonId),
+    );
+
+    /*
+     * A student counts as having a result for the subject/category when
+     * at least one result exists across the subject's lesson records.
+     *
+     * Sets intentionally remove duplicates where the same student has
+     * several assignments, assessments or examinations.
+     */
+    const assignmentStudentIds = new Set(
+      subjectAssignments.flatMap((item) =>
+        item.results.map((result) => result.studentId),
+      ),
+    );
+
+    const assessmentStudentIds = new Set(
+      subjectAssessments.flatMap((item) =>
+        item.results.map((result) => result.studentId),
+      ),
+    );
+
+    const examinationStudentIds = new Set(
+      subjectExaminations.flatMap((item) =>
+        item.results.map((result) => result.studentId),
+      ),
+    );
+
+    const assignmentRequired = (selectedWeighting?.assignmentWeight ?? 0) > 0;
+
+    const assessmentRequired = (selectedWeighting?.assessmentWeight ?? 0) > 0;
+
+    const examinationRequired = (selectedWeighting?.examWeight ?? 0) > 0;
+
+    const missingAssignmentResults = assignmentRequired
+      ? studentIds.filter((studentId) => !assignmentStudentIds.has(studentId))
+          .length
+      : 0;
+
+    const missingAssessmentResults = assessmentRequired
+      ? studentIds.filter((studentId) => !assessmentStudentIds.has(studentId))
+          .length
+      : 0;
+
+    const missingExaminationResults = examinationRequired
+      ? studentIds.filter((studentId) => !examinationStudentIds.has(studentId))
+          .length
+      : 0;
+
+    /*
+     * A required category blocks the subject only when there is no
+     * corresponding academic record anywhere across that subject's
+     * lesson records.
+     */
+    const hasBlockingConfiguration =
+      (assignmentRequired && subjectAssignments.length === 0) ||
+      (assessmentRequired && subjectAssessments.length === 0) ||
+      (examinationRequired && subjectExaminations.length === 0);
+
+    const hasMissingResults =
+      missingAssignmentResults > 0 ||
+      missingAssessmentResults > 0 ||
+      missingExaminationResults > 0;
+
+    const calculationStatus: ReportCardCalculationStatus =
+      hasBlockingConfiguration
+        ? "BLOCKED"
+        : hasMissingResults
+          ? "PARTIAL"
+          : "READY";
+
+    return {
+      subjectId: subjectGroup.subjectId,
+
+      subjectName: subjectGroup.subjectName,
+
+      studentCount: studentIds.length,
+
+      assignmentCount: subjectAssignments.length,
+
+      assessmentCount: subjectAssessments.length,
+
+      examinationCount: subjectExaminations.length,
+
+      assignmentResultCount: subjectAssignments.reduce(
+        (total, item) => total + item.results.length,
+        0,
+      ),
+
+      assessmentResultCount: subjectAssessments.reduce(
+        (total, item) => total + item.results.length,
+        0,
+      ),
+
+      examinationResultCount: subjectExaminations.reduce(
+        (total, item) => total + item.results.length,
+        0,
+      ),
+
+      missingAssignmentResults,
+
+      missingAssessmentResults,
+
+      missingExaminationResults,
+
+      calculationStatus,
+    };
+  });
+
+  for (const subject of subjectSummaries) {
+    if (subject.calculationStatus === "READY") {
+      addCheck({
+        id: `subject-${subject.subjectId}`,
+
+        title: subject.subjectName,
 
         status: "READY",
         severity: "SUCCESS",
@@ -915,123 +770,74 @@ export async function validateReportCardGeneration({
       continue;
     }
 
-    if (
-      subject.calculationStatus ===
-      "BLOCKED"
-    ) {
-      const missingCategories:
-        string[] = [];
+    if (subject.calculationStatus === "BLOCKED") {
+      const missingCategories: string[] = [];
 
       if (
         selectedWeighting &&
-        selectedWeighting
-          .assignmentWeight >
-          0 &&
-        subject.assignmentCount ===
-          0
+        selectedWeighting.assignmentWeight > 0 &&
+        subject.assignmentCount === 0
       ) {
-        missingCategories.push(
-          "assignment",
-        );
+        missingCategories.push("assignment");
       }
 
       if (
         selectedWeighting &&
-        selectedWeighting
-          .assessmentWeight >
-          0 &&
-        subject.assessmentCount ===
-          0
+        selectedWeighting.assessmentWeight > 0 &&
+        subject.assessmentCount === 0
       ) {
-        missingCategories.push(
-          "assessment",
-        );
+        missingCategories.push("assessment");
       }
 
       if (
         selectedWeighting &&
-        selectedWeighting
-          .examWeight >
-          0 &&
-        subject.examinationCount ===
-          0
+        selectedWeighting.examWeight > 0 &&
+        subject.examinationCount === 0
       ) {
-        missingCategories.push(
-          "examination",
-        );
+        missingCategories.push("examination");
       }
 
       addCheck({
-        id:
-          `subject-${subject.subjectId}`,
+        id: `subject-${subject.subjectId}`,
 
-        title:
-          subject.subjectName,
+        title: subject.subjectName,
 
         status: "BLOCKED",
         severity: "ERROR",
 
-        message:
-          `Required ${missingCategories.join(
-            ", ",
-          )} records have not been created for this subject.`,
+        message: `Required ${missingCategories.join(
+          ", ",
+        )} records have not been created for this subject.`,
       });
 
       continue;
     }
 
-    const missingParts:
-      string[] = [];
+    const missingParts: string[] = [];
 
-    if (
-      subject
-        .missingAssignmentResults >
-      0
-    ) {
-      missingParts.push(
-        `${subject.missingAssignmentResults} assignment`,
-      );
+    if (subject.missingAssignmentResults > 0) {
+      missingParts.push(`${subject.missingAssignmentResults} assignment`);
     }
 
-    if (
-      subject
-        .missingAssessmentResults >
-      0
-    ) {
-      missingParts.push(
-        `${subject.missingAssessmentResults} assessment`,
-      );
+    if (subject.missingAssessmentResults > 0) {
+      missingParts.push(`${subject.missingAssessmentResults} assessment`);
     }
 
-    if (
-      subject
-        .missingExaminationResults >
-      0
-    ) {
-      missingParts.push(
-        `${subject.missingExaminationResults} examination`,
-      );
+    if (subject.missingExaminationResults > 0) {
+      missingParts.push(`${subject.missingExaminationResults} examination`);
     }
 
     addCheck({
-      id:
-        `subject-${subject.subjectId}`,
+      id: `subject-${subject.subjectId}`,
 
-      title:
-        subject.subjectName,
+      title: subject.subjectName,
 
       status: "PARTIAL",
       severity: "WARNING",
 
-      message:
-        `${missingParts.join(
-          ", ",
-        )} student result${
-          missingParts.length ===
-          1
-            ? " is"
-            : "s are"
-        } missing.`,
+      message: `${missingParts.join(", ")} student result${
+        missingParts.length === 1 ? " is" : "s are"
+      } missing.`,
     });
   }
 
@@ -1039,131 +845,66 @@ export async function validateReportCardGeneration({
   /*                                 SUMMARY                                  */
   /* ------------------------------------------------------------------------ */
 
-  const lifecycleCount =
-    new Map(
-      existingStatusGroups.map(
-        (group) => [
-          group.status,
-          group._count._all,
-        ],
-      ),
-    );
+  const lifecycleCount = new Map(
+    existingStatusGroups.map((group) => [group.status, group._count.id]),
+  );
 
-  const existingReportCards =
-  existingStatusGroups.reduce(
-    (
-      total,
-      group,
-    ) =>
-      total +
-      group._count._all,
+  const existingReportCards = existingStatusGroups.reduce(
+    (total, group) => total + group._count.id,
 
     0,
   );
 
-  const summary:
-    ReportCardGenerationValidationSummary = {
-    students:
-      classRecord.students.length,
+  const summary: ReportCardGenerationValidationSummary = {
+    students: classRecord.students.length,
 
-    subjects:
-      classRecord.lessons.length,
+    subjects: subjectSummaries.length,
 
-    assignments:
-      assignments.length,
+    assignments: assignments.length,
 
-    assessments:
-      assessments.length,
+    assessments: assessments.length,
 
-    examinations:
-      examinations.length,
+    examinations: examinations.length,
 
-    assignmentResults:
-      assignments.reduce(
-        (
-          total,
-          item,
-        ) =>
-          total +
-          item.results.length,
+    assignmentResults: assignments.reduce(
+      (total, item) => total + item.results.length,
 
-        0,
-      ),
+      0,
+    ),
 
-    assessmentResults:
-      assessments.reduce(
-        (
-          total,
-          item,
-        ) =>
-          total +
-          item.results.length,
+    assessmentResults: assessments.reduce(
+      (total, item) => total + item.results.length,
 
-        0,
-      ),
+      0,
+    ),
 
-    examinationResults:
-      examinations.reduce(
-        (
-          total,
-          item,
-        ) =>
-          total +
-          item.results.length,
+    examinationResults: examinations.reduce(
+      (total, item) => total + item.results.length,
 
-        0,
-      ),
+      0,
+    ),
 
     existingReportCards,
 
-    existingDrafts:
-      lifecycleCount.get(
-        "DRAFT",
-      ) ?? 0,
+    existingDrafts: lifecycleCount.get("DRAFT") ?? 0,
 
-    publishedCards:
-      lifecycleCount.get(
-        "PUBLISHED",
-      ) ?? 0,
+    publishedCards: lifecycleCount.get("PUBLISHED") ?? 0,
 
-    archivedCards:
-      lifecycleCount.get(
-        "ARCHIVED",
-      ) ?? 0,
+    archivedCards: lifecycleCount.get("ARCHIVED") ?? 0,
   };
 
-  const errors =
-    checks.filter(
-      (check) =>
-        check.severity ===
-        "ERROR",
-    );
+  const errors = checks.filter((check) => check.severity === "ERROR");
 
-  const warnings =
-    checks.filter(
-      (check) =>
-        check.severity ===
-        "WARNING",
-    );
+  const warnings = checks.filter((check) => check.severity === "WARNING");
 
-  const successes =
-    checks.filter(
-      (check) =>
-        check.severity ===
-        "SUCCESS",
-    );
+  const successes = checks.filter((check) => check.severity === "SUCCESS");
 
   const completionPercentage =
     checks.length === 0
       ? 0
-      : Math.round(
-          (successes.length /
-            checks.length) *
-            100,
-        );
+      : Math.round((successes.length / checks.length) * 100);
 
-  const ready =
-    errors.length === 0;
+  const ready = errors.length === 0;
 
   return {
     ready,
@@ -1173,68 +914,46 @@ export async function validateReportCardGeneration({
      * underlying class configuration is valid but
      * individual students are missing some results.
      */
-    canGeneratePartialReports:
-      ready &&
-      warnings.length > 0,
+    canGeneratePartialReports: ready && warnings.length > 0,
 
     completionPercentage,
 
     class: {
-      id:
-        classRecord.id,
+      id: classRecord.id,
 
-      name:
-        classRecord.name,
+      name: classRecord.name,
 
-      grade:
-        classRecord.grade,
+      grade: classRecord.grade,
     },
 
     term,
 
-    academicYear:
-      normalizedAcademicYear,
+    academicYear: normalizedAcademicYear,
 
     weighting:
-      selectedWeighting &&
-      selectedWeighting
-        .gradingScale
+      selectedWeighting && selectedWeighting.gradingScale
         ? {
-            id:
-              selectedWeighting.id,
+            id: selectedWeighting.id,
 
-            assignmentWeight:
-              selectedWeighting
-                .assignmentWeight,
+            assignmentWeight: selectedWeighting.assignmentWeight,
 
-            assessmentWeight:
-              selectedWeighting
-                .assessmentWeight,
+            assessmentWeight: selectedWeighting.assessmentWeight,
 
-            examWeight:
-              selectedWeighting
-                .examWeight,
+            examWeight: selectedWeighting.examWeight,
 
-            passMark:
-              selectedWeighting
-                .passMark,
+            passMark: selectedWeighting.passMark,
 
             gradingScale: {
-              id:
-                selectedWeighting
-                  .gradingScale.id,
+              id: selectedWeighting.gradingScale.id,
 
-              name:
-                selectedWeighting
-                  .gradingScale.name,
+              name: selectedWeighting.gradingScale.name,
             },
           }
         : null,
 
     summary,
 
-    subjects:
-      subjectSummaries,
+    subjects: subjectSummaries,
 
     checks,
 
@@ -1243,4 +962,3 @@ export async function validateReportCardGeneration({
     successes,
   };
 }
-

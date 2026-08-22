@@ -26,7 +26,7 @@ import {
 } from "./action-result";
 
 import {
-  requireReportCardManager,
+  requireReportCardGenerationAccess,
 } from "./auth";
 
 /* -------------------------------------------------------------------------- */
@@ -97,9 +97,12 @@ export async function generateClassReportCardDrafts(
 
   try {
     const {
-        userId,
-      } = await requireReportCardManager();
-        
+      userId,
+    } =
+      await requireReportCardGenerationAccess(
+        parsed.data.classId,
+      );
+
     const summary =
       await generateClassReportCards(
         parsed.data,

@@ -1,10 +1,12 @@
+// src/lib/notifications/admin-dashboard.ts
 import "server-only";
 
-import {
-  auth,
-} from "@clerk/nextjs/server";
-
 import prisma from "@/lib/prisma";
+
+import {
+  requireNotificationOperationsPermission,
+} from "./operations-auth";
+
 
 /* -------------------------------------------------------------------------- */
 /*                                  TYPES                                     */
@@ -236,27 +238,10 @@ function resolveHealth({
 /* -------------------------------------------------------------------------- */
 
 export async function getNotificationOperationsData(): Promise<NotificationOperationsData> {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (
-    !userId ||
-    role !==
-      "admin"
-  ) {
-    throw new Error(
-      "Unauthorized",
-    );
-  }
+ await requireNotificationOperationsPermission(
+    "notification_operations.view",
+  );
 
   const startOfToday =
     getUtcStartOfToday();
@@ -620,28 +605,11 @@ export async function getNotificationOperationsData(): Promise<NotificationOpera
 /* -------------------------------------------------------------------------- */
 
 export async function getAdminNotificationSystemSettings() {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (
-    !userId ||
-    role !==
-      "admin"
-  ) {
-    throw new Error(
-      "Unauthorized",
-    );
-  }
-
+  await requireNotificationOperationsPermission(
+    "notification_operations.view",
+  );
+  
   const settings =
     await prisma.notificationSystemSettings.findUnique({
       where: {

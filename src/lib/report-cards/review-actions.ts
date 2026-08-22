@@ -1,3 +1,4 @@
+// src/lib/report-cards/review-actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -37,7 +38,7 @@ import { reportCardFailure, reportCardSuccess } from "./action-result";
 
 import { createReportCardActivity } from "./activity-service";
 
-import { requireReportCardAdmin, requireReportCardManager } from "./auth";
+import { requireReportCardPermission } from "./auth";
 
 import { buildReportCardManagerWhere } from "./access";
 
@@ -220,7 +221,8 @@ export async function saveReportCardDetails(
   }
 
   try {
-    const { userId, role } = await requireReportCardManager();
+    const { userId, role, scope, canReview } =
+      await requireReportCardPermission("report_cards.edit");
 
     const data = parsed.data;
 
@@ -229,7 +231,7 @@ export async function saveReportCardDetails(
 
       userId,
 
-      role,
+      scope,
     });
 
     if (!managerWhere) {
@@ -311,10 +313,9 @@ export async function saveReportCardDetails(
              * Teachers cannot overwrite
              * the head-teacher remark.
              */
-            headTeacherRemark:
-              role === "admin"
-                ? normalizeNullableText(data.headTeacherRemark)
-                : reportCard.headTeacherRemark,
+            headTeacherRemark: canReview
+              ? normalizeNullableText(data.headTeacherRemark)
+              : reportCard.headTeacherRemark,
 
             promotionStatus: normalizeNullableText(data.promotionStatus),
 
@@ -459,7 +460,9 @@ export async function submitReportCardForReview(
   }
 
   try {
-    const { userId, role } = await requireReportCardManager();
+    const { userId, role, scope } = await requireReportCardPermission(
+      "report_cards.submit",
+    );
 
     const { reportCardId, note } = parsed.data;
 
@@ -468,7 +471,7 @@ export async function submitReportCardForReview(
 
       userId,
 
-      role,
+      scope,
     });
 
     if (!managerWhere) {
@@ -663,7 +666,9 @@ export async function requestReportCardChanges(
   }
 
   try {
-    const { userId } = await requireReportCardAdmin();
+    const { userId, role } = await requireReportCardPermission(
+      "report_cards.review",
+    );
 
     const { reportCardId, reviewNote } = parsed.data;
 
@@ -737,7 +742,7 @@ export async function requestReportCardChanges(
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole: role,
 
           actorName: null,
 
@@ -770,7 +775,7 @@ export async function requestReportCardChanges(
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole: role,
 
           actorName: null,
         });
@@ -837,7 +842,9 @@ export async function approveReportCard(
   }
 
   try {
-    const { userId } = await requireReportCardAdmin();
+    const { userId, role } = await requireReportCardPermission(
+      "report_cards.review",
+    );
 
     const { reportCardId, reviewNote } = parsed.data;
 
@@ -920,7 +927,7 @@ export async function approveReportCard(
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole: role,
 
           actorName: null,
 
@@ -951,7 +958,7 @@ export async function approveReportCard(
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole: role,
 
           actorName: null,
         });
@@ -1015,7 +1022,9 @@ export async function reopenReportCardReview(
   }
 
   try {
-    const { userId } = await requireReportCardAdmin();
+    const { userId, role } = await requireReportCardPermission(
+      "report_cards.review",
+    );
 
     const { reportCardId, reviewNote } = parsed.data;
 
@@ -1116,7 +1125,7 @@ export async function reopenReportCardReview(
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole: role,
 
           actorName: null,
 
@@ -1150,7 +1159,7 @@ export async function reopenReportCardReview(
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole: role,
 
           actorName: null,
         });
@@ -1229,9 +1238,6 @@ function getReviewActionErrorMessage(error: unknown): string {
   switch (error.message) {
     case "UNAUTHORISED":
       return "You are not authorised to manage report cards.";
-
-    case "ADMIN_REQUIRED":
-      return "Only an administrator can perform this review action.";
 
     case "REPORT_CARD_NOT_FOUND":
       return "The selected report card could not be found.";

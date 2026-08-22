@@ -1,9 +1,12 @@
+// src/lib/notificstiond/dcheduled/scheduler-types.ts
 export type ScheduledScannerKey =
   | "assessment-due-soon"
   | "attendance-absence"
   | "attendance-completeness"
   | "fee-balance-reminders"
-  | "upcoming-events";
+  | "upcoming-events"
+  | "delegated-access-expiry"
+  | "access-review-deadlines";
 
 export type ScheduledScannerExecution = {
   key:

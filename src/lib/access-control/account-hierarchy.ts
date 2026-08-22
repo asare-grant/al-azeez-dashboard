@@ -1,3 +1,4 @@
+// src/lib/access-control/account-hierarchy.ts 
 import "server-only";
 
 type RoleLike = {
@@ -378,4 +379,26 @@ export function shouldRequireSensitiveReverification({
     default:
       return false;
   }
+}
+
+
+
+/* ========================================================================== */
+/* ROLE ASSIGNMENT REVERIFICATION                                             */
+/* ========================================================================== */
+
+export function shouldRequireRoleAssignmentReverification(
+  role:
+    ManageableRole,
+) {
+  const roleTrust =
+    getRoleTrustLevel(
+      role,
+    );
+
+  return (
+    role.isProtected ||
+    roleTrust >=
+      HIGH_TRUST_ACCOUNT_LEVEL
+  );
 }

@@ -1,0 +1,4012 @@
+SCHOOL MANAGEMENT AUTHORIZATION AUDIT
+=====================================
+
+Files scanned: 697
+Findings: 797
+
+SUMMARY
+-------
+ROLE_DERIVED_ROUTE: 12
+ROLE_TEMPLATE_ROUTE: 10
+SESSION_METADATA_ROLE: 82
+LEGACY_ROLE_ACCESS: 134
+DIRECT_ROLE_CHECK: 244
+SESSION_PUBLIC_METADATA: 5
+REQUIRE_ROUTE_ROLE: 7
+CLERK_PUBLIC_METADATA_ROLE: 10
+ROLE_ARRAY: 107
+ROUTE_ACCESS_MAP: 9
+PERMISSION_PREFIX: 1
+DIRECT_AUTH: 108
+CURRENT_USER: 7
+ACCESS_ACTOR: 24
+RBAC_CAN: 28
+ACCESS_CONTEXT: 9
+
+DETAILED FINDINGS
+-----------------
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/app/[[...sign-in]]/page.tsx:20
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/app/[[...sign-in]]/page.tsx:20
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/app/[[...sign-in]]/page.tsx:49
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/app/[[...sign-in]]/page.tsx:49
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/app/[[...sign-in]]/page.tsx:189
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/app/[[...sign-in]]/page.tsx:189
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/app/[[...sign-in]]/page.tsx:517
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/app/[[...sign-in]]/page.tsx:517
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/app/[[...sign-in]]/page.tsx:950
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/app/[[...sign-in]]/page.tsx:950
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/app/[[...sign-in]]/page.tsx:1540
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/app/[[...sign-in]]/page.tsx:1540
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/components/NavbarClient.tsx:386
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/components/NavbarClient.tsx:386
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/lib/auth/route-permissions.ts:154
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/lib/navigation/roles.ts:113
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/lib/navigation/roles.ts:113
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/middleware.ts:224
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/middleware.ts:453
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/middleware.ts:453
+Match: `/${role}
+Template route generated from role.
+
+[CRITICAL] ROLE_DERIVED_ROUTE
+src/middleware.ts:462
+Match: /${role}
+A URL/path appears to be generated directly from a role.
+
+[CRITICAL] ROLE_TEMPLATE_ROUTE
+src/middleware.ts:462
+Match: `/${role}
+Template route generated from role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/dashboard/page.tsx:61
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/delegated-access/page.tsx:595
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/page.tsx:363
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:357
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1033
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1034
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1037
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1075
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1081
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1144
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1144
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1268
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1270
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1455
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1560
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:1595
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:2366
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:3899
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4282
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4283
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4403
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4404
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4407
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4650
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4651
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:4654
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:5223
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:5224
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:7506
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8031
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8032
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8118
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8126
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8127
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8214
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8215
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8316
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8317
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8321
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8322
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:8325
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/page.tsx:433
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/(dashboard)/list/access-control/users/page.tsx:436
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/announcements/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/announcements/page.tsx:30
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/announcements/page.tsx:44
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/announcements/page.tsx:82
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/announcements/page.tsx:120
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/assignments/page.tsx:28
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/assignments/page.tsx:36
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/assignments/page.tsx:36
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/assignments/page.tsx:56
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/assignments/page.tsx:56
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/assignments/page.tsx:151
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/assignments/page.tsx:151
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/attendance/page.tsx:11
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/classes/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/classes/page.tsx:29
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/classes/page.tsx:47
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/classes/page.tsx:106
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/events/page.tsx:27
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/events/page.tsx:45
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/events/page.tsx:79
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/events/page.tsx:169
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/exams/page.tsx:28
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/exams/page.tsx:37
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/exams/page.tsx:37
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/exams/page.tsx:58
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/exams/page.tsx:58
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/exams/page.tsx:146
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/exams/page.tsx:146
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/fee-category/page.tsx:19
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-category/page.tsx:23
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-category/page.tsx:34
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-category/page.tsx:80
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/fee-master/page.tsx:24
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/fee-structure/page.tsx:27
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-structure/page.tsx:65
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-structure/page.tsx:79
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-structure/page.tsx:106
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/fee-type/page.tsx:20
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-type/page.tsx:29
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-type/page.tsx:43
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee-type/page.tsx:91
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/fee/page.tsx:27
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee/page.tsx:115
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee/page.tsx:133
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/fee/page.tsx:156
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/FeeStructureListPage/page.tsx:24
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/FeeStructureListPage/page.tsx:33
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/FeeStructureListPage/page.tsx:49
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/FeeStructureListPage/page.tsx:99
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/FinanceDashboardPage/page.tsx:29
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/FinanceDashboardPage/page.tsx:135
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/FinanceDashboardPage/page.tsx:185
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/lessons/page.tsx:26
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/lessons/page.tsx:33
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/lessons/page.tsx:51
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/lessons/page.tsx:119
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/parents/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/parents/page.tsx:30
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/parents/page.tsx:54
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/parents/page.tsx:110
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/report-cards/[reportCardId]/page.tsx:38
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/report-cards/[reportCardId]/page.tsx:46
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/report-cards/[reportCardId]/page.tsx:50
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/report-cards/[reportCardId]/page.tsx:50
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/report-cards/page.tsx:47
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/report-cards/page.tsx:105
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/results/legacy/page.tsx:70
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/legacy/page.tsx:89
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/legacy/page.tsx:89
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/legacy/page.tsx:133
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/legacy/page.tsx:133
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/legacy/page.tsx:390
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/legacy/page.tsx:390
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/results/page.tsx:33
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/page.tsx:41
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/page.tsx:94
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/page.tsx:104
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/results/page.tsx:105
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/settings/academic-calendar/page.tsx:32
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/settings/academic-calendar/page.tsx:37
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/settings/audit/page.tsx:145
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/settings/audit/page.tsx:152
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/settings/page.tsx:39
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/settings/page.tsx:46
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/students/[id]/page.tsx:26
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/students/[id]/page.tsx:66
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/students/[id]/page.tsx:174
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/students/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/students/page.tsx:103
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/students/page.tsx:133
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/students/page.tsx:170
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/subjects/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/subjects/page.tsx:28
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/subjects/page.tsx:41
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/subjects/page.tsx:98
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/teachers/[id]/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/teachers/[id]/page.tsx:67
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/list/teachers/page.tsx:22
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/teachers/page.tsx:47
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/teachers/page.tsx:89
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/list/teachers/page.tsx:146
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/notifications/page.tsx:31
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/parent/results/page.tsx:42
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/parent/results/page.tsx:49
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/(dashboard)/teacher/classes/page.tsx:40
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/teacher/classes/page.tsx:46
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/teacher/classes/page.tsx:47
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/teacher/classes/page.tsx:55
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/(dashboard)/teacher/classes/page.tsx:86
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/academic-period-options/route.ts:36
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/academic-period-options/route.ts:43
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/academic-period-options/route.ts:44
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:509
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:643
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:762
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:915
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:971
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:1196
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:1251
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/lifecycle/route.ts:284
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/lifecycle/route.ts:342
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/lifecycle/route.ts:439
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/lifecycle/route.ts:499
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/start/route.ts:196
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/campaigns/[campaignId]/start/route.ts:232
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/reports/route.ts:238
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/reviews/reports/route.ts:257
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/access-control/users/[userId]/audit/export/route.ts:166
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:312
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:347
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:348
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:426
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:443
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:443
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/password-reset/route.ts:238
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/password-reset/route.ts:262
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/password-reset/route.ts:262
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/password-reset/route.ts:321
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/password-reset/route.ts:321
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:129
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:182
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:182
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:185
+Match: legacyRole === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:185
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:186
+Match: legacyRole === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:186
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:187
+Match: legacyRole === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:187
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:188
+Match: legacyRole === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:188
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:219
+Match: legacyRole === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:219
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:243
+Match: legacyRole === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:243
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:267
+Match: legacyRole === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:267
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/access-control/users/[userId]/profile/route.ts:294
+Match: legacyRole === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:294
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:324
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:342
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:385
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:454
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/profile/route.ts:463
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/roles/route.ts:518
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/roles/route.ts:714
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/roles/route.ts:843
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/roles/route.ts:1113
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/access-control/users/[userId]/roles/route.ts:1348
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/attendance/create/route.ts:134
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/attendance/create/route.ts:138
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/attendance/update/[id]/route.ts:10
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/attendance/update/[id]/route.ts:15
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/attendance/update/[id]/route.ts:46
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/attendance/update/[id]/route.ts:67
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/attendance/upsert/route.ts:26
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/attendance/upsert/route.ts:128
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/dev/access-check/route.ts:42
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/dev/access-check/route.ts:44
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/app/api/dev/access-check/route.ts:60
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/generate-invoices/route.ts:36
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/generate-invoices/route.ts:38
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/api/lessonsForUser/route.ts:8
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/lessonsForUser/route.ts:12
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/app/api/lessonsForUser/route.ts:17
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/app/session-tasks/reset-password/complete/page.tsx:30
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/components/access-control/EditUserDrawer.tsx:33
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/components/access-control/EditUserDrawer.tsx:443
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/components/access-control/EditUserDrawer.tsx:639
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/components/Announcements.tsx:6
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/Announcements.tsx:18
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:221
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:223
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:235
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:237
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:239
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:244
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:246
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:248
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:548
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:550
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:599
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:601
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:603
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:608
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:610
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AppSidebarClient.tsx:612
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/AttendanceTable.tsx:70
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/components/EventCalendarContainer.tsx:57
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] SESSION_METADATA_ROLE
+src/components/EventList.tsx:46
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/fee-master/FeeMasterHeader.tsx:39
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/fee-master/FeeMasterTable.tsx:27
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/fee-master/FeeMasterTable.tsx:45
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/components/FormContainer.tsx:36
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/FormContainer.tsx:82
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/FormContainer.tsx:173
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/FormContainer.tsx:215
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/FormContainer.tsx:283
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/NavbarClient.tsx:124
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/components/NavbarClient.tsx:401
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/academic-weightings/auth.ts:23
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/academic-weightings/auth.ts:28
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/access-review-campaigns.ts:397
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/account-hierarchy.ts:16
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/account-hierarchy.ts:98
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/account-hierarchy.ts:99
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/admin-dashboard.ts:41
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/admin-dashboard.ts:42
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/access-control/admin-dashboard.ts:64
+Match: legacyRole === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/admin-dashboard.ts:64
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/access-control/admin-dashboard.ts:66
+Match: legacyRole === "super_admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/admin-dashboard.ts:66
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/admin-dashboard.ts:219
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/admin-dashboard.ts:456
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/context.ts:28
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/context.ts:87
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/context.ts:250
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/context.ts:251
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/current-actor.ts:96
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/delegated-access.ts:391
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/access-control/provisioning-service.ts:27
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/access-control/provisioning-service.ts:39
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/provisioning-service.ts:266
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/access-control/role-service.ts:24
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/access-control/role-service.ts:35
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:21
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:50
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:60
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:140
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:166
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:182
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:227
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/sync-current-user.ts:285
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/access-control/types.ts:33
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:564
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:572
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:658
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:672
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:745
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:751
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:768
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:771
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:803
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:809
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:849
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:859
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:880
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:883
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:901
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:909
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:994
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:1008
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:1103
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:1107
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:1535
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:1540
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:1705
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:1710
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:1963
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:1968
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:2444
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/actions.ts:2449
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/actions.ts:2795
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/actions.ts:166
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/actions.ts:183
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/actions.ts:2650
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/actions.ts:2726
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/assessments/auth.ts:19
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:37
+Match: user.role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:37
+Match: user.role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:47
+Match: user.role !== "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/assessments/auth.ts:177
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:240
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:246
+Match: user.role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/assessments/auth.ts:265
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/assessments/auth.ts:267
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:280
+Match: legacyRole === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/assessments/auth.ts:280
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:282
+Match: legacyRole === "super_admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/assessments/auth.ts:282
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:284
+Match: user.role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:286
+Match: user.role === "super_admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/auth.ts:347
+Match: user.role !== "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:12
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:12
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:18
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:31
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:32
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:42
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:68
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/permissions.ts:81
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:41
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:102
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:241
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:498
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:653
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:2064
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:2433
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:2815
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:2824
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:3481
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/assessments/queries.ts:3612
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:3617
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/assessments/queries.ts:3825
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/assessments/queries.ts:3830
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/auth/route-permissions.ts:140
+Match: role === "super_admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/events/visibility.ts:24
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/events/visibility.ts:31
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/events/visibility.ts:56
+Match: role === "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/finance/notification-actions.ts:50
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/finance/notification-actions.ts:58
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/finance/notification-actions.ts:360
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/finance/notification-actions.ts:372
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/navigation/roles.ts:288
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/navigation/roles.ts:290
+Match: role === "super_admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/notifications/actions.ts:716
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/notifications/actions.ts:722
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/notifications/admin-dashboard.ts:246
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/notifications/admin-dashboard.ts:253
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/notifications/admin-dashboard.ts:630
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/notifications/admin-dashboard.ts:637
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/notifications/analytics.ts:205
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/notifications/analytics.ts:210
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/notifications/recipients.ts:150
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/notifications/recipients.ts:210
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/notifications/recipients.ts:224
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/notifications/recipients.ts:304
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/access.ts:211
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/access.ts:212
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/report-cards/auth.ts:25
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/auth.ts:49
+Match: user.role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/auth.ts:50
+Match: user.role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/auth.ts:64
+Match: user.role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/report-cards/auth.ts:114
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/auth.ts:142
+Match: user.role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/auth.ts:143
+Match: user.role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/auth.ts:164
+Match: user.role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/bulk-review-actions.ts:44
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/generation-validator.ts:159
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/generation-validator.ts:160
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/generation-validator.ts:239
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:284
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:284
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:314
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:411
+Match: role !== "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:459
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:595
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:762
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:762
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:787
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:1057
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:1225
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:1325
+Match: role !== "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:1387
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:1437
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:1566
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2003
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2053
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2053
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2060
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2121
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2204
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2204
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2216
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/queries.ts:2589
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-actions.ts:315
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-permissions.ts:39
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-permissions.ts:46
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-permissions.ts:53
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-permissions.ts:58
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-permissions.ts:64
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/report-cards/review-permissions.ts:69
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/results/command-centre-queries.ts:30
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/command-centre-queries.ts:35
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/command-centre-queries.ts:35
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/command-centre-queries.ts:97
+Match: role === "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/command-centre-queries.ts:734
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/command-centre-queries.ts:756
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/command-centre-queries.ts:778
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/results/queries.ts:29
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/queries.ts:35
+Match: role === "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/results/queries.ts:445
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/queries.ts:1047
+Match: role !== "student"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/queries.ts:1087
+Match: role !== "parent"
+Direct comparison against a legacy/persona role.
+
+[HIGH] SESSION_METADATA_ROLE
+src/lib/results/student-profile-queries.ts:39
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/student-profile-queries.ts:45
+Match: role !== "admin"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/student-profile-queries.ts:46
+Match: role !== "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/student-profile-queries.ts:356
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] DIRECT_ROLE_CHECK
+src/lib/results/student-profile-queries.ts:670
+Match: role === "teacher"
+Direct comparison against a legacy/persona role.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/users/current-school-profile.ts:411
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/users/current-school-profile.ts:435
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/lib/users/current-school-profile.ts:691
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/middleware.ts:146
+Match: sessionClaims ?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] SESSION_METADATA_ROLE
+src/middleware.ts:403
+Match: sessionClaims?.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/scripts/audit-authorization.mjs:60
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/scripts/audit-authorization.mjs:74
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[HIGH] SESSION_METADATA_ROLE
+src/scripts/audit-authorization.mjs:107
+Match: sessionClaims.metadata
+Role is being read directly from sessionClaims.metadata.
+
+[HIGH] LEGACY_ROLE_ACCESS
+src/scripts/audit-authorization.mjs:217
+Match: legacyRole
+Direct use of UserAccount.legacyRole.
+
+[MEDIUM] SESSION_PUBLIC_METADATA
+src/app/(dashboard)/dashboard/page.tsx:52
+Match: sessionClaims ?.publicMetadata
+Role/identity information is being read directly from publicMetadata.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/app/(dashboard)/list/academic-settings/layout.tsx:14
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/app/(dashboard)/list/report-cards/layout.tsx:14
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/app/(dashboard)/parent/layout.tsx:14
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/app/(dashboard)/student/layout.tsx:14
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/app/(dashboard)/teacher/layout.tsx:14
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/app/[[...sign-in]]/page.tsx:17
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/app/[[...sign-in]]/page.tsx:188
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/app/[[...sign-in]]/page.tsx:516
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/app/[[...sign-in]]/page.tsx:949
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] SESSION_PUBLIC_METADATA
+src/app/session-tasks/reset-password/complete/page.tsx:23
+Match: sessionClaims?.publicMetadata
+Role/identity information is being read directly from publicMetadata.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:152
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:158
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:164
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:170
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:179
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:185
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:191
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:197
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:203
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:209
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:215
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:226
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:252
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:262
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:272
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:282
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:292
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:301
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:307
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:313
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:319
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:325
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:331
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:337
+Match: ["admin", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:343
+Match: ["admin", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:361
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:367
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:373
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:379
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:388
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:397
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:432
+Match: ["admin", "super_admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:446
+Match: ["admin", "super_admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:460
+Match: ["admin", "super_admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:480
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:494
+Match: ["admin", "super_admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:508
+Match: ["admin", "super_admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:522
+Match: ["admin", "super_admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:536
+Match: ["admin", "super_admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:555
+Match: ["admin", "super_admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:569
+Match: ["admin", "super_admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:583
+Match: ["admin", "super_admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:617
+Match: ["admin", "super_admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:631
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:645
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:659
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:673
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:693
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:707
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:721
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:735
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:749
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:763
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:777
+Match: ["admin", "super_admin", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:791
+Match: ["admin", "super_admin", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:892
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:911
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:925
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:939
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:955
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:969
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:988
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/AppSidebarClient.tsx:1002
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:13
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:19
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:25
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:31
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:37
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:43
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:49
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:55
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:61
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:67
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:73
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:79
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:85
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:91
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:102
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:108
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/components/Menu.tsx:114
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/components/Navbar.tsx:18
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/components/Navbar.tsx:80
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] ROLE_ARRAY
+src/components/results/student-profile/StudentResultsProfileHero.tsx:21
+Match: ["student"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/academic-engine/ranking.ts:260
+Match: ["student"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/academic-engine/subject-performance.ts:35
+Match: ["student"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/lib/access-control/sync-current-user.ts:51
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/lib/access-control/sync-current-user.ts:53
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] SESSION_PUBLIC_METADATA
+src/lib/assessments/auth.ts:168
+Match: sessionClaims ?.publicMetadata
+Role/identity information is being read directly from publicMetadata.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/lib/auth/route-permissions.ts:21
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] REQUIRE_ROUTE_ROLE
+src/lib/auth/route-permissions.ts:111
+Match: requireRouteRole(
+Legacy persona route guard usage.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/lib/settings.ts:62
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/lib/settings.ts:206
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:207
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:208
+Match: ["student"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:209
+Match: ["teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:210
+Match: ["parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:211
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:212
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:213
+Match: ["admin", "teacher"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:214
+Match: ["admin", "super_admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:215
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:216
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:217
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:218
+Match: ["admin", "teacher", "student", "parent"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:219
+Match: ["admin", "teacher", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:220
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:221
+Match: ["admin", "teacher", "student", "parent", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:222
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:223
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:224
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:225
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:226
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:227
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:228
+Match: ["admin", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:229
+Match: ["admin", "account"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] ROLE_ARRAY
+src/lib/settings.ts:230
+Match: ["admin"]
+Hard-coded role array may represent legacy navigation/route authorization.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/lib/users/current-school-profile.ts:366
+Match: publicMetadata .role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/middleware.ts:13
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/middleware.ts:28
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/middleware.ts:39
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] SESSION_PUBLIC_METADATA
+src/middleware.ts:137
+Match: sessionClaims ?.publicMetadata
+Role/identity information is being read directly from publicMetadata.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/middleware.ts:283
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/middleware.ts:290
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/middleware.ts:298
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[MEDIUM] SESSION_PUBLIC_METADATA
+src/middleware.ts:396
+Match: sessionClaims?.publicMetadata
+Role/identity information is being read directly from publicMetadata.
+
+[MEDIUM] CLERK_PUBLIC_METADATA_ROLE
+src/scripts/audit-authorization.mjs:135
+Match: publicMetadata.role
+Direct Clerk publicMetadata.role access.
+
+[MEDIUM] ROUTE_ACCESS_MAP
+src/scripts/audit-authorization.mjs:199
+Match: routeAccessMap
+Transitional routeAccessMap dependency.
+
+[REVIEW] PERMISSION_PREFIX
+src/lib/assessments/auth.ts:322
+Match: .startsWith( "assessments.
+Permission-prefix authorization. Good for workspace visibility but review for mutations.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/dashboard/page.tsx:40
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/announcements/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/assignments/page.tsx:27
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/attendance/page.tsx:8
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/bus-fees/page.tsx:9
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/classes/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/events/page.tsx:26
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/exams/page.tsx:27
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/fee-category/page.tsx:18
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/fee-master/page.tsx:23
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/fee-structure/page.tsx:26
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/fee-type/page.tsx:19
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/fee/page.tsx:26
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/feeding-fees/page.tsx:8
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/feeding-fees/page.tsx:67
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/FeeStructureListPage/page.tsx:23
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/FinanceDashboardPage/page.tsx:28
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/lessons/page.tsx:25
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/parents/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/report-cards/[reportCardId]/page.tsx:35
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/report-cards/page.tsx:44
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/results/legacy/page.tsx:69
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/results/page.tsx:26
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/settings/academic-calendar/page.tsx:25
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/settings/audit/page.tsx:136
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/settings/page.tsx:30
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/students/[id]/page.tsx:25
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/students/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/subjects/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/teachers/[id]/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/list/teachers/page.tsx:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/notifications/page.tsx:28
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/parent/children/[childId]/fees/[feeMasterId]/page.tsx:107
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/parent/children/[childId]/fees/page.tsx:123
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/parent/page.tsx:37
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/parent/results/page.tsx:33
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/student/page.tsx:16
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/teacher/classes/page.tsx:33
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/(dashboard)/teacher/page.tsx:13
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/academic-period-options/route.ts:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/access-control/users/[userId]/audit/export/route.ts:163
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/attendance/create/route.ts:133
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/attendance/update/[id]/route.ts:9
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/attendance/update/[id]/route.ts:45
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/attendance/upsert/route.ts:12
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/debug/route.ts:6
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] CURRENT_USER
+src/app/api/debug/route.ts:7
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/dev/access-check/route.ts:40
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/fees/parent-statement/route.ts:11
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/generate-invoices/route.ts:35
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/api/lessonsForUser/route.ts:7
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/app/session-tasks/reset-password/complete/page.tsx:13
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/components/Announcements.tsx:5
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/components/EventCalendarContainer.tsx:50
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/components/EventList.tsx:39
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/components/FormContainer.tsx:35
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] CURRENT_USER
+src/components/Navbar.tsx:11
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] CURRENT_USER
+src/components/Navbar.tsx:73
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/academic-weightings/auth.ts:14
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/access-control/context.ts:62
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/access-control/current-actor.ts:23
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/access-control/provisioning-service.ts:24
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/access-control/reverification.ts:31
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/access-control/role-service.ts:21
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] CURRENT_USER
+src/lib/access-control/role-service.ts:39
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] CURRENT_USER
+src/lib/access-control/sync-current-user.ts:42
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:561
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:655
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:744
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:767
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:802
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:848
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:879
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:898
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:991
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:1102
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:1532
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:1702
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:1960
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:2441
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/actions.ts:2792
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/assessments/auth.ts:16
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/assessments/auth.ts:144
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/assessments/queries.ts:3609
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/assessments/queries.ts:3822
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/auth/route-permissions.ts:28
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/finance/notification-actions.ts:47
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/finance/notification-actions.ts:357
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:36
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:105
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:169
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:213
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:284
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:398
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:516
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/actions.ts:701
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/admin-dashboard.ts:243
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/admin-dashboard.ts:627
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/analytics.ts:202
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/queries.ts:38
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/queries.ts:151
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/queries.ts:178
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/queries.ts:214
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/queries.ts:388
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/notifications/queries.ts:480
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/report-cards/auth.ts:16
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/report-cards/auth.ts:105
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/results/command-centre-queries.ts:23
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/results/queries.ts:20
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/results/queries.ts:436
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/lib/results/student-profile-queries.ts:30
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] CURRENT_USER
+src/lib/users/current-school-profile.ts:32
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] CURRENT_USER
+src/lib/users/current-school-profile.ts:354
+Match: await currentUser(
+Direct Clerk currentUser() usage; inspect for role-based authorization.
+
+[INFO] DIRECT_AUTH
+src/middleware.ts:98
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[INFO] DIRECT_AUTH
+src/middleware.ts:343
+Match: await auth(
+Direct Clerk auth() usage; inspect if it also performs authorization.
+
+[GOOD] ACCESS_ACTOR
+src/app/(dashboard)/dashboard/page.tsx:121
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/app/(dashboard)/list/access-control/delegated-access/page.tsx:144
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:92
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:94
+Match: .can("access_reviews.view")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:121
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:125
+Match: .can("access_reviews.decide")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:129
+Match: .can("access_reviews.export")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:363
+Match: .can("access_reviews.export")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:377
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:393
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:411
+Match: .can("access_reviews.export")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:426
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/[campaignId]/page.tsx:446
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/(dashboard)/list/access-control/reviews/governance/page.tsx:70
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/governance/page.tsx:75
+Match: .can("access_reviews.export")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/governance/page.tsx:165
+Match: .can("access_reviews.export")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/(dashboard)/list/access-control/reviews/page.tsx:38
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/page.tsx:40
+Match: .can("access_reviews.view")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/reviews/page.tsx:42
+Match: .can("access_reviews.create")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:316
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:703
+Match: .can("users.update")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:705
+Match: .can("roles.assign")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:707
+Match: .can("roles.remove")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:709
+Match: .can("roles.manage_expiry")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:723
+Match: .can("users.manage_status")
+Exact Access Control permission check.
+
+[GOOD] RBAC_CAN
+src/app/(dashboard)/list/access-control/users/[userId]/page.tsx:725
+Match: .can("users.reset_password")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/reviews/campaigns/[campaignId]/items/[itemId]/route.ts:300
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/reviews/campaigns/[campaignId]/lifecycle/route.ts:104
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/reviews/campaigns/[campaignId]/lifecycle/route.ts:117
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/reviews/campaigns/[campaignId]/start/route.ts:53
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/reviews/campaigns/[campaignId]/start/route.ts:66
+Match: .can("access_reviews.manage")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/reviews/reports/route.ts:62
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:63
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/users/[userId]/lifecycle/route.ts:76
+Match: .can("users.manage_status")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/users/[userId]/password-reset/route.ts:58
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/users/[userId]/password-reset/route.ts:71
+Match: .can("users.reset_password")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/users/[userId]/profile/route.ts:40
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/users/[userId]/profile/route.ts:53
+Match: .can("users.update")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/users/[userId]/roles/route.ts:282
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/users/[userId]/roles/route.ts:295
+Match: .can("roles.assign")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/users/[userId]/roles/route.ts:615
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/app/api/access-control/users/[userId]/roles/route.ts:628
+Match: .can("roles.remove")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/app/api/access-control/users/[userId]/roles/route.ts:980
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/app/api/dev/access-check/route.ts:52
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/components/AppSidebar.tsx:57
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/access-control/access-review-analytics.ts:323
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/access-control/access-review-campaigns.ts:65
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] RBAC_CAN
+src/lib/access-control/access-review-campaigns.ts:75
+Match: .can("access_reviews.create")
+Exact Access Control permission check.
+
+[GOOD] ACCESS_ACTOR
+src/lib/access-control/admin-dashboard.ts:16
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/access-control/context.ts:58
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/access-control/current-actor.ts:20
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/access-control/delegated-access.ts:182
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/access-control/delegated-access.ts:194
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/access-control/guards.ts:24
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/access-control/permissions.ts:119
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/access-control/permissions.ts:133
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/access-control/permissions.ts:147
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/access-control/roles.ts:58
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/assessments/auth.ts:257
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_ACTOR
+src/lib/auth/route-permissions.ts:108
+Match: getCurrentAccessActor(
+Central Access Control actor resolution.
+
+[GOOD] ACCESS_CONTEXT
+src/lib/auth/route-permissions.ts:109
+Match: getCurrentAccessContext(
+Effective Access Control context resolution.

@@ -22,7 +22,7 @@ type ReportCardToolbarProps = {
 
   calculationStatus: ReportCardCalculationStatus;
 
-  isAdmin: boolean;
+  canPublish: boolean;
 
   backHref?: string;
 
@@ -37,7 +37,7 @@ export default function ReportCardToolbar({
   reportCardId,
   status,
   calculationStatus,
-  isAdmin,
+  canPublish,
   backHref = "/list/report-cards",
   printHref = `/list/report-cards/${reportCardId}/print`,
   reviewHref,
@@ -81,7 +81,7 @@ export default function ReportCardToolbar({
           Print / PDF
         </Link>
 
-        {isAdmin ? (
+        {canPublish ? (
           <>
             <PublishReportCardButton
               reportCardId={reportCardId}

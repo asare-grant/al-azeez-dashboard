@@ -1,3 +1,4 @@
+// src/components/AttendanceTable.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -46,9 +47,16 @@ type ClassLite = {
 
 interface Props {
   students: StudentLite[];
+
   classes: ClassLite[];
-  role: "admin" | "teacher";
+
   userId: string;
+
+  canRecordAttendance: boolean;
+
+  canModifyAttendance: boolean;
+
+  attendanceScope: "GLOBAL" | "SUPERVISED_CLASSES";
 }
 
 /* ---------------- COMPONENT ---------------- */
@@ -56,8 +64,10 @@ interface Props {
 export default function AttendanceTable({
   students,
   classes,
-  role,
   userId,
+  canRecordAttendance,
+  canModifyAttendance,
+  attendanceScope,
 }: Props) {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -67,10 +77,26 @@ export default function AttendanceTable({
   /* ---------------- PERMISSIONS ---------------- */
 
   const canEdit = useMemo(() => {
-    if (role === "admin") return true;
+    const hasMutationPermission = canRecordAttendance 
+
+    if (!hasMutationPermission) {
+      return false;
+    }
+
+    if (attendanceScope === "GLOBAL") {
+      return true;
+    }
+
     const cls = classes.find((c) => c.id === Number(selectedClass));
+
     return cls?.supervisorId === userId;
-  }, [role, userId, selectedClass, classes]);
+  }, [
+    canRecordAttendance,
+    attendanceScope,
+    userId,
+    selectedClass,
+    classes,
+  ]);
 
   /* ---------------- HELPERS ---------------- */
 

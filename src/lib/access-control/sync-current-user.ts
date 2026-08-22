@@ -1,3 +1,4 @@
+// src/lib/access-control/sync-current-user.ts
 import "server-only";
 
 import {

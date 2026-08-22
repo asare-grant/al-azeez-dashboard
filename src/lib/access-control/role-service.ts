@@ -1,10 +1,13 @@
+// src/lib/access-control/role-service.ts
 import "server-only";
-
-import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
+
+import {
+  getCurrentAccessActor,
+} from "@/lib/access-control";
 
 import {
   cloneAccessRoleSchema,
@@ -17,37 +20,71 @@ import {
 /*                           CURRENT ADMIN ACTOR                              */
 /* -------------------------------------------------------------------------- */
 
-async function requireRoleManagementAdmin() {
-  const { userId, sessionClaims } = await auth();
+/* -------------------------------------------------------------------------- */
+/*                      ROLE MANAGEMENT ACTOR                                 */
+/* -------------------------------------------------------------------------- */
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+type RoleManagementPermission =
+  | "roles.manage"
+  | "permissions.manage";
 
-  /*
-   * IMPORTANT:
-   *
-   * We still deliberately enforce through the
-   * existing Clerk role during the shadow-RBAC phase.
-   */
-  if (!userId || role !== "admin") {
-    throw new Error("Unauthorized");
+async function requireRoleManagementActor(
+  permission:
+    RoleManagementPermission,
+) {
+  const accessActor =
+    await getCurrentAccessActor();
+
+  if (
+    !accessActor
+  ) {
+    throw new Error(
+      "UNAUTHENTICATED",
+    );
   }
 
-  const clerkUser = await currentUser();
+  if (
+    !accessActor.can(
+      permission,
+    )
+  ) {
+    throw new Error(
+      "UNAUTHORIZED",
+    );
+  }
 
-  const actorName = clerkUser?.firstName
-    ? `${clerkUser.firstName} ${clerkUser.lastName ?? ""}`.trim()
-    : (clerkUser?.username ?? "Administrator");
+  const actorAccount =
+    accessActor.actor;
+
+  const actorRole =
+    actorAccount.legacyRole
+      ?.trim()
+      .toLowerCase() ??
+    accessActor.activeAssignments[0]
+      ?.role.key
+      ?.trim()
+      .toLowerCase() ??
+    null;
+
+  const actorName =
+    actorAccount.displayName
+      ?.trim() ||
+    actorAccount.username
+      ?.trim() ||
+    actorAccount.email
+      ?.trim() ||
+    "Access Administrator";
 
   return {
-    userId,
+    userId:
+      actorAccount.id,
 
-    role,
+    role:
+      actorRole,
 
     actorName,
+
+    accessActor,
   };
 }
 
@@ -62,7 +99,10 @@ function normalizeDescription(value: string | null | undefined) {
 /* -------------------------------------------------------------------------- */
 
 export async function createCustomAccessRole(input: unknown) {
-  const actor = await requireRoleManagementAdmin();
+  const actor =
+  await requireRoleManagementActor(
+    "roles.manage",
+  );
 
   const parsed = createAccessRoleSchema.safeParse(input);
 
@@ -252,7 +292,10 @@ export async function createCustomAccessRole(input: unknown) {
 /* -------------------------------------------------------------------------- */
 
 export async function cloneAccessRole(input: unknown) {
-  const actor = await requireRoleManagementAdmin();
+const actor =
+  await requireRoleManagementActor(
+    "roles.manage",
+  );
 
   const parsed = cloneAccessRoleSchema.safeParse(input);
 
@@ -417,7 +460,10 @@ export async function cloneAccessRole(input: unknown) {
 /* -------------------------------------------------------------------------- */
 
 export async function updateCustomAccessRole(input: unknown) {
-  const actor = await requireRoleManagementAdmin();
+const actor =
+  await requireRoleManagementActor(
+    "roles.manage",
+  );
 
   const parsed = updateAccessRoleSchema.safeParse(input);
 
@@ -550,7 +596,10 @@ export async function updateCustomAccessRole(input: unknown) {
 /* -------------------------------------------------------------------------- */
 
 export async function updateCustomRolePermissions(input: unknown) {
-  const actor = await requireRoleManagementAdmin();
+const actor =
+  await requireRoleManagementActor(
+    "permissions.manage",
+  );
 
   const parsed = updateRolePermissionsSchema.safeParse(input);
 
@@ -725,8 +774,11 @@ export async function updateCustomRolePermissions(input: unknown) {
 /* -------------------------------------------------------------------------- */
 
 export async function retireCustomAccessRole(roleId: number) {
-  const actor = await requireRoleManagementAdmin();
-
+const actor =
+  await requireRoleManagementActor(
+    "roles.manage",
+  );
+  
   if (!Number.isInteger(roleId) || roleId <= 0) {
     return {
       success: false  as const,

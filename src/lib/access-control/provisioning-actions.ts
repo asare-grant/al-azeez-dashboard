@@ -17,7 +17,19 @@ export async function provisionUserAction(
       input,
     );
 
+  /*
+   * Clerk's reverification result is deliberately
+   * passed straight through to useReverification().
+   *
+   * Only our ordinary provisioning result contains
+   * the `success` property.
+   */
   if (
+    result &&
+    typeof result ===
+      "object" &&
+    "success" in
+      result &&
     result.success
   ) {
     revalidatePath(

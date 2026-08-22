@@ -1,146 +1,188 @@
+// src/lib/assessments/permissions.ts
+
+import "server-only";
+
 import prisma from "@/lib/prisma";
 
-export type DashboardRole =
-  | "admin"
-  | "teacher"
-  | "student"
-  | "parent";
+import type {
+  AssessmentAccessScope,
+} from "./auth";
 
-export function isAssessmentManager(
-  role?: string
-): role is "admin" | "teacher" {
-  return role === "admin" || role === "teacher";
-}
+/* ========================================================================== */
+/* TYPES                                                                      */
+/* ========================================================================== */
 
-export function isStudentRole(
-  role?: string
-): role is "student" {
-  return role === "student";
-}
+export type AssessmentOwnershipContext = {
+  userId:
+    string;
+
+  scope:
+    AssessmentAccessScope;
+};
+
+/* ========================================================================== */
+/* MANAGE ASSESSMENT OWNERSHIP                                                */
+/* ========================================================================== */
 
 export async function canManageAssessment({
   assessmentId,
   userId,
-  role,
+  scope,
 }: {
-  assessmentId: number;
-  userId: string;
-  role?: string;
-}): Promise<boolean> {
-  if (
-    role !== "admin" &&
-    role !== "teacher"
-  ) {
-    return false;
-  }
+  assessmentId:
+    number;
 
+  userId:
+    string;
+
+  scope:
+    AssessmentAccessScope;
+}): Promise<boolean> {
   const assessment =
     await prisma.assessment.findFirst({
       where: {
-        id: assessmentId,
+        id:
+          assessmentId,
 
-        ...(role === "teacher"
+        ...(scope ===
+        "OWN_LESSONS"
           ? {
               lesson: {
-                teacherId: userId,
+                teacherId:
+                  userId,
               },
             }
           : {}),
       },
 
       select: {
-        id: true,
+        id:
+          true,
       },
     });
 
-  return Boolean(assessment);
+  return Boolean(
+    assessment,
+  );
 }
+
+/* ========================================================================== */
+/* LESSON OWNERSHIP                                                           */
+/* ========================================================================== */
 
 export async function canUseLessonForAssessment({
   lessonId,
   userId,
-  role,
+  scope,
 }: {
-  lessonId: number;
-  userId: string;
-  role?: string;
+  lessonId:
+    number;
+
+  userId:
+    string;
+
+  scope:
+    AssessmentAccessScope;
 }): Promise<boolean> {
-  if (role === "admin") {
-    const lessonExists = await prisma.lesson.findUnique({
+  const lesson =
+    await prisma.lesson.findFirst({
       where: {
-        id: lessonId,
+        id:
+          lessonId,
+
+        ...(scope ===
+        "OWN_LESSONS"
+          ? {
+              teacherId:
+                userId,
+            }
+          : {}),
       },
+
       select: {
-        id: true,
+        id:
+          true,
       },
     });
 
-    return Boolean(lessonExists);
-  }
-
-  if (role !== "teacher") {
-    return false;
-  }
-
-  const teacherLesson = await prisma.lesson.findFirst({
-    where: {
-      id: lessonId,
-      teacherId: userId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  return Boolean(teacherLesson);
+  return Boolean(
+    lesson,
+  );
 }
+
+/* ========================================================================== */
+/* STUDENT ASSESSMENT OWNERSHIP                                               */
+/* ========================================================================== */
 
 export async function canStudentAccessAssessment({
   assessmentId,
   studentId,
 }: {
-  assessmentId: number;
-  studentId: string;
-}): Promise<boolean> {
-  const assessment = await prisma.assessment.findFirst({
-    where: {
-      id: assessmentId,
+  assessmentId:
+    number;
 
-      lesson: {
-        class: {
-          students: {
-            some: {
-              id: studentId,
+  studentId:
+    string;
+}): Promise<boolean> {
+  const assessment =
+    await prisma.assessment.findFirst({
+      where: {
+        id:
+          assessmentId,
+
+        lesson: {
+          class: {
+            students: {
+              some: {
+                id:
+                  studentId,
+              },
             },
           },
         },
       },
-    },
 
-    select: {
-      id: true,
-    },
-  });
+      select: {
+        id:
+          true,
+      },
+    });
 
-  return Boolean(assessment);
+  return Boolean(
+    assessment,
+  );
 }
+
+/* ========================================================================== */
+/* STUDENT ATTEMPT OWNERSHIP                                                  */
+/* ========================================================================== */
 
 export async function ownsAssessmentAttempt({
   attemptId,
   studentId,
 }: {
-  attemptId: number;
-  studentId: string;
-}): Promise<boolean> {
-  const attempt = await prisma.assessmentAttempt.findFirst({
-    where: {
-      id: attemptId,
-      studentId,
-    },
-    select: {
-      id: true,
-    },
-  });
+  attemptId:
+    number;
 
-  return Boolean(attempt);
+  studentId:
+    string;
+}): Promise<boolean> {
+  const attempt =
+    await prisma.assessmentAttempt.findFirst({
+      where: {
+        id:
+          attemptId,
+
+        studentId,
+      },
+
+      select: {
+        id:
+          true,
+      },
+    });
+
+  return Boolean(
+    attempt,
+  );
 }

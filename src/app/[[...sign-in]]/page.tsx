@@ -1379,9 +1379,6 @@
 
 // export default LoginPage;
 
-
-
-
 // src/app/[[...sign-in]]/page.tsx
 
 "use client";
@@ -1470,138 +1467,123 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
- 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const handleSubmit = async (
-  e: React.FormEvent,
-) => {
-  e.preventDefault();
+    if (fetchStatus === "fetching") {
+      return;
+    }
 
-  if (fetchStatus === "fetching") {
-    return;
-  }
+    try {
+      setLoading(true);
+      setError("");
 
-  try {
-    setLoading(true);
-    setError("");
+      /* ---------------------------------------------------------------------- */
+      /* START PASSWORD SIGN-IN                                                 */
+      /* ---------------------------------------------------------------------- */
 
-    /* ---------------------------------------------------------------------- */
-    /* START PASSWORD SIGN-IN                                                 */
-    /* ---------------------------------------------------------------------- */
-
-    const { error: signInError } =
-      await signIn.password({
+      const { error: signInError } = await signIn.password({
         identifier,
         password,
       });
 
-    if (signInError) {
-      setError(
-        signInError.longMessage ||
-          signInError.message ||
-          "Invalid credentials",
-      );
+      if (signInError) {
+        setError(
+          signInError.longMessage ||
+            signInError.message ||
+            "Invalid credentials",
+        );
 
-      return;
-    }
+        return;
+      }
 
-    /* ---------------------------------------------------------------------- */
-    /* COMPLETE AUTHENTICATION                                                */
-    /* ---------------------------------------------------------------------- */
+      /* ---------------------------------------------------------------------- */
+      /* COMPLETE AUTHENTICATION                                                */
+      /* ---------------------------------------------------------------------- */
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: async ({
-          session,
-          decorateUrl,
-        }) => {
-          /*
-           * ==============================================================
-           * SESSION TASK
-           * ==============================================================
-           *
-           * If Clerk reports reset-password here, DO NOT navigate to
-           * Student/Admin/etc.
-           *
-           * ClerkProvider.taskUrls will direct the pending session to:
-           *
-           * /session-tasks/reset-password
-           */
-
-          if (session?.currentTask) {
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: async ({ session, decorateUrl }) => {
             /*
-             * Because you already configured:
+             * ==============================================================
+             * SESSION TASK
+             * ==============================================================
              *
-             * taskUrls={{
-             *   "reset-password":
-             *     "/session-tasks/reset-password"
-             * }}
+             * If Clerk reports reset-password here, DO NOT navigate to
+             * Student/Admin/etc.
              *
-             * Clerk owns the redirect.
+             * ClerkProvider.taskUrls will direct the pending session to:
+             *
+             * /session-tasks/reset-password
              */
-            return;
-          }
 
-          /* -------------------------------------------------------------- */
-          /* NORMAL COMPLETED LOGIN                                         */
-          /* -------------------------------------------------------------- */
+            if (session?.currentTask) {
+              /*
+               * Because you already configured:
+               *
+               * taskUrls={{
+               *   "reset-password":
+               *     "/session-tasks/reset-password"
+               * }}
+               *
+               * Clerk owns the redirect.
+               */
+              return;
+            }
+            /* -------------------------------------------------------------- */
+            /* NORMAL COMPLETED LOGIN                                         */
+            /* -------------------------------------------------------------- */
 
-          const role =
-            typeof session?.user
-              ?.publicMetadata?.role ===
-            "string"
-              ? session.user.publicMetadata.role
-              : null;
+            /*
+             * Never construct a route from:
+             *
+             * `/${role}`
+             *
+             * Roles such as:
+             *
+             * super_admin
+             * academic_director
+             * exam_officer
+             *
+             * do not need their own physical Next.js dashboard.
+             *
+             * All successful sessions enter through the universal
+             * dashboard resolver.
+             */
 
-          const destination =
-            role
-              ? `/${role}`
-              : "/";
+            const url = decorateUrl("/dashboard");
 
-          const url =
-            decorateUrl(destination);
+            if (url.startsWith("http")) {
+              window.location.href = url;
 
-          if (
-            url.startsWith("http")
-          ) {
-            window.location.href =
-              url;
+              return;
+            }
 
-            return;
-          }
+            router.replace(url);
+          },
+        });
 
-          router.replace(url);
-        },
-      });
+        return;
+      }
 
-      return;
+      /* ---------------------------------------------------------------------- */
+      /* UNEXPECTED AUTHENTICATION STATE                                        */
+      /* ---------------------------------------------------------------------- */
+
+      setError("Your sign-in requires an additional authentication step.");
+    } catch (err: any) {
+      console.error("[SIGN_IN_ERROR]", err);
+
+      setError(
+        err?.errors?.[0]?.longMessage ||
+          err?.errors?.[0]?.message ||
+          err?.message ||
+          "Unable to sign in. Please try again.",
+      );
+    } finally {
+      setLoading(false);
     }
-
-    /* ---------------------------------------------------------------------- */
-    /* UNEXPECTED AUTHENTICATION STATE                                        */
-    /* ---------------------------------------------------------------------- */
-
-    setError(
-      "Your sign-in requires an additional authentication step.",
-    );
-  } catch (err: any) {
-    console.error(
-      "[SIGN_IN_ERROR]",
-      err,
-    );
-
-    setError(
-      err?.errors?.[0]
-        ?.longMessage ||
-        err?.errors?.[0]
-          ?.message ||
-        err?.message ||
-        "Unable to sign in. Please try again.",
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <MotionConfig reducedMotion={shouldReduceMotion ? "always" : "never"}>

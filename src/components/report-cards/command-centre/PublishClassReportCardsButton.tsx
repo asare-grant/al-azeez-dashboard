@@ -26,13 +26,13 @@ export default function PublishClassReportCardsButton({
   academicYear,
   termId,
   publishableCount,
-  isAdmin,
+  canPublish,
 }: {
   classId?: number;
   academicYear?: string;
   termId?: number;
   publishableCount: number;
-  isAdmin: boolean;
+  canPublish: boolean;
 }) {
   const router =
     useRouter();
@@ -42,14 +42,14 @@ export default function PublishClassReportCardsButton({
     startTransition,
   ] = useTransition();
 
-  const canPublish =
-    isAdmin &&
-    Boolean(
-      classId &&
-        academicYear &&
-        termId,
-    ) &&
-    publishableCount > 0;
+  const publishEnabled =
+  canPublish &&
+  Boolean(
+    classId &&
+      academicYear &&
+      termId,
+  ) &&
+  publishableCount > 0;
 
   function handlePublish() {
     if (
@@ -106,7 +106,7 @@ export default function PublishClassReportCardsButton({
       type="button"
       onClick={handlePublish}
       disabled={
-        !canPublish ||
+        !publishEnabled ||
         isPending
       }
       className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white shadow-lg shadow-emerald-600/20 transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"

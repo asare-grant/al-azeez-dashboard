@@ -1,3 +1,4 @@
+// src/lib/actions.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -26,9 +27,36 @@ import {
   TeacherSchema,
 } from "./formValidationSchemas";
 import prisma from "./prisma";
+
 import { auth, clerkClient } from "@clerk/nextjs/server";
+
 import { syncAssignmentResult } from "@/lib/results";
+
+import { requireLessonManager } from "@/lib/lessons/auth";
+
+import { requireExamManager } from "@/lib/exams/auth";
+
+import { requireAssignmentManager } from "@/lib/assignments/auth";
+
+import { requireEventManager } from "@/lib/events/auth";
+
+import { requireFinancePermission } from "@/lib/finance/auth";
+
+import { requireAnnouncementManager } from "@/lib/announcements/auth";
+
+import { getCurrentAccessActor } from "@/lib/access-control";
+
+import { requirePermission } from "@/lib/access-control";
+
 import { Prisma } from "@prisma/client";
+
+import {
+  requireResultsManagementAccess,
+  requireTeacherAssignmentOwnership,
+  requireTeacherExamOwnership,
+  requireMutableManualResult,
+} from "@/lib/results/result-access";
+
 import { invalidateStudentReportCardWithTransaction } from "@/lib/report-cards/invalidation-service";
 
 import { syncExamResult } from "@/lib/results/exam-result-sync";
@@ -49,130 +77,260 @@ import {
 
 type CurrentState = { success: boolean; error: boolean };
 
+/* ========================================================================== */
+/* SUBJECT ACTIONS                                                            */
+/* ========================================================================== */
+
+/* -------------------------------------------------------------------------- */
+/* CREATE SUBJECT                                                             */
+/* -------------------------------------------------------------------------- */
+
 export const createSubject = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
   data: SubjectSchema,
 ) => {
   try {
+    await requirePermission("academics.subjects.manage");
+
     await prisma.subject.create({
       data: {
         name: data.name,
+
         teachers: {
-          connect: data.teachers.map((teacherId) => ({ id: teacherId })),
+          connect: data.teachers.map((teacherId) => ({
+            id: teacherId,
+          })),
         },
       },
     });
 
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/subjects");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE SUBJECT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* UPDATE SUBJECT                                                             */
+/* -------------------------------------------------------------------------- */
+
 export const updateSubject = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
   data: SubjectSchema,
 ) => {
+  if (!data.id) {
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+
   try {
+    await requirePermission("academics.subjects.manage");
+
     await prisma.subject.update({
       where: {
         id: data.id,
       },
+
       data: {
         name: data.name,
+
         teachers: {
-          set: data.teachers.map((teacherId) => ({ id: teacherId })),
+          set: data.teachers.map((teacherId) => ({
+            id: teacherId,
+          })),
         },
       },
     });
 
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/subjects");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("UPDATE SUBJECT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* DELETE SUBJECT                                                             */
+/* -------------------------------------------------------------------------- */
+
 export const deleteSubject = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
+  const subjectId = Number(data.get("id"));
+
+  if (!Number.isInteger(subjectId) || subjectId <= 0) {
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+
   try {
+    await requirePermission("academics.subjects.manage");
+
     await prisma.subject.delete({
       where: {
-        id: parseInt(id),
+        id: subjectId,
       },
     });
 
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/subjects");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("DELETE SUBJECT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
 export const createClass = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: ClassSchema,
 ) => {
   try {
+    await requirePermission("academics.classes.manage");
+
     await prisma.class.create({
       data,
     });
 
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/classes");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE CLASS ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
 export const updateClass = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: ClassSchema,
 ) => {
   if (!data.id) {
-    return { success: false, error: true };
+    return {
+      success: false,
+
+      error: true,
+    };
   }
+
   try {
+    await requirePermission("academics.classes.manage");
+
     await prisma.class.update({
       where: {
         id: data.id,
       },
+
       data,
     });
 
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/classes");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("UPDATE CLASS ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
 export const deleteClass = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
+  const classId = Number(data.get("id"));
+
+  if (!Number.isInteger(classId) || classId <= 0) {
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+
   try {
+    await requirePermission("academics.classes.manage");
+
     await prisma.class.delete({
       where: {
-        id: parseInt(id),
+        id: classId,
       },
     });
 
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/classes");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("DELETE CLASS ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
@@ -181,42 +339,101 @@ export const createTeacher = async (
   data: TeacherSchema,
 ) => {
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    await requirePermission("teachers.create");
+
+    /* ---------------------------------------------------------------------- */
+    /* CLERK USER                                                             */
+    /* ---------------------------------------------------------------------- */
+
     const client = await clerkClient();
 
     const user = await client.users.createUser({
       username: data.username,
-      password: data.password,
-      firstName: data.name,
-      lastName: data.surname,
-      publicMetadata: { role: "teacher" },
-    });
 
-    await prisma.teacher.create({
-      data: {
-        id: user.id,
-        username: data.username,
-        name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        teacherID: data.teacherID,
-        sex: data.sex,
-        birthday: data.birthday,
-        subjects: {
-          connect: data.subjects?.map((subjectId: string) => ({
-            id: parseInt(subjectId),
-          })),
-        },
+      password: data.password,
+
+      firstName: data.name,
+
+      lastName: data.surname,
+
+      publicMetadata: {
+        role: "teacher",
       },
     });
 
-    // revalidatePath("/list/teachers");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    /* ---------------------------------------------------------------------- */
+    /* DOMAIN RECORD                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    try {
+      await prisma.teacher.create({
+        data: {
+          id: user.id,
+
+          username: data.username,
+
+          name: data.name,
+
+          surname: data.surname,
+
+          email: data.email || null,
+
+          phone: data.phone || null,
+
+          address: data.address,
+
+          img: data.img || null,
+
+          teacherID: data.teacherID,
+
+          sex: data.sex,
+
+          birthday: data.birthday,
+
+          subjects: {
+            connect:
+              data.subjects?.map((subjectId: string) => ({
+                id: Number.parseInt(subjectId, 10),
+              })) ?? [],
+          },
+        },
+      });
+    } catch (databaseError) {
+      /*
+       * Clerk and Prisma cannot participate in the
+       * same database transaction.
+       *
+       * If creation of the Teacher domain record
+       * fails, remove the Clerk account we just
+       * created so we do not leave an orphaned
+       * identity behind.
+       */
+      try {
+        await client.users.deleteUser(user.id);
+      } catch (rollbackError) {
+        console.error("CREATE TEACHER CLERK ROLLBACK ERROR:", rollbackError);
+      }
+
+      throw databaseError;
+    }
+
+    revalidatePath("/list/teachers");
+
+    return {
+      success: true,
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE TEACHER ERROR:", error);
+
+    return {
+      success: false,
+      error: true,
+    };
   }
 };
 
@@ -225,46 +442,112 @@ export const updateTeacher = async (
   data: TeacherSchema,
 ) => {
   if (!data.id) {
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+    };
   }
+
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    await requirePermission("teachers.update");
+
+    /* ---------------------------------------------------------------------- */
+    /* EXISTENCE CHECK                                                        */
+    /* ---------------------------------------------------------------------- */
+
+    const existingTeacher = await prisma.teacher.findUnique({
+      where: {
+        id: data.id,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingTeacher) {
+      return {
+        success: false,
+        error: true,
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* CLERK                                                                  */
+    /* ---------------------------------------------------------------------- */
+
     const client = await clerkClient();
 
-    const user = await client.users.updateUser(data.id, {
+    await client.users.updateUser(data.id, {
       username: data.username,
-      ...(data.password !== "" && { password: data.password }),
+
+      ...(data.password !== "" && {
+        password: data.password,
+      }),
+
       firstName: data.name,
+
       lastName: data.surname,
     });
+
+    /* ---------------------------------------------------------------------- */
+    /* DOMAIN RECORD                                                          */
+    /* ---------------------------------------------------------------------- */
 
     await prisma.teacher.update({
       where: {
         id: data.id,
       },
+
       data: {
-        ...(data.password !== "" && { password: data.password }),
         username: data.username,
+
         name: data.name,
+
         surname: data.surname,
+
         email: data.email || null,
+
         phone: data.phone || null,
+
         address: data.address,
+
         img: data.img || null,
+
         teacherID: data.teacherID,
+
         sex: data.sex,
+
         birthday: data.birthday,
+
         subjects: {
-          set: data.subjects?.map((subjectId: string) => ({
-            id: parseInt(subjectId),
-          })),
+          set:
+            data.subjects?.map((subjectId: string) => ({
+              id: Number.parseInt(subjectId, 10),
+            })) ?? [],
         },
       },
     });
-    // revalidatePath("/list/teachers");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+
+    revalidatePath("/list/teachers");
+
+    revalidatePath(`/list/teachers/${data.id}`);
+
+    return {
+      success: true,
+      error: false,
+    };
+  } catch (error) {
+    console.error("UPDATE TEACHER ERROR:", error);
+
+    return {
+      success: false,
+      error: true,
+    };
   }
 };
 
@@ -272,149 +555,494 @@ export const deleteTeacher = async (
   currentState: CurrentState,
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
+  const rawId = data.get("id");
+
+  const id = typeof rawId === "string" ? rawId.trim() : "";
+
+  if (!id) {
+    return {
+      success: false,
+      error: true,
+    };
+  }
+
   try {
-    const client = await clerkClient();
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    await client.users.deleteUser(id);
+    await requirePermission("teachers.delete");
 
-    await prisma.teacher.delete({
+    /* ---------------------------------------------------------------------- */
+    /* VERIFY TARGET                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const teacher = await prisma.teacher.findUnique({
       where: {
-        id: id,
+        id,
+      },
+
+      select: {
+        id: true,
       },
     });
 
-    // revalidatePath("/list/teachers");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    if (!teacher) {
+      return {
+        success: false,
+        error: true,
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* DOMAIN RECORD                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    await prisma.teacher.delete({
+      where: {
+        id,
+      },
+    });
+
+    /* ---------------------------------------------------------------------- */
+    /* CLERK                                                                  */
+    /* ---------------------------------------------------------------------- */
+
+    const client = await clerkClient();
+
+    try {
+      await client.users.deleteUser(id);
+    } catch (clerkError) {
+      /*
+       * The domain record has already been removed.
+       *
+       * Log this loudly because the Clerk identity
+       * may require reconciliation.
+       */
+      console.error("DELETE TEACHER CLERK CLEANUP ERROR:", clerkError);
+
+      throw new Error(
+        "Teacher record was removed, but the authentication account could not be deleted.",
+      );
+    }
+
+    revalidatePath("/list/teachers");
+
+    return {
+      success: true,
+      error: false,
+    };
+  } catch (error) {
+    console.error("DELETE TEACHER ERROR:", error);
+
+    return {
+      success: false,
+      error: true,
+    };
   }
 };
 
 export const createStudent = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: StudentSchema,
 ) => {
-  console.log(data);
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    await requirePermission("students.create");
+
+    /* ---------------------------------------------------------------------- */
+    /* CLASS                                                                  */
+    /* ---------------------------------------------------------------------- */
+
     const classItem = await prisma.class.findUnique({
-      where: { id: data.classId },
-      include: { _count: { select: { students: true } } },
+      where: {
+        id: data.classId,
+      },
+
+      include: {
+        _count: {
+          select: {
+            students: true,
+          },
+        },
+      },
     });
 
-    if (classItem && classItem.capacity === classItem._count.students) {
-      return { success: false, error: true };
+    if (!classItem) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "The selected class could not be found.",
+      };
     }
+
+    if (classItem._count.students >= classItem.capacity) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "The selected class has reached its capacity.",
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* CLERK                                                                  */
+    /* ---------------------------------------------------------------------- */
 
     const client = await clerkClient();
 
     const user = await client.users.createUser({
       username: data.username,
-      password: data.password,
-      firstName: data.name,
-      lastName: data.surname,
-      publicMetadata: { role: "student" },
-    });
 
-    await prisma.student.create({
-      data: {
-        id: user.id,
-        username: data.username,
-        name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        studentID: data.studentID,
-        sex: data.sex,
-        birthday: data.birthday,
-        gradeId: data.gradeId,
-        classId: data.classId,
-        parentId: data.parentId || "",
-        studentType: data.studentType,
-        boardingType: data.boardingType,
+      password: data.password,
+
+      firstName: data.name,
+
+      lastName: data.surname,
+
+      publicMetadata: {
+        role: "student",
       },
     });
 
-    // revalidatePath("/list/students");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    /* ---------------------------------------------------------------------- */
+    /* DATABASE                                                               */
+    /* ---------------------------------------------------------------------- */
+
+    try {
+      await prisma.student.create({
+        data: {
+          id: user.id,
+
+          username: data.username,
+
+          name: data.name,
+
+          surname: data.surname,
+
+          email: data.email || null,
+
+          phone: data.phone || null,
+
+          address: data.address,
+
+          img: data.img || null,
+
+          studentID: data.studentID,
+
+          sex: data.sex,
+
+          birthday: data.birthday,
+
+          gradeId: data.gradeId,
+
+          classId: data.classId,
+
+          parentId: data.parentId || null,
+
+          studentType: data.studentType,
+
+          boardingType: data.boardingType,
+        },
+      });
+    } catch (databaseError) {
+      /*
+       * Prevent an orphaned Clerk identity when the
+       * Student domain record cannot be created.
+       */
+      try {
+        await client.users.deleteUser(user.id);
+      } catch (rollbackError) {
+        console.error("CREATE STUDENT CLERK ROLLBACK ERROR:", rollbackError);
+      }
+
+      throw databaseError;
+    }
+
+    revalidatePath("/list/students");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE STUDENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
 export const updateStudent = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: StudentSchema,
 ) => {
   if (!data.id) {
-    return { success: false, error: true };
+    return {
+      success: false,
+
+      error: true,
+    };
   }
+
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    await requirePermission("students.update");
+
+    /* ---------------------------------------------------------------------- */
+    /* CURRENT STUDENT                                                        */
+    /* ---------------------------------------------------------------------- */
+
+    const existingStudent = await prisma.student.findUnique({
+      where: {
+        id: data.id,
+      },
+
+      select: {
+        id: true,
+
+        classId: true,
+      },
+    });
+
+    if (!existingStudent) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Student could not be found.",
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* CLASS CAPACITY                                                         */
+    /* ---------------------------------------------------------------------- */
+
+    if (existingStudent.classId !== data.classId) {
+      const targetClass = await prisma.class.findUnique({
+        where: {
+          id: data.classId,
+        },
+
+        include: {
+          _count: {
+            select: {
+              students: true,
+            },
+          },
+        },
+      });
+
+      if (!targetClass) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "The selected class could not be found.",
+        };
+      }
+
+      if (targetClass._count.students >= targetClass.capacity) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "The selected class has reached its capacity.",
+        };
+      }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* CLERK                                                                  */
+    /* ---------------------------------------------------------------------- */
+
     const client = await clerkClient();
 
-    const user = await client.users.updateUser(data.id, {
+    await client.users.updateUser(data.id, {
       username: data.username,
-      ...(data.password !== "" && { password: data.password }),
+
+      ...(data.password !== ""
+        ? {
+            password: data.password,
+          }
+        : {}),
+
       firstName: data.name,
+
       lastName: data.surname,
     });
+
+    /* ---------------------------------------------------------------------- */
+    /* DATABASE                                                               */
+    /* ---------------------------------------------------------------------- */
 
     await prisma.student.update({
       where: {
         id: data.id,
       },
+
       data: {
-        ...(data.password !== "" && { password: data.password }),
+        /*
+         * Password deliberately does NOT belong here.
+         * Authentication credentials remain in Clerk.
+         */
         username: data.username,
+
         name: data.name,
+
         surname: data.surname,
+
         email: data.email || null,
+
         phone: data.phone || null,
+
         address: data.address,
+
         img: data.img || null,
+
         studentID: data.studentID,
+
         sex: data.sex,
+
         birthday: data.birthday,
+
         gradeId: data.gradeId,
+
         classId: data.classId,
+
         parentId: data.parentId,
+
         studentType: data.studentType,
+
         boardingType: data.boardingType,
       },
     });
-    // revalidatePath("/list/students");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+
+    revalidatePath("/list/students");
+
+    revalidatePath(`/list/students/${data.id}`);
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("UPDATE STUDENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
 export const deleteStudent = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
+  const rawId = data.get("id");
+
+  const id = typeof rawId === "string" ? rawId.trim() : "";
+
+  if (!id) {
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
+
   try {
-    const client = await clerkClient();
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    await client.users.deleteUser(id);
+    await requirePermission("students.delete");
 
-    await prisma.student.delete({
+    /* ---------------------------------------------------------------------- */
+    /* TARGET                                                                 */
+    /* ---------------------------------------------------------------------- */
+
+    const student = await prisma.student.findUnique({
       where: {
-        id: id,
+        id,
+      },
+
+      select: {
+        id: true,
       },
     });
 
-    // revalidatePath("/list/students");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    if (!student) {
+      return {
+        success: false,
+
+        error: true,
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* DATABASE                                                               */
+    /* ---------------------------------------------------------------------- */
+
+    await prisma.student.delete({
+      where: {
+        id,
+      },
+    });
+
+    /* ---------------------------------------------------------------------- */
+    /* CLERK                                                                  */
+    /* ---------------------------------------------------------------------- */
+
+    const client = await clerkClient();
+
+    try {
+      await client.users.deleteUser(id);
+    } catch (clerkError) {
+      console.error("DELETE STUDENT CLERK CLEANUP ERROR:", clerkError);
+
+      throw new Error(
+        "Student record was removed, but the authentication account could not be deleted.",
+      );
+    }
+
+    revalidatePath("/list/students");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("DELETE STUDENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
@@ -424,6 +1052,19 @@ export const createParent = async (
   data: ParentSchema,
 ) => {
   try {
+    /* ------------------------------------------------------------------ */
+    /* AUTHORIZATION                                                      */
+    /* ------------------------------------------------------------------ */
+    const accessActor = await getCurrentAccessActor();
+
+    if (!accessActor) {
+      throw new Error("UNAUTHENTICATED");
+    }
+
+    if (!accessActor.can("parents.create")) {
+      throw new Error("UNAUTHORIZED");
+    }
+
     const client = await clerkClient();
 
     // Create a user in Clerk for the parent (if you are managing parent logins too)
@@ -468,6 +1109,19 @@ export const updateParent = async (
   if (!data.id) return { success: false, error: true };
 
   try {
+    /* ------------------------------------------------------------------ */
+    /* AUTHORIZATION                                                      */
+    /* ------------------------------------------------------------------ */
+
+    const accessActor = await getCurrentAccessActor();
+
+    if (!accessActor) {
+      throw new Error("UNAUTHENTICATED");
+    }
+
+    if (!accessActor.can("parents.update")) {
+      throw new Error("UNAUTHORIZED");
+    }
     const client = await clerkClient();
 
     // Update Clerk user account
@@ -504,6 +1158,8 @@ export const updateParent = async (
 
 /* ------------------------- DELETE PARENT ------------------------- */
 /* ------------------------- DELETE PARENT ------------------------- */
+/* ------------------------- DELETE PARENT ------------------------- */
+
 export const deleteParent = async (
   currentState: CurrentState,
   data: FormData,
@@ -511,70 +1167,163 @@ export const deleteParent = async (
   const id = data.get("id") as string;
 
   if (!id) {
-    console.error("❌ No parent id provided for deletion.");
-    return { success: false, error: true };
+    console.error(
+      "No parent id provided for deletion.",
+    );
+
+    return {
+      success: false,
+      error: true,
+    };
   }
 
   try {
-    const client = await clerkClient();
+    /* ------------------------------------------------------------------ */
+    /* AUTHORIZATION                                                      */
+    /* ------------------------------------------------------------------ */
 
-    // 1️⃣ Delete associated students first (if any)
-    await prisma.student.deleteMany({
-      where: { parentId: id },
-    });
+    const accessActor =
+      await getCurrentAccessActor();
 
-    // 2️⃣ Delete parent from Prisma
-    await prisma.parent.delete({
-      where: { id },
-    });
-
-    // 3️⃣ Delete parent from Clerk
-    await client.users.deleteUser(id);
-
-    // Success
-    return { success: true, error: false };
-  } catch (err: any) {
-    console.error("❌ Error deleting parent:", err);
-
-    // Optional: handle Clerk-specific 404 (user already deleted)
-    if (err.code === "api_response_error" && err.status === 404) {
-      console.warn(
-        "⚠️ Parent not found in Clerk. Continuing with Prisma deletion.",
+    if (!accessActor) {
+      throw new Error(
+        "UNAUTHENTICATED",
       );
-      try {
-        await prisma.parent.delete({ where: { id } });
-        return { success: true, error: false };
-      } catch (prismaErr) {
-        console.error("❌ Error deleting parent from Prisma:", prismaErr);
-      }
     }
 
-    return { success: false, error: true };
+    if (
+      !accessActor.can(
+        "parents.delete",
+      )
+    ) {
+      throw new Error(
+        "UNAUTHORIZED",
+      );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* DELETE LOCAL PARENT SAFELY                                         */
+    /* ------------------------------------------------------------------ */
+
+    /*
+     * A parent/guardian account may be removed without
+     * deleting the students previously linked to it.
+     *
+     * Because Student.parentId is nullable, disconnect
+     * those students first.
+     */
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.student.updateMany({
+          where: {
+            parentId:
+              id,
+          },
+
+          data: {
+            parentId:
+              null,
+          },
+        });
+
+        await tx.parent.delete({
+          where: {
+            id,
+          },
+        });
+      },
+    );
+
+    /* ------------------------------------------------------------------ */
+    /* DELETE CLERK IDENTITY                                              */
+    /* ------------------------------------------------------------------ */
+
+    const client =
+      await clerkClient();
+
+    try {
+      await client.users.deleteUser(
+        id,
+      );
+    } catch (clerkError: any) {
+      /*
+       * If the Clerk account has already been removed,
+       * the local deletion is still complete.
+       */
+      if (
+        clerkError?.code ===
+          "api_response_error" &&
+        clerkError?.status ===
+          404
+      ) {
+        console.warn(
+          "Parent account was already absent from Clerk.",
+        );
+
+        return {
+          success: true,
+          error: false,
+        };
+      }
+
+      /*
+       * The Prisma record is already safely removed at this
+       * point. Surface the Clerk failure rather than attempting
+       * another database deletion.
+       */
+      console.error(
+        "Parent was removed locally, but the Clerk identity could not be deleted:",
+        clerkError,
+      );
+
+      return {
+        success: false,
+        error: true,
+      };
+    }
+
+    return {
+      success: true,
+      error: false,
+    };
+  } catch (error) {
+    console.error(
+      "DELETE PARENT ERROR:",
+      error,
+    );
+
+    return {
+      success: false,
+      error: true,
+    };
   }
 };
+/* -------------------------------------------------------------------------- */
+/*                                CREATE EXAM                                 */
+/* -------------------------------------------------------------------------- */
 
 export const createExam = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
 
   data: ExamSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
   try {
-    const academicYear = data.academicYear.trim();
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    if (role === "teacher") {
+    const { userId, scope } = await requireExamManager();
+
+    /* ---------------------------------------------------------------------- */
+    /* OWNERSHIP                                                              */
+    /* ---------------------------------------------------------------------- */
+
+    if (scope === "OWN_LESSONS") {
       const teacherLesson = await prisma.lesson.findFirst({
         where: {
-          teacherId: userId!,
-
           id: data.lessonId,
+
+          teacherId: userId,
         },
 
         select: {
@@ -587,8 +1336,26 @@ export const createExam = async (
           success: false,
 
           error: true,
+
+          message: "You can only create exams for lessons assigned to you.",
         };
       }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* ACADEMIC CONTEXT                                                       */
+    /* ---------------------------------------------------------------------- */
+
+    const academicYear = data.academicYear.trim();
+
+    if (!academicYear) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select an academic year before creating the exam.",
+      };
     }
 
     const term = await prisma.schoolTerm.findUnique({
@@ -606,8 +1373,14 @@ export const createExam = async (
         success: false,
 
         error: true,
+
+        message: "Select a valid school term before creating the exam.",
       };
     }
+
+    /* ---------------------------------------------------------------------- */
+    /* CREATE                                                                 */
+    /* ---------------------------------------------------------------------- */
 
     await prisma.exam.create({
       data: {
@@ -635,6 +1408,8 @@ export const createExam = async (
       success: true,
 
       error: false,
+
+      message: "Exam created successfully.",
     };
   } catch (error) {
     console.error("CREATE EXAM ERROR:", error);
@@ -643,38 +1418,55 @@ export const createExam = async (
       success: false,
 
       error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage exams."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage exams."
+            : "The exam could not be created.",
     };
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/*                                UPDATE EXAM                                 */
+/* -------------------------------------------------------------------------- */
+
 export const updateExam = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
 
   data: ExamSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
   try {
+    const { userId, scope } = await requireExamManager();
+
     if (!data.id) {
       return {
         success: false,
 
         error: true,
+
+        message: "The exam could not be resolved.",
       };
     }
 
-    if (role === "teacher") {
-      const teacherLesson = await prisma.lesson.findFirst({
-        where: {
-          teacherId: userId!,
+    /* ---------------------------------------------------------------------- */
+    /* OWNERSHIP                                                              */
+    /* ---------------------------------------------------------------------- */
 
-          id: data.lessonId,
+    if (scope === "OWN_LESSONS") {
+      /*
+       * The exam being edited must already belong
+       * to one of the Teacher's lessons.
+       */
+      const ownedExam = await prisma.exam.findFirst({
+        where: {
+          id: data.id,
+
+          lesson: {
+            teacherId: userId,
+          },
         },
 
         select: {
@@ -682,16 +1474,82 @@ export const updateExam = async (
         },
       });
 
-      if (!teacherLesson) {
+      if (!ownedExam) {
         return {
           success: false,
 
           error: true,
+
+          message: "You can only update exams belonging to your own lessons.",
+        };
+      }
+
+      /*
+       * The destination lesson must also belong
+       * to the same Teacher.
+       */
+      const destinationLesson = await prisma.lesson.findFirst({
+        where: {
+          id: data.lessonId,
+
+          teacherId: userId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!destinationLesson) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "You can only move exams between lessons assigned to you.",
         };
       }
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* ACADEMIC CONTEXT                                                       */
+    /* ---------------------------------------------------------------------- */
+
     const academicYear = data.academicYear.trim();
+
+    if (!academicYear) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select an academic year before updating the exam.",
+      };
+    }
+
+    const term = await prisma.schoolTerm.findUnique({
+      where: {
+        id: data.termId,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+    if (!term) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid school term before updating the exam.",
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* UPDATE                                                                 */
+    /* ---------------------------------------------------------------------- */
 
     await prisma.exam.update({
       where: {
@@ -723,6 +1581,8 @@ export const updateExam = async (
       success: true,
 
       error: false,
+
+      message: "Exam updated successfully.",
     };
   } catch (error) {
     console.error("UPDATE EXAM ERROR:", error);
@@ -731,144 +1591,380 @@ export const updateExam = async (
       success: false,
 
       error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage exams."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage exams."
+            : "The exam could not be updated.",
     };
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/*                                DELETE EXAM                                 */
+/* -------------------------------------------------------------------------- */
+
 export const deleteExam = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
-
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-
   try {
+    const { userId, scope } = await requireExamManager();
+
+    const examId = Number(data.get("id"));
+
+    if (!Number.isInteger(examId) || examId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid exam.",
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* OWNERSHIP                                                              */
+    /* ---------------------------------------------------------------------- */
+
+    if (scope === "OWN_LESSONS") {
+      const exam = await prisma.exam.findFirst({
+        where: {
+          id: examId,
+
+          lesson: {
+            teacherId: userId,
+          },
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!exam) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "You can only delete exams belonging to your own lessons.",
+        };
+      }
+    }
+
     await prisma.exam.delete({
       where: {
-        id: parseInt(id),
-        ...(role === "teacher" ? { lesson: { teacherId: userId! } } : {}),
+        id: examId,
       },
     });
 
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true };
+    revalidatePath("/list/exams");
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Exam deleted successfully.",
+    };
+  } catch (error) {
+    console.error("DELETE EXAM ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage exams."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage exams."
+            : "The exam could not be deleted.",
+    };
   }
 };
 
 export const createLesson = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: LessonSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-
   try {
-    if (role === "teacher" && userId !== data.teacherId) {
-      return { success: false, error: true };
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const { userId, scope } = await requireLessonManager();
+
+    /* ---------------------------------------------------------------------- */
+    /* OWNERSHIP                                                              */
+    /* ---------------------------------------------------------------------- */
+
+    if (scope === "OWN_LESSONS" && data.teacherId !== userId) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Teachers can only create lessons assigned to themselves.",
+      };
     }
 
-    // Convert "08:30" → Date object (using arbitrary base date)
+    /* ---------------------------------------------------------------------- */
+    /* TIME                                                                   */
+    /* ---------------------------------------------------------------------- */
+
     const startTime = new Date(`1970-01-01T${data.startTime}:00Z`);
+
     const endTime = new Date(`1970-01-01T${data.endTime}:00Z`);
+
+    /* ---------------------------------------------------------------------- */
+    /* CREATE                                                                 */
+    /* ---------------------------------------------------------------------- */
 
     await prisma.lesson.create({
       data: {
         name: data.name,
+
         day: data.day,
+
         startTime,
+
         endTime,
+
         subjectId: data.subjectId,
+
         classId: data.classId,
+
         teacherId: data.teacherId,
       },
     });
 
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("❌ Error creating lesson:", err);
-    return { success: false, error: true };
+    revalidatePath("/list/lessons");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Lesson created successfully.",
+    };
+  } catch (error) {
+    console.error("CREATE LESSON ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage lessons."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage lessons."
+            : "The lesson could not be created.",
+    };
   }
 };
 
 export const updateLesson = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: LessonSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-
   try {
-    if (!data.id) return { success: false, error: true };
+    const { userId, scope } = await requireLessonManager();
 
-    // Teachers can only update their own lessons
-    if (role === "teacher") {
-      const existingLesson = await prisma.lesson.findUnique({
-        where: { id: data.id },
+    if (!data.id) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "The lesson could not be resolved.",
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* OWNERSHIP                                                              */
+    /* ---------------------------------------------------------------------- */
+
+    if (scope === "OWN_LESSONS") {
+      const existingLesson = await prisma.lesson.findFirst({
+        where: {
+          id: data.id,
+
+          teacherId: userId,
+        },
+
+        select: {
+          id: true,
+        },
       });
 
-      if (!existingLesson || existingLesson.teacherId !== userId) {
-        return { success: false, error: true };
+      if (!existingLesson) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "You can only update lessons assigned to you.",
+        };
+      }
+
+      /*
+       * Teacher cannot transfer their lesson to
+       * another Teacher.
+       */
+      if (data.teacherId !== userId) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "Teachers cannot transfer their lessons to another teacher.",
+        };
       }
     }
 
-    // Both fields REQUIRED → Convert to Date always
     const startTime = new Date(`1970-01-01T${data.startTime}:00Z`);
+
     const endTime = new Date(`1970-01-01T${data.endTime}:00Z`);
 
     await prisma.lesson.update({
-      where: { id: data.id },
+      where: {
+        id: data.id,
+      },
+
       data: {
         name: data.name,
+
         day: data.day,
+
         startTime,
+
         endTime,
+
         subjectId: data.subjectId,
+
         classId: data.classId,
+
         teacherId: data.teacherId,
       },
     });
 
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("❌ Error updating lesson:", err);
-    return { success: false, error: true };
+    revalidatePath("/list/lessons");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Lesson updated successfully.",
+    };
+  } catch (error) {
+    console.error("UPDATE LESSON ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage lessons."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage lessons."
+            : "The lesson could not be updated.",
+    };
   }
 };
 
 export const deleteLesson = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-
   try {
-    const lesson = await prisma.lesson.findUnique({
-      where: { id: parseInt(id) },
-    });
+    const { userId, scope } = await requireLessonManager();
 
-    if (!lesson) return { success: false, error: true };
+    const lessonId = Number(data.get("id"));
 
-    // Teachers can only delete their own lessons
-    if (role === "teacher" && lesson.teacherId !== userId) {
-      return { success: false, error: true };
+    if (!Number.isInteger(lessonId) || lessonId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid lesson.",
+      };
+    }
+
+    if (scope === "OWN_LESSONS") {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+
+          teacherId: userId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!lesson) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "You can only delete lessons assigned to you.",
+        };
+      }
     }
 
     await prisma.lesson.delete({
-      where: { id: parseInt(id) },
+      where: {
+        id: lessonId,
+      },
     });
 
-    // revalidatePath("/list/lessons");
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("❌ Error deleting lesson:", err);
-    return { success: false, error: true };
+    revalidatePath("/list/lessons");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Lesson deleted successfully.",
+    };
+  } catch (error) {
+    console.error("DELETE LESSON ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage lessons."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage lessons."
+            : "The lesson could not be deleted.",
+    };
   }
 };
 
@@ -876,42 +1972,57 @@ export const deleteLesson = async (
 /*                             CREATE ASSIGNMENT                              */
 /* -------------------------------------------------------------------------- */
 export const getLessonsForUser = async () => {
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+  try {
+    const { userId, scope } = await requireAssignmentManager();
 
-  // Admin: fetch all lessons
-  if (role === "admin") {
     return await prisma.lesson.findMany({
-      select: { id: true, name: true },
-    });
-  }
+      where:
+        scope === "OWN_LESSONS"
+          ? {
+              teacherId: userId,
+            }
+          : undefined,
 
-  // Teacher: fetch only lessons they teach
-  return await prisma.lesson.findMany({
-    where: { teacherId: userId! },
-    select: { id: true, name: true },
-  });
+      select: {
+        id: true,
+
+        name: true,
+      },
+
+      orderBy: {
+        name: "asc",
+      },
+    });
+  } catch (error) {
+    console.error("GET ASSIGNMENT LESSONS ERROR:", error);
+
+    return [];
+  }
 };
 
 /* ------------------------- CREATE ASSIGNMENT ------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                             CREATE ASSIGNMENT                              */
+/* -------------------------------------------------------------------------- */
+
 export const createAssignment = async (data: AssignmentSchema) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  const academicYear = data.academicYear.trim();
-
   try {
-    if (role === "teacher") {
+    /* -------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                        */
+    /* -------------------------------------------------------------------- */
+
+    const { userId, scope } = await requireAssignmentManager();
+
+    /* -------------------------------------------------------------------- */
+    /* OWNERSHIP                                                            */
+    /* -------------------------------------------------------------------- */
+
+    if (scope === "OWN_LESSONS") {
       const teacherLesson = await prisma.lesson.findFirst({
         where: {
-          teacherId: userId!,
-
           id: data.lessonId,
+
+          teacherId: userId,
         },
 
         select: {
@@ -924,15 +2035,25 @@ export const createAssignment = async (data: AssignmentSchema) => {
           success: false,
 
           error: true,
+
+          message:
+            "You can only create assignments for lessons assigned to you.",
         };
       }
     }
+
+    /* -------------------------------------------------------------------- */
+    /* ACADEMIC CONTEXT                                                     */
+    /* -------------------------------------------------------------------- */
+
+    const academicYear = data.academicYear.trim();
 
     const termId = Number(data.termId);
 
     if (!academicYear) {
       return {
         success: false,
+
         error: true,
 
         message: "Select an academic year before creating the assignment.",
@@ -942,11 +2063,16 @@ export const createAssignment = async (data: AssignmentSchema) => {
     if (!Number.isInteger(termId) || termId <= 0) {
       return {
         success: false,
+
         error: true,
 
         message: "Select a valid school term before creating the assignment.",
       };
     }
+
+    /* -------------------------------------------------------------------- */
+    /* CREATE                                                               */
+    /* -------------------------------------------------------------------- */
 
     await prisma.assignment.create({
       data: {
@@ -964,6 +2090,10 @@ export const createAssignment = async (data: AssignmentSchema) => {
       },
     });
 
+    /* -------------------------------------------------------------------- */
+    /* REVALIDATION                                                         */
+    /* -------------------------------------------------------------------- */
+
     revalidatePath("/list/assignments");
 
     revalidatePath("/list/results");
@@ -974,6 +2104,8 @@ export const createAssignment = async (data: AssignmentSchema) => {
       success: true,
 
       error: false,
+
+      message: "Assignment created successfully.",
     };
   } catch (error) {
     console.error("CREATE ASSIGNMENT ERROR:", error);
@@ -982,35 +2114,64 @@ export const createAssignment = async (data: AssignmentSchema) => {
       success: false,
 
       error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage assignments."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage assignments."
+            : "The assignment could not be created.",
     };
   }
 };
 
 /* ------------------------- UPDATE ASSIGNMENT ------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                             UPDATE ASSIGNMENT                              */
+/* -------------------------------------------------------------------------- */
+
 export const updateAssignment = async (data: AssignmentSchema) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
   try {
+    /* -------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                        */
+    /* -------------------------------------------------------------------- */
+
+    const { userId, scope } = await requireAssignmentManager();
+
+    /* -------------------------------------------------------------------- */
+    /* VALIDATE ASSIGNMENT                                                  */
+    /* -------------------------------------------------------------------- */
+
     if (!data.id) {
       return {
         success: false,
 
         error: true,
+
+        message: "The assignment could not be resolved.",
       };
     }
 
-    if (role === "teacher") {
-      const teacherLesson = await prisma.lesson.findFirst({
-        where: {
-          teacherId: userId!,
+    /* -------------------------------------------------------------------- */
+    /* TEACHER OWNERSHIP                                                    */
+    /* -------------------------------------------------------------------- */
 
-          id: data.lessonId,
+    if (scope === "OWN_LESSONS") {
+      /*
+       * First verify that the assignment being edited
+       * already belongs to one of this Teacher's lessons.
+       *
+       * This closes a subtle hole in the old implementation
+       * where a Teacher could potentially submit another
+       * assignment ID and move it into one of their lessons.
+       */
+      const ownedAssignment = await prisma.assignment.findFirst({
+        where: {
+          id: data.id,
+
+          lesson: {
+            teacherId: userId,
+          },
         },
 
         select: {
@@ -1018,14 +2179,48 @@ export const updateAssignment = async (data: AssignmentSchema) => {
         },
       });
 
-      if (!teacherLesson) {
+      if (!ownedAssignment) {
         return {
           success: false,
 
           error: true,
+
+          message:
+            "You can only update assignments belonging to your own lessons.",
+        };
+      }
+
+      /*
+       * Also verify that the destination lesson still
+       * belongs to the same Teacher.
+       */
+      const destinationLesson = await prisma.lesson.findFirst({
+        where: {
+          id: data.lessonId,
+
+          teacherId: userId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!destinationLesson) {
+        return {
+          success: false,
+
+          error: true,
+
+          message:
+            "You can only move assignments between lessons assigned to you.",
         };
       }
     }
+
+    /* -------------------------------------------------------------------- */
+    /* ACADEMIC CONTEXT                                                     */
+    /* -------------------------------------------------------------------- */
 
     const academicYear = data.academicYear?.trim();
 
@@ -1034,20 +2229,26 @@ export const updateAssignment = async (data: AssignmentSchema) => {
     if (!academicYear) {
       return {
         success: false,
+
         error: true,
 
-        message: "Select an academic year before creating the assignment.",
+        message: "Select an academic year before updating the assignment.",
       };
     }
 
     if (!Number.isInteger(termId) || termId <= 0) {
       return {
         success: false,
+
         error: true,
 
-        message: "Select a valid school term before creating the assignment.",
+        message: "Select a valid school term before updating the assignment.",
       };
     }
+
+    /* -------------------------------------------------------------------- */
+    /* UPDATE                                                               */
+    /* -------------------------------------------------------------------- */
 
     await prisma.assignment.update({
       where: {
@@ -1069,6 +2270,10 @@ export const updateAssignment = async (data: AssignmentSchema) => {
       },
     });
 
+    /* -------------------------------------------------------------------- */
+    /* REVALIDATION                                                         */
+    /* -------------------------------------------------------------------- */
+
     revalidatePath("/list/assignments");
 
     revalidatePath("/list/results");
@@ -1079,6 +2284,8 @@ export const updateAssignment = async (data: AssignmentSchema) => {
       success: true,
 
       error: false,
+
+      message: "Assignment updated successfully.",
     };
   } catch (error) {
     console.error("UPDATE ASSIGNMENT ERROR:", error);
@@ -1087,45 +2294,126 @@ export const updateAssignment = async (data: AssignmentSchema) => {
       success: false,
 
       error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage assignments."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage assignments."
+            : "The assignment could not be updated.",
     };
   }
 };
 /* -------------------------------------------------------------------------- */
 /*                             DELETE ASSIGNMENT                              */
 /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                             DELETE ASSIGNMENT                              */
+/* -------------------------------------------------------------------------- */
+
 export const deleteAssignment = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
-
-  const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
-
   try {
-    // Only allow teachers to delete their own lesson's assignments
-    if (role === "teacher") {
-      const assignment = await prisma.assignment.findUnique({
-        where: { id: parseInt(id) },
-        include: { lesson: true },
+    /* -------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                        */
+    /* -------------------------------------------------------------------- */
+
+    const { userId, scope } = await requireAssignmentManager();
+
+    /* -------------------------------------------------------------------- */
+    /* VALIDATE ID                                                          */
+    /* -------------------------------------------------------------------- */
+
+    const assignmentId = Number(data.get("id"));
+
+    if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid assignment.",
+      };
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* OWNERSHIP                                                            */
+    /* -------------------------------------------------------------------- */
+
+    if (scope === "OWN_LESSONS") {
+      const assignment = await prisma.assignment.findFirst({
+        where: {
+          id: assignmentId,
+
+          lesson: {
+            teacherId: userId,
+          },
+        },
+
+        select: {
+          id: true,
+        },
       });
 
-      if (!assignment || assignment.lesson.teacherId !== userId) {
-        return { success: false, error: true };
+      if (!assignment) {
+        return {
+          success: false,
+
+          error: true,
+
+          message:
+            "You can only delete assignments belonging to your own lessons.",
+        };
       }
     }
 
+    /* -------------------------------------------------------------------- */
+    /* DELETE                                                               */
+    /* -------------------------------------------------------------------- */
+
     await prisma.assignment.delete({
       where: {
-        id: parseInt(id),
+        id: assignmentId,
       },
     });
 
-    // revalidatePath("/list/assignments");
-    return { success: true, error: false };
-  } catch (err) {
-    console.log("❌ Error deleting assignment:", err);
-    return { success: false, error: true };
+    /* -------------------------------------------------------------------- */
+    /* REVALIDATION                                                         */
+    /* -------------------------------------------------------------------- */
+
+    revalidatePath("/list/assignments");
+
+    revalidatePath("/list/results");
+
+    revalidatePath("/list/report-cards");
+
+    revalidatePath("/list/report-cards/generate");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Assignment deleted successfully.",
+    };
+  } catch (error) {
+    console.error("DELETE ASSIGNMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHORIZED"
+          ? "You do not have permission to manage assignments."
+          : error instanceof Error && error.message === "UNAUTHENTICATED"
+            ? "You must be signed in to manage assignments."
+            : "The assignment could not be deleted.",
+    };
   }
 };
 
@@ -1151,6 +2439,16 @@ export const deleteResult = async (
   }
 
   try {
+    const access = await requireResultsManagementAccess();
+
+    await requireMutableManualResult({
+      resultId: id,
+
+      teacherId: access.userId,
+
+      scope: access.scope,
+    });
+
     const deletion = await prisma.$transaction(
       async (tx) =>
         deleteAcademicResultWithTransaction({
@@ -1226,6 +2524,33 @@ export const createResult = async (
   data: ResultSchema,
 ) => {
   try {
+    const access = await requireResultsManagementAccess();
+
+    if (access.scope === "TEACHER_OWNED") {
+      if (data.type === "EXAM") {
+        if (!data.examId) {
+          throw new Error("Select an examination.");
+        }
+
+        await requireTeacherExamOwnership({
+          teacherId: access.userId,
+
+          examId: Number(data.examId),
+        });
+      }
+
+      if (data.type === "ASSIGNMENT") {
+        if (!data.assignmentId) {
+          throw new Error("Select an assignment.");
+        }
+
+        await requireTeacherAssignmentOwnership({
+          teacherId: access.userId,
+
+          assignmentId: Number(data.assignmentId),
+        });
+      }
+    }
     const synced = await prisma.$transaction(
       async (tx) => {
         /* ------------------------------------------------------------ */
@@ -1327,8 +2652,6 @@ export const createResult = async (
 };
 
 /* -------------------------------------------------------------------------- */
-/*                              UPDATE RESULT                                 */
-/* -------------------------------------------------------------------------- */
 
 /* ------------------------- UPDATE RESULT ------------------------- */
 
@@ -1362,6 +2685,41 @@ export const updateResult = async (
       };
     }
 
+    const access = await requireResultsManagementAccess();
+
+    await requireMutableManualResult({
+      resultId,
+
+      teacherId: access.userId,
+
+      scope: access.scope,
+    });
+
+    if (access.scope === "TEACHER_OWNED") {
+      if (data.type === "EXAM") {
+        if (!data.examId) {
+          throw new Error("Select an examination.");
+        }
+
+        await requireTeacherExamOwnership({
+          teacherId: access.userId,
+
+          examId: Number(data.examId),
+        });
+      }
+
+      if (data.type === "ASSIGNMENT") {
+        if (!data.assignmentId) {
+          throw new Error("Select an assignment.");
+        }
+
+        await requireTeacherAssignmentOwnership({
+          teacherId: access.userId,
+
+          assignmentId: Number(data.assignmentId),
+        });
+      }
+    }
     /* ------------------------------------------------------------------ */
     /*                     SYNCHRONISE RESULT UPDATE                      */
     /* ------------------------------------------------------------------ */
@@ -1524,30 +2882,26 @@ async function archiveExistingEventReminders({
 /*                              CREATE EVENT                                  */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/*                              CREATE EVENT                                  */
+/* -------------------------------------------------------------------------- */
+
 export const createEvent = async (
   _currentState: CurrentState,
 
   data: EventSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (!userId || role !== "admin") {
-    return {
-      success: false,
-
-      error: true,
-
-      message: "You are not authorized to create school events.",
-    };
-  }
-
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const { userId, actorRole, actorName } = await requireEventManager();
+
+    /* ---------------------------------------------------------------------- */
+    /* VALIDATION                                                             */
+    /* ---------------------------------------------------------------------- */
+
     const parsed = eventSchema.safeParse(data);
 
     if (!parsed.success) {
@@ -1562,6 +2916,10 @@ export const createEvent = async (
     }
 
     const values = parsed.data;
+
+    /* ---------------------------------------------------------------------- */
+    /* CLASS VALIDATION                                                       */
+    /* ---------------------------------------------------------------------- */
 
     /*
      * Validate an optional class instead of
@@ -1588,6 +2946,10 @@ export const createEvent = async (
         };
       }
     }
+
+    /* ---------------------------------------------------------------------- */
+    /* TRANSACTION                                                            */
+    /* ---------------------------------------------------------------------- */
 
     const event = await prisma.$transaction(
       async (tx) => {
@@ -1636,9 +2998,9 @@ export const createEvent = async (
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole,
 
-          actorName: null,
+          actorName,
         });
 
         return created;
@@ -1652,6 +3014,10 @@ export const createEvent = async (
         timeout: 30_000,
       },
     );
+
+    /* ---------------------------------------------------------------------- */
+    /* REVALIDATION                                                           */
+    /* ---------------------------------------------------------------------- */
 
     revalidatePath("/list/events");
 
@@ -1683,12 +3049,20 @@ export const createEvent = async (
       error: true,
 
       message:
-        error instanceof Error
-          ? error.message
-          : "The event could not be created.",
+        error instanceof Error && error.message === "UNAUTHENTICATED"
+          ? "You must be signed in to manage school events."
+          : error instanceof Error && error.message === "UNAUTHORIZED"
+            ? "You do not have permission to manage school events."
+            : error instanceof Error
+              ? error.message
+              : "The event could not be created.",
     };
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/*                              UPDATE EVENT                                  */
+/* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
 /*                              UPDATE EVENT                                  */
@@ -1699,35 +3073,27 @@ export const updateEvent = async (
 
   data: EventSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (!userId || role !== "admin") {
-    return {
-      success: false,
-
-      error: true,
-
-      message: "You are not authorized to update school events.",
-    };
-  }
-
-  if (!data.id) {
-    return {
-      success: false,
-
-      error: true,
-
-      message: "Select a valid event.",
-    };
-  }
-
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const { userId, actorRole, actorName } = await requireEventManager();
+
+    /* ---------------------------------------------------------------------- */
+    /* BASIC VALIDATION                                                       */
+    /* ---------------------------------------------------------------------- */
+
+    if (!data.id) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid event.",
+      };
+    }
+
     const parsed = eventSchema.safeParse(data);
 
     if (!parsed.success) {
@@ -1754,6 +3120,10 @@ export const updateEvent = async (
         message: "Select a valid event.",
       };
     }
+
+    /* ---------------------------------------------------------------------- */
+    /* TRANSACTION                                                            */
+    /* ---------------------------------------------------------------------- */
 
     const result = await prisma.$transaction(
       async (tx) => {
@@ -1783,6 +3153,10 @@ export const updateEvent = async (
           throw new Error("The event could not be found.");
         }
 
+        /* -------------------------------------------------------------- */
+        /* CLASS VALIDATION                                               */
+        /* -------------------------------------------------------------- */
+
         if (values.classId) {
           const classExists = await tx.class.findUnique({
             where: {
@@ -1799,16 +3173,20 @@ export const updateEvent = async (
           }
         }
 
-        /*
-         * Determine whether anything that affects
-         * previously generated notifications changed.
-         */
+        /* -------------------------------------------------------------- */
+        /* NOTIFICATION RELEVANCE                                        */
+        /* -------------------------------------------------------------- */
+
         const notificationRelevantChange =
           existing.title !== values.title ||
           existing.description !== values.description ||
           existing.startTime.getTime() !== values.startTime.getTime() ||
           existing.endTime.getTime() !== values.endTime.getTime() ||
           existing.classId !== (values.classId ?? null);
+
+        /* -------------------------------------------------------------- */
+        /* UPDATE                                                         */
+        /* -------------------------------------------------------------- */
 
         const updated = await tx.event.update({
           where: {
@@ -1846,13 +3224,10 @@ export const updateEvent = async (
           },
         });
 
-        /*
-         * If an already-reminded event is modified,
-         * hide the obsolete reminder deliveries.
-         *
-         * The scheduler can then generate a reminder
-         * describing the new event configuration.
-         */
+        /* -------------------------------------------------------------- */
+        /* REMOVE OBSOLETE REMINDERS                                     */
+        /* -------------------------------------------------------------- */
+
         if (notificationRelevantChange) {
           await archiveExistingEventReminders({
             tx,
@@ -1860,6 +3235,10 @@ export const updateEvent = async (
             eventId,
           });
         }
+
+        /* -------------------------------------------------------------- */
+        /* UPDATED EVENT NOTIFICATION                                    */
+        /* -------------------------------------------------------------- */
 
         if (notificationRelevantChange) {
           await notifyEventUpdated({
@@ -1885,9 +3264,9 @@ export const updateEvent = async (
 
             actorId: userId,
 
-            actorRole: "admin",
+            actorRole,
 
-            actorName: null,
+            actorName,
           });
         }
 
@@ -1906,6 +3285,10 @@ export const updateEvent = async (
         timeout: 30_000,
       },
     );
+
+    /* ---------------------------------------------------------------------- */
+    /* REVALIDATION                                                           */
+    /* ---------------------------------------------------------------------- */
 
     revalidatePath("/list/events");
 
@@ -1941,12 +3324,20 @@ export const updateEvent = async (
       error: true,
 
       message:
-        error instanceof Error
-          ? error.message
-          : "The event could not be updated.",
+        error instanceof Error && error.message === "UNAUTHENTICATED"
+          ? "You must be signed in to manage school events."
+          : error instanceof Error && error.message === "UNAUTHORIZED"
+            ? "You do not have permission to manage school events."
+            : error instanceof Error
+              ? error.message
+              : "The event could not be updated.",
     };
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/*                              DELETE EVENT                                  */
+/* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
 /*                              DELETE EVENT                                  */
@@ -1957,37 +3348,33 @@ export const deleteEvent = async (
 
   data: FormData,
 ) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (!userId || role !== "admin") {
-    return {
-      success: false,
-
-      error: true,
-
-      message: "You are not authorized to delete school events.",
-    };
-  }
-
-  const eventId = Number(data.get("id"));
-
-  if (!Number.isInteger(eventId) || eventId <= 0) {
-    return {
-      success: false,
-
-      error: true,
-
-      message: "Select a valid event.",
-    };
-  }
-
   try {
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const { userId, actorRole, actorName } = await requireEventManager();
+
+    /* ---------------------------------------------------------------------- */
+    /* EVENT ID                                                               */
+    /* ---------------------------------------------------------------------- */
+
+    const eventId = Number(data.get("id"));
+
+    if (!Number.isInteger(eventId) || eventId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid event.",
+      };
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* TRANSACTION                                                            */
+    /* ---------------------------------------------------------------------- */
+
     await prisma.$transaction(
       async (tx) => {
         const existing = await tx.event.findUnique({
@@ -2010,8 +3397,10 @@ export const deleteEvent = async (
 
         /*
          * Archive reminders before deleting the
-         * source event. NotificationEvent stays
-         * available as historical notification data.
+         * source event.
+         *
+         * NotificationEvent remains available as
+         * historical notification/audit evidence.
          */
         await archiveExistingEventReminders({
           tx,
@@ -2019,6 +3408,10 @@ export const deleteEvent = async (
           eventId,
         });
 
+        /*
+         * Notify affected recipients before the
+         * source Event row disappears.
+         */
         await notifyEventCancelled({
           tx,
 
@@ -2040,9 +3433,9 @@ export const deleteEvent = async (
 
           actorId: userId,
 
-          actorRole: "admin",
+          actorRole,
 
-          actorName: null,
+          actorName,
         });
 
         await tx.event.delete({
@@ -2061,7 +3454,17 @@ export const deleteEvent = async (
       },
     );
 
+    /* ---------------------------------------------------------------------- */
+    /* REVALIDATION                                                           */
+    /* ---------------------------------------------------------------------- */
+
     revalidatePath("/list/events");
+
+    revalidatePath("/student");
+
+    revalidatePath("/teacher");
+
+    revalidatePath("/parent");
 
     revalidatePath("/notifications");
 
@@ -2081,9 +3484,13 @@ export const deleteEvent = async (
       error: true,
 
       message:
-        error instanceof Error
-          ? error.message
-          : "The event could not be deleted.",
+        error instanceof Error && error.message === "UNAUTHENTICATED"
+          ? "You must be signed in to manage school events."
+          : error instanceof Error && error.message === "UNAUTHORIZED"
+            ? "You do not have permission to manage school events."
+            : error instanceof Error
+              ? error.message
+              : "The event could not be deleted.",
     };
   }
 };
@@ -2093,91 +3500,335 @@ export const deleteEvent = async (
 /* -------------------------------------------------------------------------- */
 
 export const createAnnouncement = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: AnnouncementSchema,
 ) => {
   try {
-    await prisma.announcement.create({
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    await requireAnnouncementManager();
+
+    /* ---------------------------------------------------------------------- */
+    /* CLASS VALIDATION                                                       */
+    /* ---------------------------------------------------------------------- */
+
+    if (data.classId) {
+      const classExists = await prisma.class.findUnique({
+        where: {
+          id: data.classId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!classExists) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "The selected class could not be found.",
+        };
+      }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* CREATE                                                                 */
+    /* ---------------------------------------------------------------------- */
+
+    const announcement = await prisma.announcement.create({
       data: {
         title: data.title,
+
         description: data.description,
-        date: new Date(data.date), // NEW
-        classId: data.classId ?? null, // ✅ no parseInt
+
+        date: new Date(data.date),
+
+        classId: data.classId ?? null,
       },
     });
 
-    // revalidatePath("/list/announcements");
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("CREATE ANNOUNCEMENT ERROR:", err);
-    return { success: false, error: true };
+    revalidatePath("/list/announcements");
+
+    revalidatePath("/student");
+
+    revalidatePath("/teacher");
+
+    revalidatePath("/parent");
+
+    return {
+      success: true,
+
+      error: false,
+
+      data: {
+        id: announcement.id,
+      },
+
+      message: "Announcement created successfully.",
+    };
+  } catch (error) {
+    console.error("CREATE ANNOUNCEMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHENTICATED"
+          ? "You must be signed in to manage announcements."
+          : error instanceof Error && error.message === "UNAUTHORIZED"
+            ? "You do not have permission to manage announcements."
+            : error instanceof Error
+              ? error.message
+              : "The announcement could not be created.",
+    };
   }
 };
 
 export const updateAnnouncement = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: AnnouncementSchema,
 ) => {
   if (!data.id) {
-    return { success: false, error: true };
+    return {
+      success: false,
+
+      error: true,
+
+      message: "Select a valid announcement.",
+    };
   }
 
   try {
-    await prisma.announcement.update({
-      where: { id: typeof data.id === "string" ? parseInt(data.id) : data.id },
-      data: {
-        title: data.title,
-        description: data.description,
-        classId: data.classId ?? null, // ✅ no parseInt
+    await requireAnnouncementManager();
+
+    const announcementId =
+      typeof data.id === "string" ? Number(data.id) : data.id;
+
+    if (!Number.isInteger(announcementId) || announcementId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid announcement.",
+      };
+    }
+
+    if (data.classId) {
+      const classExists = await prisma.class.findUnique({
+        where: {
+          id: data.classId,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+      if (!classExists) {
+        return {
+          success: false,
+
+          error: true,
+
+          message: "The selected class could not be found.",
+        };
+      }
+    }
+
+    const existing = await prisma.announcement.findUnique({
+      where: {
+        id: announcementId,
+      },
+
+      select: {
+        id: true,
       },
     });
 
-    // revalidatePath("/list/announcements");
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("UPDATE ANNOUNCEMENT ERROR:", err);
-    return { success: false, error: true };
+    if (!existing) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "The announcement could not be found.",
+      };
+    }
+
+    await prisma.announcement.update({
+      where: {
+        id: announcementId,
+      },
+
+      data: {
+        title: data.title,
+
+        description: data.description,
+
+        date: new Date(data.date),
+
+        classId: data.classId ?? null,
+      },
+    });
+
+    revalidatePath("/list/announcements");
+
+    revalidatePath("/student");
+
+    revalidatePath("/teacher");
+
+    revalidatePath("/parent");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Announcement updated successfully.",
+    };
+  } catch (error) {
+    console.error("UPDATE ANNOUNCEMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHENTICATED"
+          ? "You must be signed in to manage announcements."
+          : error instanceof Error && error.message === "UNAUTHORIZED"
+            ? "You do not have permission to manage announcements."
+            : error instanceof Error
+              ? error.message
+              : "The announcement could not be updated.",
+    };
   }
 };
 
 export const deleteAnnouncement = async (
-  currentState: CurrentState,
+  _currentState: CurrentState,
+
   data: FormData,
 ) => {
-  const id = data.get("id") as string;
-  if (!id) {
-    return { success: false, error: true };
-  }
   try {
-    await prisma.announcement.delete({
-      where: { id: parseInt(id) },
+    await requireAnnouncementManager();
+
+    const announcementId = Number(data.get("id"));
+
+    if (!Number.isInteger(announcementId) || announcementId <= 0) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "Select a valid announcement.",
+      };
+    }
+
+    const existing = await prisma.announcement.findUnique({
+      where: {
+        id: announcementId,
+      },
+
+      select: {
+        id: true,
+      },
     });
-    // revalidatePath("/list/announcements");
-    return { success: true, error: false };
-  } catch (err) {
-    console.error("DELETE ANNOUNCEMENT ERROR:", err);
-    return { success: false, error: true };
+
+    if (!existing) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "The announcement could not be found.",
+      };
+    }
+
+    await prisma.announcement.delete({
+      where: {
+        id: announcementId,
+      },
+    });
+
+    revalidatePath("/list/announcements");
+
+    revalidatePath("/student");
+
+    revalidatePath("/teacher");
+
+    revalidatePath("/parent");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Announcement deleted successfully.",
+    };
+  } catch (error) {
+    console.error("DELETE ANNOUNCEMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error && error.message === "UNAUTHENTICATED"
+          ? "You must be signed in to manage announcements."
+          : error instanceof Error && error.message === "UNAUTHORIZED"
+            ? "You do not have permission to manage announcements."
+            : error instanceof Error
+              ? error.message
+              : "The announcement could not be deleted.",
+    };
   }
 };
 
-// FEE MANAKEMENT SYSTEM ACTIONS
-// FEE MANAKEMENT SYSTEM ACTIONS
-// FEE MANAKEMENT SYSTEM ACTIONS
-// FEE MANAKEMENT SYSTEM ACTIONS
+// FEE MANAGEMENT SYSTEM ACTIONS
+// FEE MANAGEMENT SYSTEM ACTIONS
+// FEE MANAGEMENT SYSTEM ACTIONS
+// FEE MANAGEMENT SYSTEM ACTIONS
 
 export const createFeeCategory = async (
-  currentState: any,
+  _currentState: any,
+
   data: FeeCategorySchema,
 ) => {
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeCategory.create({
-      data: { name: data.name },
+      data: {
+        name: data.name,
+      },
     });
 
-    return { success: true, error: false };
-  } catch (err) {
-    console.log("CREATE FEE CATEGORY ERROR:", err);
-    return { success: false, error: true };
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("CREATE FEE CATEGORY ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
@@ -2188,6 +3839,8 @@ export const updateFeeCategory = async (
   if (!data.id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeCategory.update({
       where: { id: data.id },
       data: { name: data.name },
@@ -2205,6 +3858,8 @@ export const deleteFeeCategory = async (currentState: any, data: FormData) => {
   if (!id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeCategory.delete({ where: { id: parseInt(id) } });
     return { success: true, error: false };
   } catch (err) {
@@ -2215,6 +3870,8 @@ export const deleteFeeCategory = async (currentState: any, data: FormData) => {
 
 export const createFeeType = async (currentState: any, data: FeeTypeSchema) => {
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeType.create({
       data: {
         name: data.name,
@@ -2233,6 +3890,8 @@ export const updateFeeType = async (currentState: any, data: FeeTypeSchema) => {
   if (!data.id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeType.update({
       where: { id: data.id },
       data: {
@@ -2253,6 +3912,8 @@ export const deleteFeeType = async (currentState: any, data: FormData) => {
   if (!id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeType.delete({ where: { id: parseInt(id) } });
     return { success: true, error: false };
   } catch (err) {
@@ -2266,6 +3927,8 @@ export const createFeeStructure = async (
   data: FeeStructureSchema,
 ) => {
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeStructure.create({
       data: {
         amount: data.amount,
@@ -2291,6 +3954,8 @@ export const updateFeeStructure = async (
   if (!data.id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeStructure.update({
       where: { id: data.id },
       data: {
@@ -2315,6 +3980,8 @@ export const deleteFeeStructure = async (currentState: any, data: FormData) => {
   if (!id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.structure.manage");
+
     await prisma.feeStructure.delete({ where: { id: parseInt(id) } });
     return { success: true, error: false };
   } catch (err) {
@@ -2328,6 +3995,8 @@ export const createFeeMaster = async (
   data: FeeMasterSchema,
 ) => {
   try {
+    await requireFinancePermission("finance.invoices.manage");
+
     await prisma.feeMaster.create({
       data: {
         studentId: data.studentId,
@@ -2352,6 +4021,8 @@ export const updateFeeMaster = async (
   if (!data.id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.invoices.manage");
+
     await prisma.feeMaster.update({
       where: { id: data.id },
       data: {
@@ -2375,6 +4046,8 @@ export const deleteFeeMaster = async (currentState: any, data: FormData) => {
   if (!id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.invoices.manage");
+
     await prisma.feeMaster.delete({ where: { id: parseInt(id) } });
     return { success: true, error: false };
   } catch (err) {
@@ -2385,6 +4058,8 @@ export const deleteFeeMaster = async (currentState: any, data: FormData) => {
 
 export const createFee = async (currentState: any, data: FeeSchema) => {
   try {
+    await requireFinancePermission("finance.invoices.manage");
+
     await prisma.fee.create({
       data: {
         masterId: data.masterId,
@@ -2404,6 +4079,8 @@ export const updateFee = async (currentState: any, data: FeeSchema) => {
   if (!data.id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.invoices.manage");
+
     await prisma.fee.update({
       where: { id: data.id },
       data: {
@@ -2425,6 +4102,8 @@ export const deleteFee = async (currentState: any, data: FormData) => {
   if (!id) return { success: false, error: true };
 
   try {
+    await requireFinancePermission("finance.invoices.manage");
+
     await prisma.fee.delete({ where: { id: parseInt(id) } });
     return { success: true, error: false };
   } catch (err) {
@@ -2438,23 +4117,57 @@ export const createFeePayment = async (
 
   data: FeePaymentSchema,
 ) => {
-  const { userId, sessionClaims } = await auth();
+  /* -------------------------------------------------------------------------- */
+  /* AUTHORIZATION                                                              */
+  /* -------------------------------------------------------------------------- */
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+  const accessActor = await getCurrentAccessActor();
 
-  if (!userId || role !== "admin") {
+  if (!accessActor) {
     return {
       success: false,
 
       error: true,
 
-      message: "You are not authorized to record fee payments.",
+      message: "You must be signed in to record fee payments.",
     };
   }
+
+  if (!accessActor.can("finance.payments.record")) {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "You do not have permission to record fee payments.",
+    };
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* AUDIT ACTOR                                                                */
+  /* -------------------------------------------------------------------------- */
+
+  const grantingAssignment = accessActor.activeAssignments.find((assignment) =>
+    assignment.role.permissions.some(
+      (rolePermission) =>
+        rolePermission.permission.isActive &&
+        rolePermission.permission.key.trim().toLowerCase() ===
+          "finance.payments.record",
+    ),
+  );
+
+  const userId = accessActor.actor.id;
+
+  const actorRole =
+    grantingAssignment?.role.key?.trim().toLowerCase() ??
+    accessActor.actor.legacyRole?.trim().toLowerCase() ??
+    null;
+
+  const actorName =
+    accessActor.actor.displayName?.trim() ||
+    accessActor.actor.username?.trim() ||
+    accessActor.actor.email?.trim() ||
+    "Finance Officer";
 
   try {
     const result = await prisma.$transaction(
@@ -2582,9 +4295,9 @@ export const createFeePayment = async (
 
           actorId: userId,
 
-          actorRole: role,
+          actorRole,
 
-          actorName: null,
+          actorName,
         });
 
         return {
@@ -2638,39 +4351,212 @@ export const createFeePayment = async (
 };
 
 export const updateFeePayment = async (
-  currentState: any,
+  _currentState: any,
+
   data: FeePaymentSchema,
 ) => {
-  if (!data.id) return { success: false, error: true };
+  if (!data.id) {
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
 
   try {
-    await prisma.feePayment.update({
-      where: { id: data.id },
-      data: {
-        masterId: data.masterId,
-        amount: data.amount,
-        method: data.method,
-        date: data.date ?? new Date(),
-      },
-    });
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    return { success: true, error: false };
-  } catch (err) {
-    console.log("UPDATE FEE PAYMENT ERROR:", err);
-    return { success: false, error: true };
+    await requireFinancePermission("finance.payments.modify");
+
+    /* ---------------------------------------------------------------------- */
+    /* UPDATE + BALANCE SYNC                                                  */
+    /* ---------------------------------------------------------------------- */
+
+    await prisma.$transaction(
+      async (tx) => {
+        /*
+         * Load the existing payment first.
+         *
+         * This matters because the payment may be moved
+         * from one FeeMaster to another.
+         */
+        const existingPayment = await tx.feePayment.findUnique({
+          where: {
+            id: data.id!,
+          },
+
+          select: {
+            id: true,
+
+            masterId: true,
+          },
+        });
+
+        if (!existingPayment) {
+          throw new Error("The fee payment could not be found.");
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* UPDATE PAYMENT                                                     */
+        /* ------------------------------------------------------------------ */
+
+        await tx.feePayment.update({
+          where: {
+            id: data.id!,
+          },
+
+          data: {
+            masterId: data.masterId,
+
+            amount: data.amount,
+
+            method: data.method,
+
+            date: data.date ?? new Date(),
+          },
+        });
+
+        /* ------------------------------------------------------------------ */
+        /* NEW INVOICE STATUS                                                 */
+        /* ------------------------------------------------------------------ */
+
+        await syncFeeMasterStatus({
+          feeMasterId: data.masterId,
+
+          tx,
+        });
+
+        /* ------------------------------------------------------------------ */
+        /* PREVIOUS INVOICE STATUS                                            */
+        /* ------------------------------------------------------------------ */
+
+        /*
+         * If the payment was moved to a different
+         * FeeMaster, the previous invoice also needs
+         * to have its balance/status recalculated.
+         */
+        if (existingPayment.masterId !== data.masterId) {
+          await syncFeeMasterStatus({
+            feeMasterId: existingPayment.masterId,
+
+            tx,
+          });
+        }
+      },
+
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+
+        maxWait: 10_000,
+
+        timeout: 30_000,
+      },
+    );
+
+    /* ---------------------------------------------------------------------- */
+    /* REVALIDATION                                                           */
+    /* ---------------------------------------------------------------------- */
+
+    revalidatePath("/list/fee-master");
+
+    revalidatePath("/list/FinanceDashboardPage");
+
+    revalidatePath("/notifications");
+
+    return {
+      success: true,
+
+      error: false,
+
+      message: "Fee payment updated successfully.",
+    };
+  } catch (error) {
+    console.error("UPDATE FEE PAYMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+
+      message:
+        error instanceof Error
+          ? error.message
+          : "The fee payment could not be updated.",
+    };
   }
 };
 
-export const deleteFeePayment = async (currentState: any, data: FormData) => {
-  const id = data.get("id") as string;
-  if (!id) return { success: false, error: true };
+export const deleteFeePayment = async (
+  _currentState: any,
+
+  data: FormData,
+) => {
+  const paymentId = Number(data.get("id"));
+
+  if (!Number.isInteger(paymentId) || paymentId <= 0) {
+    return {
+      success: false,
+
+      error: true,
+    };
+  }
 
   try {
-    await prisma.feePayment.delete({ where: { id: parseInt(id) } });
-    return { success: true, error: false };
-  } catch (err) {
-    console.log("DELETE FEE PAYMENT ERROR:", err);
-    return { success: false, error: true };
+    await requireFinancePermission("finance.payments.modify");
+
+    const payment = await prisma.feePayment.findUnique({
+      where: {
+        id: paymentId,
+      },
+
+      select: {
+        id: true,
+
+        masterId: true,
+      },
+    });
+
+    if (!payment) {
+      return {
+        success: false,
+
+        error: true,
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.feePayment.delete({
+        where: {
+          id: payment.id,
+        },
+      });
+
+      await syncFeeMasterStatus({
+        feeMasterId: payment.masterId,
+
+        tx,
+      });
+    });
+
+    revalidatePath("/list/fee-master");
+
+    revalidatePath("/list/FinanceDashboardPage");
+
+    return {
+      success: true,
+
+      error: false,
+    };
+  } catch (error) {
+    console.error("DELETE FEE PAYMENT ERROR:", error);
+
+    return {
+      success: false,
+
+      error: true,
+    };
   }
 };
 
@@ -2680,53 +4566,108 @@ export const generateFeeMaster = async ({
   academicYear,
 }: {
   studentId: string;
+
   term: string;
+
   academicYear: string;
 }) => {
-  // 1️⃣ Fetch student info
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    include: { class: true, grade: true },
-  });
-  if (!student) throw new Error("Student not found");
+  /* ------------------------------------------------------------------------ */
+  /* AUTHORIZATION                                                            */
+  /* ------------------------------------------------------------------------ */
 
-  // 2️⃣ Fetch applicable FeeStructures
+  await requireFinancePermission("finance.invoices.manage");
+
+  /* ------------------------------------------------------------------------ */
+  /* STUDENT                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  const student = await prisma.student.findUnique({
+    where: {
+      id: studentId,
+    },
+
+    include: {
+      class: true,
+
+      grade: true,
+    },
+  });
+
+  if (!student) {
+    throw new Error("Student not found");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* FEE STRUCTURES                                                           */
+  /* ------------------------------------------------------------------------ */
+
   const feeStructures = await prisma.feeStructure.findMany({
     where: {
       OR: [
-        { classId: student.classId },
-        { gradeId: student.gradeId },
-        { classId: null, gradeId: null }, // generic fees
+        {
+          classId: student.classId,
+        },
+
+        {
+          gradeId: student.gradeId,
+        },
+
+        {
+          classId: null,
+
+          gradeId: null,
+        },
       ],
     },
-    include: { type: true },
+
+    include: {
+      type: true,
+    },
   });
 
-  if (!feeStructures.length)
+  if (!feeStructures.length) {
     throw new Error("No applicable fee structures for this student");
+  }
 
-  // 3️⃣ Calculate total
-  const totalAmount = feeStructures.reduce((sum, fs) => sum + fs.amount, 0);
+  /* ------------------------------------------------------------------------ */
+  /* TOTAL                                                                    */
+  /* ------------------------------------------------------------------------ */
 
-  // 4️⃣ Create FeeMaster
-  const feeMaster = await prisma.feeMaster.create({
+  const totalAmount = feeStructures.reduce(
+    (sum, feeStructure) => sum + feeStructure.amount,
+
+    0,
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* CREATE INVOICE                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  return prisma.feeMaster.create({
     data: {
       studentId,
+
       term,
+
       academicYear,
+
       totalAmount,
+
       status: "PENDING",
+
       details: {
-        create: feeStructures.map((fs) => ({
-          structureId: fs.id,
-          amount: fs.amount,
+        create: feeStructures.map((feeStructure) => ({
+          structureId: feeStructure.id,
+
+          amount: feeStructure.amount,
         })),
       },
     },
-    include: { details: true },
-  });
 
-  return feeMaster;
+    include: {
+      details: true,
+    },
+  });
 };
 
 export const createAttendance = async (
@@ -2789,15 +4730,61 @@ export const saveTermSettings = async (data: {
 
   isActive: boolean;
 }) => {
-  const { userId, sessionClaims } = await auth();
-
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
   try {
+    /* -------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                        */
+    /* -------------------------------------------------------------------- */
+
+    const accessActor = await getCurrentAccessActor();
+
+    if (!accessActor) {
+      return {
+        success: false,
+
+        error: true,
+
+        message: "You must be signed in to manage academic calendar settings.",
+      };
+    }
+
+    if (!accessActor.can("settings.manage")) {
+      return {
+        success: false,
+
+        error: true,
+
+        message:
+          "You do not have permission to manage academic calendar settings.",
+      };
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* AUDIT ACTOR                                                          */
+    /* -------------------------------------------------------------------- */
+
+    const grantingAssignment = accessActor.activeAssignments.find(
+      (assignment) =>
+        assignment.role.permissions.some(
+          (rolePermission) =>
+            rolePermission.permission.isActive &&
+            rolePermission.permission.key.trim().toLowerCase() ===
+              "settings.manage",
+        ),
+    );
+
+    const userId = accessActor.actor.id;
+
+    const actorRole =
+      grantingAssignment?.role.key?.trim().toLowerCase() ??
+      accessActor.actor.legacyRole?.trim().toLowerCase() ??
+      null;
+
+    const actorName =
+      accessActor.actor.displayName?.trim() ||
+      accessActor.actor.username?.trim() ||
+      accessActor.actor.email?.trim() ||
+      "Academic Calendar Administrator";
+
     /* ------------------------------------------------------------------ */
     /*                       BASIC VALIDATION                             */
     /* ------------------------------------------------------------------ */
@@ -3072,9 +5059,9 @@ export const saveTermSettings = async (data: {
                 actor: {
                   actorId: userId,
 
-                  actorRole: role ?? "system",
+                  actorRole: actorRole ?? "system",
 
-                  actorName: "Academic Calendar",
+                  actorName,
                 },
               },
             );
@@ -3185,418 +5172,19 @@ export const saveTermSettings = async (data: {
   }
 };
 
-// export const saveTermSettings = async (data: {
-//   id?: number;
-
-//   academicYearId:
-//     number;
-
-//   name:
-//     | "FIRST"
-//     | "SECOND"
-//     | "THIRD";
-
-//   startDate:
-//     string;
-
-//   endDate:
-//     string;
-
-//   daysSchoolOpened:
-//     number;
-
-//   isActive:
-//     boolean;
-// }) => {
-//   try {
-//     /* ------------------------------------------------------------------ */
-//     /*                       BASIC VALIDATION                             */
-//     /* ------------------------------------------------------------------ */
-
-//     if (
-//       !Number.isInteger(
-//         data.academicYearId,
-//       ) ||
-//       data.academicYearId <=
-//         0
-//     ) {
-//       return {
-//         success: false,
-//         error: true,
-
-//         message:
-//           "Select a valid academic year.",
-//       };
-//     }
-
-//     if (
-//       !Number.isInteger(
-//         data.daysSchoolOpened,
-//       ) ||
-//       data.daysSchoolOpened <=
-//         0
-//     ) {
-//       return {
-//         success: false,
-//         error: true,
-
-//         message:
-//           "Days school opened must be a positive whole number.",
-//       };
-//     }
-
-//     if (
-//       data.daysSchoolOpened >
-//       150
-//     ) {
-//       return {
-//         success: false,
-//         error: true,
-
-//         message:
-//           "Days school opened appears too high for one academic term.",
-//       };
-//     }
-
-//     const startDate =
-//       new Date(
-//         data.startDate,
-//       );
-
-//     const endDate =
-//       new Date(
-//         data.endDate,
-//       );
-
-//     if (
-//       Number.isNaN(
-//         startDate.getTime(),
-//       ) ||
-//       Number.isNaN(
-//         endDate.getTime(),
-//       )
-//     ) {
-//       return {
-//         success: false,
-//         error: true,
-
-//         message:
-//           "Enter valid term dates.",
-//       };
-//     }
-
-//     if (
-//       endDate <=
-//       startDate
-//     ) {
-//       return {
-//         success: false,
-//         error: true,
-
-//         message:
-//           "The term end date must be after the start date.",
-//       };
-//     }
-
-//     /* ------------------------------------------------------------------ */
-//     /*                         TRANSACTION                                */
-//     /* ------------------------------------------------------------------ */
-
-//     const result =
-//       await prisma.$transaction(
-//         async (tx) => {
-//           const academicYear =
-//             await tx.schoolAcademicYear.findUnique({
-//               where: {
-//                 id:
-//                   data.academicYearId,
-//               },
-
-//               select: {
-//                 id:
-//                   true,
-
-//                 name:
-//                   true,
-
-//                 startDate:
-//                   true,
-
-//                 endDate:
-//                   true,
-//               },
-//             });
-
-//           if (
-//             !academicYear
-//           ) {
-//             throw new Error(
-//               "The selected academic year could not be found.",
-//             );
-//           }
-
-//           /*
-//            * A term should fall within its
-//            * parent academic-year boundaries.
-//            */
-//           if (
-//             startDate <
-//               academicYear.startDate ||
-//             endDate >
-//               academicYear.endDate
-//           ) {
-//             throw new Error(
-//               `The term dates must fall within the ${academicYear.name} academic year.`,
-//             );
-//           }
-
-//           /*
-//            * Prevent duplicate First/Second/Third
-//            * Term records inside the same year.
-//            */
-//           const duplicate =
-//             await tx.schoolTerm.findFirst({
-//               where: {
-//                 academicYearId:
-//                   data.academicYearId,
-
-//                 name:
-//                   data.name,
-
-//                 ...(data.id
-//                   ? {
-//                       NOT: {
-//                         id:
-//                           data.id,
-//                       },
-//                     }
-//                   : {}),
-//               },
-
-//               select: {
-//                 id:
-//                   true,
-//               },
-//             });
-
-//           if (
-//             duplicate
-//           ) {
-//             throw new Error(
-//               `${data.name
-//                 .toLowerCase()
-//                 .replace(
-//                   /\b\w/g,
-//                   (
-//                     character,
-//                   ) =>
-//                     character.toUpperCase(),
-//                 )} Term already exists for ${academicYear.name}.`,
-//             );
-//           }
-
-//           /*
-//            * The school has one current active
-//            * term across the application.
-//            */
-//           if (
-//             data.isActive
-//           ) {
-//             await tx.schoolTerm.updateMany({
-//               where: {
-//                 isActive:
-//                   true,
-
-//                 ...(data.id
-//                   ? {
-//                       NOT: {
-//                         id:
-//                           data.id,
-//                       },
-//                     }
-//                   : {}),
-//               },
-
-//               data: {
-//                 isActive:
-//                   false,
-//               },
-//             });
-//           }
-
-//           /* ------------------------------------------------------------ */
-//           /*                         UPDATE                               */
-//           /* ------------------------------------------------------------ */
-
-//           if (
-//             data.id
-//           ) {
-//             const existing =
-//               await tx.schoolTerm.findUnique({
-//                 where: {
-//                   id:
-//                     data.id,
-//                 },
-
-//                 select: {
-//                   id:
-//                     true,
-
-//                   daysSchoolOpened:
-//                     true,
-//                 },
-//               });
-
-//             if (
-//               !existing
-//             ) {
-//               throw new Error(
-//                 "The selected school term could not be found.",
-//               );
-//             }
-
-//             const updated =
-//               await tx.schoolTerm.update({
-//                 where: {
-//                   id:
-//                     data.id,
-//                 },
-
-//                 data: {
-//                   academicYearId:
-//                     data.academicYearId,
-
-//                   name:
-//                     data.name,
-
-//                   startDate,
-
-//                   endDate,
-
-//                   daysSchoolOpened:
-//                     data.daysSchoolOpened,
-
-//                   isActive:
-//                     data.isActive,
-//                 },
-//               });
-
-//             return {
-//               term:
-//                 updated,
-
-//               daysSchoolOpenedChanged:
-//                 existing.daysSchoolOpened !==
-//                 data.daysSchoolOpened,
-//             };
-//           }
-
-//           /* ------------------------------------------------------------ */
-//           /*                         CREATE                               */
-//           /* ------------------------------------------------------------ */
-
-//           const created =
-//             await tx.schoolTerm.create({
-//               data: {
-//                 academicYearId:
-//                   data.academicYearId,
-
-//                 name:
-//                   data.name,
-
-//                 startDate,
-
-//                 endDate,
-
-//                 daysSchoolOpened:
-//                   data.daysSchoolOpened,
-
-//                 isActive:
-//                   data.isActive,
-//               },
-//             });
-
-//           return {
-//             term:
-//               created,
-
-//             daysSchoolOpenedChanged:
-//               false,
-//           };
-//         },
-//       );
-
-//     /* ------------------------------------------------------------------ */
-//     /*                       REVALIDATION                                 */
-//     /* ------------------------------------------------------------------ */
-
-//     revalidatePath(
-//       "/list/settings/academic-calendar",
-//     );
-
-//     revalidatePath(
-//       "/list/settings",
-//     );
-
-//     revalidatePath(
-//       "/list/report-cards",
-//     );
-
-//     revalidatePath(
-//       "/list/report-cards/generate",
-//     );
-
-//     revalidatePath(
-//       "/list/report-cards/review",
-//     );
-
-//     return {
-//       success: true,
-//       error: false,
-
-//       data:
-//         result.term,
-
-//       daysSchoolOpenedChanged:
-//         result.daysSchoolOpenedChanged,
-
-//       message:
-//         data.id
-//           ? "Term updated successfully."
-//           : "Term created successfully.",
-//     };
-//   } catch (error) {
-//     console.error(
-//       "TERM SAVE ERROR:",
-//       error,
-//     );
-
-//     return {
-//       success: false,
-//       error: true,
-
-//       message:
-//         error instanceof Error
-//           ? error.message
-//           : "The term could not be saved.",
-//     };
-//   }
-// };
-
 /* -------------------------------------------------------------------------- */
 /*                        CREATE ACADEMIC YEAR                                */
 /* -------------------------------------------------------------------------- */
 
 export const createSchoolAcademicYear = async (data: {
   name: string;
-
   startDate: Date;
-
   endDate: Date;
-
   isActive: boolean;
 }) => {
   try {
+    await requirePermission("settings.manage");
+
     const name = data.name.trim();
 
     if (!name) {
@@ -3649,8 +5237,7 @@ export const createSchoolAcademicYear = async (data: {
       });
     });
 
-    revalidatePath("/list/settings/term");
-
+    revalidatePath("/list/settings/academic-calendar");
     revalidatePath("/list/settings");
 
     return {
@@ -3684,16 +5271,14 @@ export const createSchoolAcademicYear = async (data: {
 
 export const updateSchoolAcademicYear = async (data: {
   id?: number;
-
   name: string;
-
   startDate: Date;
-
   endDate: Date;
-
   isActive: boolean;
 }) => {
   try {
+    await requirePermission("settings.manage");
+
     if (!data.id || !Number.isInteger(data.id) || data.id <= 0) {
       return {
         success: false,
@@ -3774,8 +5359,7 @@ export const updateSchoolAcademicYear = async (data: {
       });
     });
 
-    revalidatePath("/list/settings/academic-calender");
-
+    revalidatePath("/list/settings/academic-calendar");
     revalidatePath("/list/settings");
 
     revalidatePath("/list/report-cards");

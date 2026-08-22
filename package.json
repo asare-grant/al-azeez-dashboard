@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:access": "tsx prisma/seed-access-control.ts"
+    "seed:access": "tsx prisma/seed-access-control.ts",
+    "audit:auth": "node scripts/audit-authorization.mjs",
+    "sync:system-roles": "tsx scripts/sync-system-role-permissions.ts",
+    "audit:permissions": "tsx scripts/audit-permission-integrity.ts",
+    "sync:system-roles:apply": "tsx scripts/sync-system-role-permissions.ts --apply",
+    "sync:system-roles:force": "tsx scripts/sync-system-role-permissions.ts --apply --yes"
   },
   "dependencies": {
     "@clerk/backend": "^2.19.0",

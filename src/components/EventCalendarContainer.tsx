@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+// src/components/EventCalendarContainer.tsx
 
 import Image from "next/image";
 
@@ -10,8 +10,9 @@ import EventList from "./EventList";
 
 import {
   getEventVisibilityWhere,
-  type EventViewerRole,
+  requireEventViewer,
 } from "@/lib/events/visibility";
+
 import Link from "next/link";
 
 /* -------------------------------------------------------------------------- */
@@ -47,21 +48,15 @@ export default async function EventCalendarContainer({
     [key: string]: string | undefined;
   }>;
 }) {
-  const { userId, sessionClaims } = await auth();
+  let viewer;
 
-  if (!userId) {
+  try {
+    viewer = await requireEventViewer();
+  } catch {
     return null;
   }
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role as EventViewerRole | undefined;
-
-  if (!role) {
-    return null;
-  }
+  const { userId, scope } = viewer;
 
   const params = await searchParams;
 
@@ -70,10 +65,11 @@ export default async function EventCalendarContainer({
   const monthKey =
     params.month ?? selectedDate?.slice(0, 7) ?? currentMonthKey();
 
-  const visibility = getEventVisibilityWhere({
+  const visibility =
+  getEventVisibilityWhere({
     userId,
 
-    role,
+    scope,
   });
 
   const { start, end } = getMonthRange(monthKey);

@@ -1,30 +1,19 @@
+// src/lib/finance/notification-actions.ts
 "use server";
 
-import {
-  auth,
-} from "@clerk/nextjs/server";
-
-import {
-  revalidatePath,
-} from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
 
-import {
-  getFeeAccountSummary,
-} from "@/lib/finance/fee-account-service";
+import { getCurrentAccessActor } from "@/lib/access-control";
 
-import {
-  notifyFeeBalanceDue,
-} from "@/lib/notifications/finance-notifications";
+import { getFeeAccountSummary } from "@/lib/finance/fee-account-service";
 
-import {
-  Prisma,
-} from "@prisma/client";
+import { notifyFeeBalanceDue } from "@/lib/notifications/finance-notifications";
 
-import {
-  queueFeeReminderWhatsApp,
-} from "@/lib/whatsapp/queue";
+import { Prisma } from "@prisma/client";
+
+import { queueFeeReminderWhatsApp } from "@/lib/whatsapp/queue";
 
 /* -------------------------------------------------------------------------- */
 /*                       SEND ARREARS REMINDERS                               */
@@ -34,129 +23,101 @@ export async function sendOutstandingFeeReminders({
   term,
   academicYear,
 }: {
-  term:
-    string;
+  term: string;
 
-  academicYear:
-    string;
+  academicYear: string;
 }) {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
+  const accessActor = await getCurrentAccessActor();
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?:
-        string;
-    }
-  )?.role;
-
-  if (
-    !userId ||
-    role !==
-      "admin"
-  ) {
+  if (!accessActor) {
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
-      message:
-        "You are not authorized to send fee reminders.",
+      message: "You must be signed in to send fee reminders.",
     };
   }
 
-  const normalisedTerm =
-    term.trim();
-
-  const normalisedAcademicYear =
-    academicYear.trim();
-
-  if (
-    !normalisedTerm ||
-    !normalisedAcademicYear
-  ) {
+  if (!accessActor.can("finance.reminders.send")) {
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
-      message:
-        "Select a term and academic year before sending reminders.",
+      message: "You do not have permission to send fee reminders.",
+    };
+  }
+
+  const userId = accessActor.actor.id;
+
+  const actorRole =
+    accessActor.actor.legacyRole ??
+    accessActor.activeAssignments[0]?.role.key ??
+    null;
+
+  const normalisedTerm = term.trim();
+
+  const normalisedAcademicYear = academicYear.trim();
+
+  if (!normalisedTerm || !normalisedAcademicYear) {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "Select a term and academic year before sending reminders.",
     };
   }
 
   try {
-    const invoices =
-      await prisma.feeMaster.findMany({
-        where: {
-          term:
-            normalisedTerm,
+    const invoices = await prisma.feeMaster.findMany({
+      where: {
+        term: normalisedTerm,
 
-          academicYear:
-            normalisedAcademicYear,
-        },
+        academicYear: normalisedAcademicYear,
+      },
 
-        select: {
-          id:
-            true,
+      select: {
+        id: true,
 
-          term:
-            true,
+        term: true,
 
-          academicYear:
-            true,
+        academicYear: true,
 
-          student: {
-            select: {
-              id:
-                true,
+        student: {
+          select: {
+            id: true,
 
-              name:
-                true,
+            name: true,
 
-              surname:
-                true,
+            surname: true,
 
-              parentId:
-                true,
+            parentId: true,
 
-              class: {
-                select: {
-                  id:
-                    true,
+            class: {
+              select: {
+                id: true,
 
-                  name:
-                    true,
-                },
+                name: true,
               },
             },
           },
         },
+      },
 
-        orderBy: {
-          id:
-            "asc",
-        },
-      });
+      orderBy: {
+        id: "asc",
+      },
+    });
 
-    let outstandingCount =
-      0;
+    let outstandingCount = 0;
 
-    let notifiedCount =
-      0;
+    let notifiedCount = 0;
 
-    let skippedNoParent =
-      0;
+    let skippedNoParent = 0;
 
-    let skippedDuplicate =
-      0;
+    let skippedDuplicate = 0;
 
     /*
      * A manual batch gets its own date-based key.
@@ -165,125 +126,82 @@ export async function sendOutstandingFeeReminders({
      * notifying the same parent twice on the same day,
      * while still allowing another reminder on a later day.
      */
-    const today =
-      new Date()
-        .toISOString()
-        .slice(
-          0,
-          10,
-        );
+    const today = new Date().toISOString().slice(0, 10);
 
-    for (
-      const invoice of
-      invoices
-    ) {
-      const summary =
-        await getFeeAccountSummary({
-          feeMasterId:
-            invoice.id,
-        });
+    for (const invoice of invoices) {
+      const summary = await getFeeAccountSummary({
+        feeMasterId: invoice.id,
+      });
 
-      if (
-        summary.balance <=
-        0
-      ) {
+      if (summary.balance <= 0) {
         continue;
       }
 
       outstandingCount++;
 
-      if (
-        !invoice.student
-          .parentId
-      ) {
+      if (!invoice.student.parentId) {
         skippedNoParent++;
 
         continue;
       }
 
-      const result =
-        await notifyFeeBalanceDue({
-          feeMasterId:
-            invoice.id,
+      const result = await notifyFeeBalanceDue({
+        feeMasterId: invoice.id,
 
-          studentId:
-            invoice.student.id,
+        studentId: invoice.student.id,
 
-          studentName:
-            `${invoice.student.name} ${invoice.student.surname}`.trim(),
+        studentName:
+          `${invoice.student.name} ${invoice.student.surname}`.trim(),
 
-          classId:
-            invoice.student.class.id,
+        classId: invoice.student.class.id,
 
-          className:
-            invoice.student.class.name,
+        className: invoice.student.class.name,
 
-          term:
-            invoice.term,
+        term: invoice.term,
 
-          academicYear:
-            invoice.academicYear,
+        academicYear: invoice.academicYear,
 
-          totalAmount:
-            summary.totalAmount,
+        totalAmount: summary.totalAmount,
 
-          totalPaid:
-            summary.paidAmount,
+        totalPaid: summary.paidAmount,
 
-          balance:
-            summary.balance,
+        balance: summary.balance,
 
-          /*
-           * Different namespace from the scheduled
-           * monthly reminder.
-           */
-          reminderKey:
-            `manual-${today}`,
+        /*
+         * Different namespace from the scheduled
+         * monthly reminder.
+         */
+        reminderKey: `manual-${today}`,
 
-          actorId:
-            userId,
+        actorId: userId,
 
-          actorRole:
-            "admin",
+        actorRole,
 
-          actorName:
-            null,
-        });
+        actorName: accessActor.actor.displayName,
+      });
 
-      if (
-        !result
-      ) {
+      if (!result) {
         continue;
       }
 
-      if (
-        result.createdEvent
-      ) {
-        notifiedCount +=
-          result.deliveredCount;
+      if (result.createdEvent) {
+        notifiedCount += result.deliveredCount;
       } else {
         skippedDuplicate++;
       }
     }
 
-    revalidatePath(
-      "/list/FinanceDashboardPage",
-    );
+    revalidatePath("/list/FinanceDashboardPage");
 
-    revalidatePath(
-      "/notifications",
-    );
+    revalidatePath("/notifications");
 
     return {
-      success:
-        true,
+      success: true,
 
-      error:
-        false,
+      error: false,
 
       data: {
-        invoicesScanned:
-          invoices.length,
+        invoicesScanned: invoices.length,
 
         outstandingCount,
 
@@ -295,30 +213,19 @@ export async function sendOutstandingFeeReminders({
       },
 
       message:
-        outstandingCount ===
-        0
+        outstandingCount === 0
           ? "There are no outstanding fee balances for this period."
           : `Fee reminders processed successfully for ${outstandingCount} outstanding account${
-              outstandingCount ===
-              1
-                ? ""
-                : "s"
+              outstandingCount === 1 ? "" : "s"
             }.`,
     };
-  } catch (
-    error
-  ) {
-    console.error(
-      "SEND OUTSTANDING FEE REMINDERS ERROR:",
-      error,
-    );
+  } catch (error) {
+    console.error("SEND OUTSTANDING FEE REMINDERS ERROR:", error);
 
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
       message:
         error instanceof Error
@@ -327,10 +234,6 @@ export async function sendOutstandingFeeReminders({
     };
   }
 }
-
-
-
-
 
 /* -------------------------------------------------------------------------- */
 /*                 SEND SINGLE OUTSTANDING FEE REMINDER                       */
@@ -347,59 +250,44 @@ export async function sendOutstandingFeeReminders({
 export async function sendSingleOutstandingFeeReminder({
   feeMasterId,
 }: {
-  feeMasterId:
-    number;
+  feeMasterId: number;
 }) {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
+  const accessActor = await getCurrentAccessActor();
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?:
-        string;
-    }
-  )?.role;
-
-  /* ---------------------------------------------------------------------- */
-  /*                              AUTHORISATION                             */
-  /* ---------------------------------------------------------------------- */
-
-  if (
-    !userId ||
-    role !==
-      "admin"
-  ) {
+  if (!accessActor) {
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
-      message:
-        "You are not authorized to send fee reminders.",
+      message: "You must be signed in to send fee reminders.",
     };
   }
 
-  if (
-    !Number.isInteger(
-      feeMasterId,
-    ) ||
-    feeMasterId <=
-      0
-  ) {
+  if (!accessActor.can("finance.reminders.send")) {
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
-      message:
-        "Select a valid fee account.",
+      message: "You do not have permission to send fee reminders.",
+    };
+  }
+
+  const userId = accessActor.actor.id;
+
+  const actorRole =
+    accessActor.actor.legacyRole ??
+    accessActor.activeAssignments[0]?.role.key ??
+    null;
+
+  if (!Number.isInteger(feeMasterId) || feeMasterId <= 0) {
+    return {
+      success: false,
+
+      error: true,
+
+      message: "Select a valid fee account.",
     };
   }
 
@@ -407,361 +295,259 @@ export async function sendSingleOutstandingFeeReminder({
     /*
      * One individual reminder per invoice per day.
      */
-    const today =
-      new Date()
-        .toISOString()
-        .slice(
-          0,
-          10,
-        );
+    const today = new Date().toISOString().slice(0, 10);
 
-    const reminderKey =
-      `individual-${today}`;
+    const reminderKey = `individual-${today}`;
 
-    const result =
-      await prisma.$transaction(
-        async (
-          tx,
-        ) => {
-          /* -------------------------------------------------------------- */
-          /*                       LOAD FEE ACCOUNT                          */
-          /* -------------------------------------------------------------- */
+    const result = await prisma.$transaction(
+      async (tx) => {
+        /* -------------------------------------------------------------- */
+        /*                       LOAD FEE ACCOUNT                          */
+        /* -------------------------------------------------------------- */
 
-          const invoice =
-            await tx.feeMaster.findUnique({
-              where: {
-                id:
-                  feeMasterId,
-              },
+        const invoice = await tx.feeMaster.findUnique({
+          where: {
+            id: feeMasterId,
+          },
 
+          select: {
+            id: true,
+
+            term: true,
+
+            academicYear: true,
+
+            student: {
               select: {
-                id:
-                  true,
+                id: true,
 
-                term:
-                  true,
+                name: true,
 
-                academicYear:
-                  true,
+                surname: true,
 
-                student: {
+                class: {
                   select: {
-                    id:
-                      true,
+                    id: true,
 
-                    name:
-                      true,
+                    name: true,
+                  },
+                },
 
-                    surname:
-                      true,
+                parent: {
+                  select: {
+                    id: true,
 
-                    class: {
-                      select: {
-                        id:
-                          true,
+                    name: true,
 
-                        name:
-                          true,
-                      },
-                    },
+                    surname: true,
 
-                    parent: {
-                      select: {
-                        id:
-                          true,
-
-                        name:
-                          true,
-
-                        surname:
-                          true,
-
-                        phone:
-                          true,
-                      },
-                    },
+                    phone: true,
                   },
                 },
               },
-            });
+            },
+          },
+        });
 
-          if (
-            !invoice
-          ) {
-            throw new Error(
-              "The fee account could not be found.",
-            );
-          }
+        if (!invoice) {
+          throw new Error("The fee account could not be found.");
+        }
 
-          /* -------------------------------------------------------------- */
-          /*                         PARENT                                 */
-          /* -------------------------------------------------------------- */
+        /* -------------------------------------------------------------- */
+        /*                         PARENT                                 */
+        /* -------------------------------------------------------------- */
 
-          const parent =
-            invoice.student
-              .parent;
+        const parent = invoice.student.parent;
 
-          if (
-            !parent
-          ) {
-            throw new Error(
-              "No parent account is linked to this student.",
-            );
-          }
+        if (!parent) {
+          throw new Error("No parent account is linked to this student.");
+        }
 
-          const parentPhone =
-            parent.phone
-              ?.trim() ??
-            "";
+        const parentPhone = parent.phone?.trim() ?? "";
 
-          if (
-            !parentPhone
-          ) {
-            throw new Error(
-              "The linked parent does not have a contact phone number.",
-            );
-          }
+        if (!parentPhone) {
+          throw new Error(
+            "The linked parent does not have a contact phone number.",
+          );
+        }
 
-          /* -------------------------------------------------------------- */
-          /*                 RECALCULATE REAL BALANCE                       */
-          /* -------------------------------------------------------------- */
+        /* -------------------------------------------------------------- */
+        /*                 RECALCULATE REAL BALANCE                       */
+        /* -------------------------------------------------------------- */
 
-          const summary =
-            await getFeeAccountSummary({
-              feeMasterId:
-                invoice.id,
+        const summary = await getFeeAccountSummary({
+          feeMasterId: invoice.id,
 
-              tx,
-            });
+          tx,
+        });
 
-          if (
-            summary.balance <=
-            0
-          ) {
-            throw new Error(
-              "This student's fee account is already fully paid.",
-            );
-          }
+        if (summary.balance <= 0) {
+          throw new Error("This student's fee account is already fully paid.");
+        }
 
-          /* -------------------------------------------------------------- */
-          /*                    CREATE IN-APP EVENT                         */
-          /* -------------------------------------------------------------- */
+        /* -------------------------------------------------------------- */
+        /*                    CREATE IN-APP EVENT                         */
+        /* -------------------------------------------------------------- */
 
-          const notification =
-            await notifyFeeBalanceDue({
-              tx,
+        const notification = await notifyFeeBalanceDue({
+          tx,
 
-              feeMasterId:
-                invoice.id,
+          feeMasterId: invoice.id,
 
-              studentId:
-                invoice.student.id,
+          studentId: invoice.student.id,
 
-              studentName:
-                `${invoice.student.name} ${invoice.student.surname}`.trim(),
+          studentName:
+            `${invoice.student.name} ${invoice.student.surname}`.trim(),
 
-              classId:
-                invoice.student.class.id,
+          classId: invoice.student.class.id,
 
-              className:
-                invoice.student.class.name,
+          className: invoice.student.class.name,
 
-              term:
-                invoice.term,
+          term: invoice.term,
 
-              academicYear:
-                invoice.academicYear,
+          academicYear: invoice.academicYear,
 
-              totalAmount:
-                summary.totalAmount,
+          totalAmount: summary.totalAmount,
 
-              totalPaid:
-                summary.paidAmount,
+          totalPaid: summary.paidAmount,
 
-              balance:
-                summary.balance,
+          balance: summary.balance,
 
-              reminderKey,
+          reminderKey,
 
-              actorId:
-                userId,
+          actorId: userId,
 
-              actorRole:
-                "admin",
+          actorRole,
 
-              actorName:
-                null,
-            });
+          actorName: accessActor.actor.displayName,
+        });
 
-          if (
-            !notification
-          ) {
-            throw new Error(
-              "The parent could not be resolved for notification delivery.",
-            );
-          }
+        if (!notification) {
+          throw new Error(
+            "The parent could not be resolved for notification delivery.",
+          );
+        }
 
-          /*
-           * Your notification system already uses
-           * dedupe keys.
-           *
-           * If today's logical reminder already
-           * exists, we must NOT create another
-           * WhatsApp job.
-           */
-          if (
-            !notification
-              .createdEvent
-          ) {
-            throw new Error(
-              "A fee reminder has already been sent for this account today.",
-            );
-          }
+        /*
+         * Your notification system already uses
+         * dedupe keys.
+         *
+         * If today's logical reminder already
+         * exists, we must NOT create another
+         * WhatsApp job.
+         */
+        if (!notification.createdEvent) {
+          throw new Error(
+            "A fee reminder has already been sent for this account today.",
+          );
+        }
 
-          /* -------------------------------------------------------------- */
-          /*          RESOLVE THE EVENT ID FROM THE DEDUPE KEY             */
-          /* -------------------------------------------------------------- */
+        /* -------------------------------------------------------------- */
+        /*          RESOLVE THE EVENT ID FROM THE DEDUPE KEY             */
+        /* -------------------------------------------------------------- */
 
-          /*
-           * notifyFeeBalanceDue() generates:
-           *
-           * fee:{feeMasterId}:balance:{reminderKey}
-           */
-          const dedupeKey =
-            `fee:${invoice.id}:balance:${reminderKey}`;
+        /*
+         * notifyFeeBalanceDue() generates:
+         *
+         * fee:{feeMasterId}:balance:{reminderKey}
+         */
+        const dedupeKey = `fee:${invoice.id}:balance:${reminderKey}`;
 
-          const notificationEvent =
-            await tx.notificationEvent.findUnique({
-              where: {
-                dedupeKey,
-              },
+        const notificationEvent = await tx.notificationEvent.findUnique({
+          where: {
+            dedupeKey,
+          },
 
-              select: {
-                id:
-                  true,
-              },
-            });
+          select: {
+            id: true,
+          },
+        });
 
-          if (
-            !notificationEvent
-          ) {
-            throw new Error(
-              "The finance notification event could not be resolved.",
-            );
-          }
+        if (!notificationEvent) {
+          throw new Error(
+            "The finance notification event could not be resolved.",
+          );
+        }
 
-          /* -------------------------------------------------------------- */
-          /*                 QUEUE WHATSAPP DELIVERY                        */
-          /* -------------------------------------------------------------- */
+        /* -------------------------------------------------------------- */
+        /*                 QUEUE WHATSAPP DELIVERY                        */
+        /* -------------------------------------------------------------- */
 
-          const whatsapp =
-            await queueFeeReminderWhatsApp({
-              tx,
+        const whatsapp = await queueFeeReminderWhatsApp({
+          tx,
 
-              recipientId:
-                parent.id,
+          recipientId: parent.id,
 
-              phoneNumber:
-                parentPhone,
+          phoneNumber: parentPhone,
 
-              notificationEventId:
-                notificationEvent.id,
+          notificationEventId: notificationEvent.id,
 
-              feeMasterId:
-                invoice.id,
+          feeMasterId: invoice.id,
 
-              studentId:
-                invoice.student.id,
-            });
+          studentId: invoice.student.id,
+        });
 
-          /* -------------------------------------------------------------- */
-          /*                           RESULT                               */
-          /* -------------------------------------------------------------- */
+        /* -------------------------------------------------------------- */
+        /*                           RESULT                               */
+        /* -------------------------------------------------------------- */
 
-          return {
-            feeMasterId:
-              invoice.id,
+        return {
+          feeMasterId: invoice.id,
 
-            studentId:
-              invoice.student.id,
+          studentId: invoice.student.id,
 
-            studentName:
-              `${invoice.student.name} ${invoice.student.surname}`.trim(),
+          studentName:
+            `${invoice.student.name} ${invoice.student.surname}`.trim(),
 
-            parentId:
-              parent.id,
+          parentId: parent.id,
 
-            parentName:
-              `${parent.name} ${parent.surname}`.trim(),
+          parentName: `${parent.name} ${parent.surname}`.trim(),
 
-            balance:
-              summary.balance,
+          balance: summary.balance,
 
-            notificationEventId:
-              notificationEvent.id,
+          notificationEventId: notificationEvent.id,
 
-            inAppDeliveredCount:
-              notification.deliveredCount,
+          inAppDeliveredCount: notification.deliveredCount,
 
-            whatsappDeliveryId:
-              whatsapp.id,
+          whatsappDeliveryId: whatsapp.id,
 
-            whatsappStatus:
-              whatsapp.status,
-          };
-        },
+          whatsappStatus: whatsapp.status,
+        };
+      },
 
-        {
-          isolationLevel:
-            Prisma.TransactionIsolationLevel.Serializable,
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 
-          maxWait:
-            10_000,
+        maxWait: 10_000,
 
-          timeout:
-            30_000,
-        },
-      );
+        timeout: 30_000,
+      },
+    );
 
     /* ------------------------------------------------------------------ */
     /*                          REVALIDATION                              */
     /* ------------------------------------------------------------------ */
 
-    revalidatePath(
-      "/list/FinanceDashboardPage",
-    );
+    revalidatePath("/list/FinanceDashboardPage");
 
-    revalidatePath(
-      "/notifications",
-    );
+    revalidatePath("/notifications");
 
     return {
-      success:
-        true,
+      success: true,
 
-      error:
-        false,
+      error: false,
 
-      data:
-        result,
+      data: result,
 
-      message:
-        `Reminder created successfully for ${result.studentName}. In-app delivery completed and WhatsApp delivery was queued.`,
+      message: `Reminder created successfully for ${result.studentName}. In-app delivery completed and WhatsApp delivery was queued.`,
     };
-  } catch (
-    error
-  ) {
-    console.error(
-      "SEND SINGLE FEE REMINDER ERROR:",
-      error,
-    );
+  } catch (error) {
+    console.error("SEND SINGLE FEE REMINDER ERROR:", error);
 
     return {
-      success:
-        false,
+      success: false,
 
-      error:
-        true,
+      error: true,
 
       message:
         error instanceof Error

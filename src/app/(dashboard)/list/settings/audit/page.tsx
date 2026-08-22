@@ -1,3 +1,4 @@
+// src/app/(dashboard)/list/settings/audit/page.tsx
 import Link from "next/link";
 
 import {
@@ -21,22 +22,17 @@ import {
 } from "lucide-react";
 
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
-import {
-  redirect,
-} from "next/navigation";
+import { redirect } from "next/navigation";
 
-import {
-  Prisma,
-  ReportCardActivityType,
-} from "@prisma/client";
+import { Prisma, ReportCardActivityType } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 
-export const dynamic =
-  "force-dynamic";
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -54,129 +50,71 @@ type AuditPageProps = {
   }>;
 };
 
-function positiveInteger(
-  value?: string,
-) {
-  const parsed =
-    Number(value);
+function positiveInteger(value?: string) {
+  const parsed = Number(value);
 
-  return Number.isInteger(
-    parsed,
-  ) &&
-    parsed > 0
-    ? parsed
-    : 1;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
-function parseActivityType(
-  value?: string,
-) {
+function parseActivityType(value?: string) {
   if (!value) {
     return undefined;
   }
 
-  const values =
-    Object.values(
-      ReportCardActivityType,
-    );
+  const values = Object.values(ReportCardActivityType);
 
-  return values.includes(
-    value as ReportCardActivityType,
-  )
+  return values.includes(value as ReportCardActivityType)
     ? (value as ReportCardActivityType)
     : undefined;
 }
 
-function formatDateTime(
-  value: Date,
-) {
-  return new Intl.DateTimeFormat(
-    "en-GH",
-    {
-      day:
-        "numeric",
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat("en-GH", {
+    day: "numeric",
 
-      month:
-        "short",
+    month: "short",
 
-      year:
-        "numeric",
+    year: "numeric",
 
-      hour:
-        "numeric",
+    hour: "numeric",
 
-      minute:
-        "2-digit",
-    },
-  ).format(value);
+    minute: "2-digit",
+  }).format(value);
 }
 
-function humaniseType(
-  value: string,
-) {
+function humaniseType(value: string) {
   return value
-    .replace(
-      /_/g,
-      " ",
-    )
+    .replace(/_/g, " ")
     .toLowerCase()
-    .replace(
-      /\b\w/g,
-      (character) =>
-        character.toUpperCase(),
-    );
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-export default async function AuditPage({
-  searchParams,
-}: AuditPageProps) {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+export default async function AuditPage({ searchParams }: AuditPageProps) {
+  /* ========================================================================== */
+  /* ACCESS                                                                     */
+  /* ========================================================================== */
 
-  if (!userId) {
-    redirect(
-      "/sign-in",
-    );
+  const access = await getCurrentAccessContext();
+
+  if (!access.authenticated) {
+    redirect("/sign-in");
   }
 
-  const role = (
-    sessionClaims
-      ?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (
-    role !== "admin"
-  ) {
+  if (!contextHasPermission(access, "audit.view")) {
     redirect("/");
   }
 
-  const params =
-    await searchParams;
+  const params = await searchParams;
 
-  const page =
-    positiveInteger(
-      params.page,
-    );
+  const page = positiveInteger(params.page);
 
-  const search =
-    params.search
-      ?.trim();
+  const search = params.search?.trim();
 
-  const type =
-    parseActivityType(
-      params.type,
-    );
+  const type = parseActivityType(params.type);
 
-  const actorRole =
-    params.actorRole
-      ?.trim();
+  const actorRole = params.actorRole?.trim();
 
-  const where:
-    Prisma.ReportCardActivityWhereInput = {
+  const where: Prisma.ReportCardActivityWhereInput = {
     ...(type
       ? {
           type,
@@ -194,41 +132,33 @@ export default async function AuditPage({
           OR: [
             {
               title: {
-                contains:
-                  search,
+                contains: search,
 
-                mode:
-                  "insensitive",
+                mode: "insensitive",
               },
             },
 
             {
               description: {
-                contains:
-                  search,
+                contains: search,
 
-                mode:
-                  "insensitive",
+                mode: "insensitive",
               },
             },
 
             {
               note: {
-                contains:
-                  search,
+                contains: search,
 
-                mode:
-                  "insensitive",
+                mode: "insensitive",
               },
             },
 
             {
               actorName: {
-                contains:
-                  search,
+                contains: search,
 
-                mode:
-                  "insensitive",
+                mode: "insensitive",
               },
             },
 
@@ -236,11 +166,9 @@ export default async function AuditPage({
               reportCard: {
                 student: {
                   name: {
-                    contains:
-                      search,
+                    contains: search,
 
-                    mode:
-                      "insensitive",
+                    mode: "insensitive",
                   },
                 },
               },
@@ -250,11 +178,9 @@ export default async function AuditPage({
               reportCard: {
                 student: {
                   surname: {
-                    contains:
-                      search,
+                    contains: search,
 
-                    mode:
-                      "insensitive",
+                    mode: "insensitive",
                   },
                 },
               },
@@ -264,11 +190,9 @@ export default async function AuditPage({
               reportCard: {
                 student: {
                   studentID: {
-                    contains:
-                      search,
+                    contains: search,
 
-                    mode:
-                      "insensitive",
+                    mode: "insensitive",
                   },
                 },
               },
@@ -278,11 +202,9 @@ export default async function AuditPage({
               reportCard: {
                 class: {
                   name: {
-                    contains:
-                      search,
+                    contains: search,
 
-                    mode:
-                      "insensitive",
+                    mode: "insensitive",
                   },
                 },
               },
@@ -292,208 +214,143 @@ export default async function AuditPage({
       : {}),
   };
 
-  const [
-    activities,
-    total,
-    activityGroups,
-    systemCount,
-  ] =
-    await prisma.$transaction([
-      prisma.reportCardActivity.findMany({
-        where,
+  const [activities, total, systemCount] = await prisma.$transaction([
+    prisma.reportCardActivity.findMany({
+      where,
 
-        orderBy: [
-          {
-            createdAt:
-              "desc",
-          },
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
 
-          {
-            id:
-              "desc",
-          },
-        ],
+        {
+          id: "desc",
+        },
+      ],
 
-        skip:
-          (page - 1) *
-          PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
 
-        take:
-          PAGE_SIZE,
+      take: PAGE_SIZE,
 
-        select: {
-          id:
-            true,
+      select: {
+        id: true,
 
-          type:
-            true,
+        type: true,
 
-          actorId:
-            true,
+        actorId: true,
 
-          actorRole:
-            true,
+        actorRole: true,
 
-          actorName:
-            true,
+        actorName: true,
 
-          title:
-            true,
+        title: true,
 
-          description:
-            true,
+        description: true,
 
-          note:
-            true,
+        note: true,
 
-          metadata:
-            true,
+        metadata: true,
 
-          createdAt:
-            true,
+        createdAt: true,
 
-          reportCard: {
-            select: {
-              id:
-                true,
+        reportCard: {
+          select: {
+            id: true,
 
-              academicYear:
-                true,
+            academicYear: true,
 
-              version:
-                true,
+            version: true,
 
-              student: {
-                select: {
-                  id:
-                    true,
+            student: {
+              select: {
+                id: true,
 
-                  studentID:
-                    true,
+                studentID: true,
 
-                  name:
-                    true,
+                name: true,
 
-                  surname:
-                    true,
+                surname: true,
 
-                  img:
-                    true,
-                },
+                img: true,
               },
+            },
 
-              class: {
-                select: {
-                  id:
-                    true,
+            class: {
+              select: {
+                id: true,
 
-                  name:
-                    true,
-                },
+                name: true,
               },
+            },
 
-              grade: {
-                select: {
-                  id:
-                    true,
+            grade: {
+              select: {
+                id: true,
 
-                  level:
-                    true,
-                },
+                level: true,
               },
+            },
 
-              term: {
-                select: {
-                  id:
-                    true,
+            term: {
+              select: {
+                id: true,
 
-                  name:
-                    true,
-                },
+                name: true,
               },
             },
           },
         },
-      }),
+      },
+    }),
 
-      prisma.reportCardActivity.count({
-        where,
-      }),
+    prisma.reportCardActivity.count({
+      where,
+    }),
 
-      prisma.reportCardActivity.groupBy({
-        by: [
-          "type",
-        ],
+    prisma.reportCardActivity.count({
+      where: {
+        actorRole: "system",
+      },
+    }),
+  ]);
 
-        _count: {
-          _all:
-            true,
-        },
-      }),
+  const activityGroups = await prisma.reportCardActivity.groupBy({
+    by: ["type"],
 
-      prisma.reportCardActivity.count({
-        where: {
-          actorRole:
-            "system",
-        },
-      }),
-    ]);
+    _count: {
+      id: true,
+    },
 
-  const totalPages =
-    Math.max(
-      1,
-      Math.ceil(
-        total /
-          PAGE_SIZE,
-      ),
-    );
+    orderBy: {
+      type: "asc",
+    },
+  });
 
-  const metricMap =
-    new Map(
-      activityGroups.map(
-        (group) => [
-          group.type,
-          group._count
-            ._all,
-        ],
-      ),
-    );
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const metricMap = new Map(
+    activityGroups.map((group) => [group.type, group._count.id]),
+  );
 
   const generatedCount =
-    (metricMap.get(
-      "GENERATED",
-    ) ?? 0) +
-    (metricMap.get(
-      "REGENERATED",
-    ) ?? 0);
+    (metricMap.get("GENERATED") ?? 0) + (metricMap.get("REGENERATED") ?? 0);
 
   const reviewCount =
-    (metricMap.get(
-      "SUBMITTED_FOR_REVIEW",
-    ) ?? 0) +
-    (metricMap.get(
-      "CHANGES_REQUESTED",
-    ) ?? 0) +
-    (metricMap.get(
-      "APPROVED",
-    ) ?? 0);
+    (metricMap.get("SUBMITTED_FOR_REVIEW") ?? 0) +
+    (metricMap.get("CHANGES_REQUESTED") ?? 0) +
+    (metricMap.get("APPROVED") ?? 0);
 
-  const publicationCount =
-    metricMap.get(
-      "PUBLISHED",
-    ) ?? 0;
+  const publicationCount = metricMap.get("PUBLISHED") ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1800px]">
-
         {/* BACK */}
         <Link
           href="/list/settings"
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
         >
           <ArrowLeft className="h-4 w-4" />
-
           Settings
         </Link>
 
@@ -507,7 +364,6 @@ export default async function AuditPage({
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-blue-200 backdrop-blur">
                 <ShieldCheck className="h-3.5 w-3.5" />
-
                 Governance & Security
               </div>
 
@@ -521,8 +377,8 @@ export default async function AuditPage({
 
               <p className="mt-4 max-w-3xl text-sm font-medium leading-7 text-slate-300 sm:text-base">
                 Review report generation, academic snapshot changes,
-                corrections, approvals, publication and archival activity
-                across the reporting system.
+                corrections, approvals, publication and archival activity across
+                the reporting system.
               </p>
             </div>
 
@@ -534,23 +390,11 @@ export default async function AuditPage({
 
         {/* METRICS */}
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Metric
-            label="Total Events"
-            value={total}
-            icon={Activity}
-          />
+          <Metric label="Total Events" value={total} icon={Activity} />
 
-          <Metric
-            label="Generation"
-            value={generatedCount}
-            icon={FilePlus2}
-          />
+          <Metric label="Generation" value={generatedCount} icon={FilePlus2} />
 
-          <Metric
-            label="Review Events"
-            value={reviewCount}
-            icon={BadgeCheck}
-          />
+          <Metric label="Review Events" value={reviewCount} icon={BadgeCheck} />
 
           <Metric
             label="Published"
@@ -558,11 +402,7 @@ export default async function AuditPage({
             icon={LockKeyhole}
           />
 
-          <Metric
-            label="System Events"
-            value={systemCount}
-            icon={RefreshCcw}
-          />
+          <Metric label="System Events" value={systemCount} icon={RefreshCcw} />
         </section>
 
         {/* FILTERS */}
@@ -578,9 +418,7 @@ export default async function AuditPage({
 
                 <input
                   name="search"
-                  defaultValue={
-                    search ?? ""
-                  }
+                  defaultValue={search ?? ""}
                   placeholder="Student, class, actor, note..."
                   className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
                 />
@@ -594,35 +432,16 @@ export default async function AuditPage({
 
               <select
                 name="type"
-                defaultValue={
-                  type ?? ""
-                }
+                defaultValue={type ?? ""}
                 className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none"
               >
-                <option value="">
-                  All Activity
-                </option>
+                <option value="">All Activity</option>
 
-                {Object.values(
-                  ReportCardActivityType,
-                ).map(
-                  (
-                    activityType,
-                  ) => (
-                    <option
-                      key={
-                        activityType
-                      }
-                      value={
-                        activityType
-                      }
-                    >
-                      {humaniseType(
-                        activityType,
-                      )}
-                    </option>
-                  ),
-                )}
+                {Object.values(ReportCardActivityType).map((activityType) => (
+                  <option key={activityType} value={activityType}>
+                    {humaniseType(activityType)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -633,27 +452,16 @@ export default async function AuditPage({
 
               <select
                 name="actorRole"
-                defaultValue={
-                  actorRole ??
-                  ""
-                }
+                defaultValue={actorRole ?? ""}
                 className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none"
               >
-                <option value="">
-                  All Actors
-                </option>
+                <option value="">All Actors</option>
 
-                <option value="admin">
-                  Administrator
-                </option>
+                <option value="admin">Administrator</option>
 
-                <option value="teacher">
-                  Teacher
-                </option>
+                <option value="teacher">Teacher</option>
 
-                <option value="system">
-                  System
-                </option>
+                <option value="system">System</option>
               </select>
             </div>
 
@@ -688,22 +496,17 @@ export default async function AuditPage({
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                {total} audit{" "}
-                {total === 1
-                  ? "event"
-                  : "events"}{" "}
-                match the current filters.
+                {total} audit {total === 1 ? "event" : "events"} match the
+                current filters.
               </p>
             </div>
 
             <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-500">
-              Page {page} of{" "}
-              {totalPages}
+              Page {page} of {totalPages}
             </div>
           </div>
 
-          {activities.length ===
-          0 ? (
+          {activities.length === 0 ? (
             <div className="p-10 text-center">
               <History className="mx-auto h-10 w-10 text-slate-300" />
 
@@ -717,18 +520,9 @@ export default async function AuditPage({
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {activities.map(
-                (activity) => (
-                  <AuditRow
-                    key={
-                      activity.id
-                    }
-                    activity={
-                      activity
-                    }
-                  />
-                ),
-              )}
+              {activities.map((activity) => (
+                <AuditRow key={activity.id} activity={activity} />
+              ))}
             </div>
           )}
 
@@ -736,35 +530,21 @@ export default async function AuditPage({
           {totalPages > 1 ? (
             <div className="flex items-center justify-between gap-4 border-t border-slate-100 p-5">
               <AuditPageLink
-                page={
-                  page - 1
-                }
-                disabled={
-                  page <= 1
-                }
-                params={
-                  params
-                }
+                page={page - 1}
+                disabled={page <= 1}
+                params={params}
               >
                 Previous
               </AuditPageLink>
 
               <p className="text-xs font-bold text-slate-400">
-                {page} /{" "}
-                {totalPages}
+                {page} / {totalPages}
               </p>
 
               <AuditPageLink
-                page={
-                  page + 1
-                }
-                disabled={
-                  page >=
-                  totalPages
-                }
-                params={
-                  params
-                }
+                page={page + 1}
+                disabled={page >= totalPages}
+                params={params}
               >
                 Next
               </AuditPageLink>
@@ -776,7 +556,6 @@ export default async function AuditPage({
   );
 }
 
-
 function Metric({
   label,
   value,
@@ -784,11 +563,9 @@ function Metric({
 }: {
   label: string;
 
-  value:
-    number | string;
+  value: number | string;
 
-  icon:
-    typeof Activity;
+  icon: typeof Activity;
 }) {
   return (
     <article className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_45px_rgba(15,23,42,0.05)]">
@@ -796,9 +573,7 @@ function Metric({
         <Icon className="h-5 w-5" />
       </div>
 
-      <p className="mt-4 text-2xl font-black text-slate-950">
-        {value}
-      </p>
+      <p className="mt-4 text-2xl font-black text-slate-950">{value}</p>
 
       <p className="mt-1 text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">
         {label}
@@ -807,96 +582,72 @@ function Metric({
   );
 }
 
-function getVisual(
-  type: string,
-) {
+function getVisual(type: string) {
   switch (type) {
     case "GENERATED":
       return {
-        icon:
-          FilePlus2,
-        className:
-          "bg-blue-50 text-blue-600",
+        icon: FilePlus2,
+        className: "bg-blue-50 text-blue-600",
       };
 
     case "REGENERATED":
       return {
-        icon:
-          RefreshCcw,
-        className:
-          "bg-cyan-50 text-cyan-700",
+        icon: RefreshCcw,
+        className: "bg-cyan-50 text-cyan-700",
       };
 
     case "MARKED_STALE":
       return {
-        icon:
-          TriangleAlert,
-        className:
-          "bg-amber-50 text-amber-700",
+        icon: TriangleAlert,
+        className: "bg-amber-50 text-amber-700",
       };
 
     case "DETAILS_UPDATED":
       return {
-        icon:
-          PencilLine,
-        className:
-          "bg-slate-100 text-slate-700",
+        icon: PencilLine,
+        className: "bg-slate-100 text-slate-700",
       };
 
     case "SUBMITTED_FOR_REVIEW":
       return {
-        icon:
-          Send,
-        className:
-          "bg-indigo-50 text-indigo-700",
+        icon: Send,
+        className: "bg-indigo-50 text-indigo-700",
       };
 
     case "CHANGES_REQUESTED":
       return {
-        icon:
-          MessageSquareWarning,
-        className:
-          "bg-orange-50 text-orange-700",
+        icon: MessageSquareWarning,
+        className: "bg-orange-50 text-orange-700",
       };
 
     case "REOPENED":
       return {
-        icon:
-          RotateCcw,
-        className:
-          "bg-violet-50 text-violet-700",
+        icon: RotateCcw,
+        className: "bg-violet-50 text-violet-700",
       };
 
     case "APPROVED":
       return {
-        icon:
-          BadgeCheck,
-        className:
-          "bg-emerald-50 text-emerald-700",
+        icon: BadgeCheck,
+        className: "bg-emerald-50 text-emerald-700",
       };
 
     case "PUBLISHED":
       return {
-        icon:
-          LockKeyhole,
-        className:
-          "bg-emerald-50 text-emerald-700",
+        icon: LockKeyhole,
+        className: "bg-emerald-50 text-emerald-700",
       };
 
     case "ARCHIVED":
       return {
-        icon:
-          Archive,
-        className:
-          "bg-slate-100 text-slate-700",
+        icon: Archive,
+        className: "bg-slate-100 text-slate-700",
       };
 
     default:
       return {
-        icon:
-          History,
-        className:
-          "bg-slate-100 text-slate-600",
+        icon: History,
+        className: "bg-slate-100 text-slate-600",
       };
   }
 }
@@ -907,89 +658,64 @@ function AuditRow({
   activity: {
     id: number;
 
-    type:
-      ReportCardActivityType;
+    type: ReportCardActivityType;
 
-    actorId:
-      string | null;
+    actorId: string | null;
 
-    actorRole:
-      string | null;
+    actorRole: string | null;
 
-    actorName:
-      string | null;
+    actorName: string | null;
 
-    title:
-      string;
+    title: string;
 
-    description:
-      string | null;
+    description: string | null;
 
-    note:
-      string | null;
+    note: string | null;
 
-    createdAt:
-      Date;
+    createdAt: Date;
 
     reportCard: {
-      id:
-        number;
+      id: number;
 
-      academicYear:
-        string;
+      academicYear: string;
 
-      version:
-        number;
+      version: number;
 
       student: {
-        studentID:
-          string;
+        studentID: string;
 
-        name:
-          string;
+        name: string;
 
-        surname:
-          string;
+        surname: string;
 
-        img:
-          string | null;
+        img: string | null;
       };
 
       class: {
-        name:
-          string;
+        name: string;
       };
 
       grade: {
-        level:
-          string;
+        level: string;
       };
 
       term: {
-        name:
-          string;
+        name: string;
       };
     };
   };
 }) {
-  const visual =
-    getVisual(
-      activity.type,
-    );
+  const visual = getVisual(activity.type);
 
-  const Icon =
-    visual.icon;
+  const Icon = visual.icon;
 
   const actor =
     activity.actorName?.trim() ||
-    (activity.actorRole ===
-    "system"
+    (activity.actorRole === "system"
       ? "System"
-      : activity.actorRole ===
-          "admin"
+      : activity.actorRole === "admin"
         ? "Administrator"
-        : activity.actorRole ===
-            "teacher"
+        : activity.actorRole === "teacher"
           ? "Teacher"
           : "Unknown actor");
 
@@ -1003,24 +729,16 @@ function AuditRow({
 
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-black text-slate-950">
-            {
-              activity.title
-            }
-          </p>
+          <p className="font-black text-slate-950">{activity.title}</p>
 
           <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">
-            {humaniseType(
-              activity.type,
-            )}
+            {humaniseType(activity.type)}
           </span>
         </div>
 
         {activity.description ? (
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            {
-              activity.description
-            }
+            {activity.description}
           </p>
         ) : null}
 
@@ -1031,9 +749,7 @@ function AuditRow({
             </p>
 
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-              {
-                activity.note
-              }
+              {activity.note}
             </p>
           </div>
         ) : null}
@@ -1046,55 +762,26 @@ function AuditRow({
           </span>
 
           <span>
-            {
-              activity.reportCard
-                .student.name
-            }{" "}
-            {
-              activity.reportCard
-                .student.surname
-            }
+            {activity.reportCard.student.name}{" "}
+            {activity.reportCard.student.surname}
           </span>
 
-          <span>
-            {
-              activity.reportCard
-                .class.name
-            }
-          </span>
+          <span>{activity.reportCard.class.name}</span>
 
           <span>
-            {activity.reportCard.term.name.replace(
-              /_/g,
-              " ",
-            )}{" "}
-            •{" "}
-            {
-              activity.reportCard
-                .academicYear
-            }
+            {activity.reportCard.term.name.replace(/_/g, " ")} •{" "}
+            {activity.reportCard.academicYear}
           </span>
         </div>
       </div>
 
       <div className="md:text-right">
         <p className="text-sm font-black text-slate-700">
-          {formatDateTime(
-            activity.createdAt,
-          )}
+          {formatDateTime(activity.createdAt)}
         </p>
 
         <p className="mt-1 text-xs font-semibold text-slate-400">
-          Report #
-          {
-            activity.reportCard
-              .id
-          }{" "}
-          • v
-          {
-            activity.reportCard
-              .version
-          }
+          Report #{activity.reportCard.id} • v{activity.reportCard.version}
         </p>
 
         <Link
@@ -1115,25 +802,19 @@ function AuditPageLink({
   params,
   children,
 }: {
-  page:
-    number;
+  page: number;
 
-  disabled:
-    boolean;
+  disabled: boolean;
 
   params: {
-    search?:
-      string;
+    search?: string;
 
-    type?:
-      string;
+    type?: string;
 
-    actorRole?:
-      string;
+    actorRole?: string;
   };
 
-  children:
-    React.ReactNode;
+  children: React.ReactNode;
 }) {
   if (disabled) {
     return (
@@ -1143,34 +824,21 @@ function AuditPageLink({
     );
   }
 
-  const query =
-    new URLSearchParams();
+  const query = new URLSearchParams();
 
   if (params.search) {
-    query.set(
-      "search",
-      params.search,
-    );
+    query.set("search", params.search);
   }
 
   if (params.type) {
-    query.set(
-      "type",
-      params.type,
-    );
+    query.set("type", params.type);
   }
 
   if (params.actorRole) {
-    query.set(
-      "actorRole",
-      params.actorRole,
-    );
+    query.set("actorRole", params.actorRole);
   }
 
-  query.set(
-    "page",
-    String(page),
-  );
+  query.set("page", String(page));
 
   return (
     <Link

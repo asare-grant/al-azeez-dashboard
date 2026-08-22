@@ -105,7 +105,7 @@ type ReportCardViewerProps = {
     nextTermBegins: Date | null;
   };
 
-  isAdmin?: boolean;
+  canPublish?: boolean;
 
   backHref?: string;
 
@@ -118,7 +118,7 @@ type ReportCardViewerProps = {
 
 export default function ReportCardViewer({
   reportCard,
-  isAdmin = false,
+  canPublish = false,
   backHref,
   printHref,
   reviewHref,
@@ -131,7 +131,7 @@ export default function ReportCardViewer({
           reportCardId={reportCard.id}
           status={reportCard.status}
           calculationStatus={reportCard.calculationStatus}
-          isAdmin={isAdmin}
+          canPublish={canPublish}
           backHref={backHref}
           printHref={printHref}
           reviewHref={reviewHref}

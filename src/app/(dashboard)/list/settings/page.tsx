@@ -1,3 +1,4 @@
+// src/app/(dashboard)/list/settings/page.tsx
 import Link from "next/link";
 
 import {
@@ -11,117 +12,109 @@ import {
 } from "lucide-react";
 
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
-import {
-  redirect,
-} from "next/navigation";
+import { redirect } from "next/navigation";
 
-export const dynamic =
-  "force-dynamic";
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
 export default async function SettingsPage() {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+  /* ========================================================================== */
+  /* ACCESS                                                                     */
+  /* ========================================================================== */
 
-  if (!userId) {
-    redirect(
-      "/sign-in",
-    );
+  const access = await getCurrentAccessContext();
+
+  if (!access.authenticated) {
+    redirect("/sign-in");
   }
 
-  const role = (
-    sessionClaims
-      ?.metadata as {
-      role?: string;
-    }
-  )?.role;
+  const canViewSettings = contextHasPermission(access, "settings.view");
 
-  if (
-    role !== "admin"
-  ) {
+  const canManageSettings = contextHasPermission(access, "settings.manage");
+
+  const canViewAudit = contextHasPermission(access, "audit.view");
+
+  const canEnterSettingsCentre =
+    canViewSettings || canManageSettings || canViewAudit;
+
+  if (!canEnterSettingsCentre) {
     redirect("/");
   }
 
   const settings = [
-    {
-      title:
-        "School Terms",
+    ...(canManageSettings
+      ? [
+          {
+            title: "School Terms",
 
-      description:
-        "Configure academic terms, dates and the currently active school term.",
+            description:
+              "Configure academic terms, dates and the currently active school term.",
 
-      href:
-        "/list/settings/academic-calendar",
+            href: "/list/settings/academic-calendar",
 
-      icon:
-        CalendarDays,
+            icon: CalendarDays,
 
-      eyebrow:
-        "Academic Calendar",
-    },
+            eyebrow: "Academic Calendar",
+          },
+        ]
+      : []),
 
-    {
-      title:
-        "Audit Trail",
+    ...(canViewAudit
+      ? [
+          {
+            title: "Audit Trail",
 
-      description:
-        "Review report-card generation, edits, approvals, publication, regeneration and administrative activity.",
+            description:
+              "Review report-card generation, edits, approvals, publication, regeneration and administrative activity.",
 
-      href:
-        "/list/settings/audit",
+            href: "/list/settings/audit",
 
-      icon:
-        FileClock,
+            icon: FileClock,
 
-      eyebrow:
-        "Governance & Security",
-    },
+            eyebrow: "Governance & Security",
+          },
+        ]
+      : []),
 
-    {
-      title:
-        "Academic Weightings",
+    ...(canViewSettings || canManageSettings
+      ? [
+          {
+            title: "Academic Weightings",
 
-      description:
-        "Control how assignments, assessments and examinations contribute to final scores.",
+            description:
+              "Control how assignments, assessments and examinations contribute to final scores.",
 
-      href:
-        "/list/academic-settings/weightings",
+            href: "/list/academic-settings/weightings",
 
-      icon:
-        SlidersHorizontal,
+            icon: SlidersHorizontal,
 
-      eyebrow:
-        "Academic Engine",
-    },
+            eyebrow: "Academic Engine",
+          },
 
-    {
-      title:
-        "Grading Scales",
+          {
+            title: "Grading Scales",
 
-      description:
-        "Manage score boundaries, grade labels, remarks and active grading standards.",
+            description:
+              "Manage score boundaries, grade labels, remarks and active grading standards.",
 
-      href:
-        "/list/academic-settings/grading-scales",
+            href: "/list/academic-settings/grading-scales",
 
-      icon:
-        Scale,
+            icon: Scale,
 
-      eyebrow:
-        "Academic Standards",
-    },
+            eyebrow: "Academic Standards",
+          },
+        ]
+      : []),
   ];
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1600px]">
-
         {/* HERO */}
         <section className="relative overflow-hidden rounded-[34px] border border-slate-800 bg-[linear-gradient(135deg,#020617_0%,#0f172a_52%,#172554_100%)] p-6 text-white shadow-[0_32px_100px_rgba(15,23,42,0.22)] sm:p-8 lg:p-10">
           <div className="pointer-events-none absolute -right-28 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
@@ -132,7 +125,6 @@ export default async function SettingsPage() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-blue-200 backdrop-blur">
                 <ShieldCheck className="h-3.5 w-3.5" />
-
                 Administration
               </div>
 
@@ -174,52 +166,39 @@ export default async function SettingsPage() {
           </div>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {settings.map(
-              (item) => {
-                const Icon =
-                  item.icon;
+            {settings.map((item) => {
+              const Icon = item.icon;
 
-                return (
-                  <Link
-                    key={
-                      item.title
-                    }
-                    href={
-                      item.href
-                    }
-                    className="group relative overflow-hidden rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_26px_70px_rgba(37,99,235,0.10)]"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                        <Icon className="h-5 w-5" />
-                      </div>
-
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-400 transition group-hover:bg-blue-50 group-hover:text-blue-600">
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                      </div>
+              return (
+                <Link
+                  key={item.title}
+                  href={item.href}
+                  className="group relative overflow-hidden rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_26px_70px_rgba(37,99,235,0.10)]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                      <Icon className="h-5 w-5" />
                     </div>
 
-                    <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">
-                      {
-                        item.eyebrow
-                      }
-                    </p>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-400 transition group-hover:bg-blue-50 group-hover:text-blue-600">
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </div>
 
-                    <h3 className="mt-2 text-xl font-black text-slate-950">
-                      {
-                        item.title
-                      }
-                    </h3>
+                  <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">
+                    {item.eyebrow}
+                  </p>
 
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      {
-                        item.description
-                      }
-                    </p>
-                  </Link>
-                );
-              },
-            )}
+                  <h3 className="mt-2 text-xl font-black text-slate-950">
+                    {item.title}
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {item.description}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       </div>

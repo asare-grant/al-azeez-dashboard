@@ -1,11 +1,9 @@
-import {
-  Prisma,
-  type ResultType,
-} from "@prisma/client";
+import { Prisma, type ResultType } from "@prisma/client";
 
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
 import prisma from "@/lib/prisma";
 
@@ -23,37 +21,43 @@ type StudentResultProfileFilters = {
   type?: ResultType;
 };
 
-async function requireStudentProfileManager() {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+type StudentProfileManagerScope = "GLOBAL" | "TEACHER_OWNED";
 
-  if (!userId) {
-    throw new Error(
-      "UNAUTHENTICATED",
-    );
+type StudentProfileManager = {
+  userId: string;
+
+  scope: StudentProfileManagerScope;
+};
+
+async function requireStudentProfileManager(): Promise<StudentProfileManager> {
+  const access = await getCurrentAccessContext();
+
+  if (!access.authenticated || !access.userId) {
+    throw new Error("UNAUTHENTICATED");
   }
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
-
-  if (
-    role !== "admin" &&
-    role !== "teacher"
-  ) {
-    throw new Error(
-      "UNAUTHORISED",
-    );
+  if (!contextHasPermission(access, "results.manage")) {
+    throw new Error("UNAUTHORISED");
   }
+
+  /*
+   * Preserve Teacher ownership.
+   *
+   * A user whose only active RBAC role is Teacher
+   * may inspect only students connected to classes
+   * they teach.
+   *
+   * Admin, Academic Director and future delegated
+   * results managers receive global scope.
+   */
+  const teacherOnly =
+    access.roleKeys.has("teacher") && access.roleKeys.size === 1;
 
   return {
-    userId,
-    role,
-  } as const;
+    userId: access.userId,
+
+    scope: teacherOnly ? "TEACHER_OWNED" : "GLOBAL",
+  };
 }
 
 function resolveProfilePercentage({
@@ -65,272 +69,136 @@ function resolveProfilePercentage({
   score: number;
   totalMarks: number | null;
 }) {
-  if (
-    percentage !== null &&
-    Number.isFinite(percentage)
-  ) {
-    return Number(
-      percentage.toFixed(2),
-    );
+  if (percentage !== null && Number.isFinite(percentage)) {
+    return Number(percentage.toFixed(2));
   }
 
-  if (
-    totalMarks === null ||
-    totalMarks <= 0
-  ) {
+  if (totalMarks === null || totalMarks <= 0) {
     return null;
   }
 
-  return Number(
-    (
-      (score / totalMarks) *
-      100
-    ).toFixed(2),
-  );
+  return Number(((score / totalMarks) * 100).toFixed(2));
 }
 
 function buildStudentMetrics(
   records: StudentResultProfileRecord[],
 ): StudentResultProfileMetrics {
-  const percentages =
-    records
-      .map(
-        (record) =>
-          record.percentage,
-      )
-      .filter(
-        (
-          value,
-        ): value is number =>
-          value !== null,
-      );
+  const percentages = records
+    .map((record) => record.percentage)
+    .filter((value): value is number => value !== null);
 
-  const passedResults =
-    percentages.filter(
-      (percentage) =>
-        percentage >= 50,
-    ).length;
+  const passedResults = percentages.filter(
+    (percentage) => percentage >= 50,
+  ).length;
 
-  const failedResults =
-    percentages.filter(
-      (percentage) =>
-        percentage < 50,
-    ).length;
+  const failedResults = percentages.filter(
+    (percentage) => percentage < 50,
+  ).length;
 
   return {
-    totalResults:
-      records.length,
+    totalResults: records.length,
 
     averagePercentage:
       percentages.length > 0
         ? Number(
             (
-              percentages.reduce(
-                (
-                  total,
-                  percentage,
-                ) =>
-                  total +
-                  percentage,
-                0,
-              ) /
+              percentages.reduce((total, percentage) => total + percentage, 0) /
               percentages.length
             ).toFixed(1),
           )
         : null,
 
-    highestPercentage:
-      percentages.length > 0
-        ? Math.max(
-            ...percentages,
-          )
-        : null,
+    highestPercentage: percentages.length > 0 ? Math.max(...percentages) : null,
 
-    lowestPercentage:
-      percentages.length > 0
-        ? Math.min(
-            ...percentages,
-          )
-        : null,
+    lowestPercentage: percentages.length > 0 ? Math.min(...percentages) : null,
 
     passedResults,
     failedResults,
 
     passRate:
       percentages.length > 0
-        ? Number(
-            (
-              (passedResults /
-                percentages.length) *
-              100
-            ).toFixed(1),
-          )
+        ? Number(((passedResults / percentages.length) * 100).toFixed(1))
         : null,
 
-    assessmentResults:
-      records.filter(
-        (record) =>
-          record.type ===
-          "ASSESSMENT",
-      ).length,
+    assessmentResults: records.filter((record) => record.type === "ASSESSMENT")
+      .length,
 
-    examinationResults:
-      records.filter(
-        (record) =>
-          record.type ===
-          "EXAM",
-      ).length,
+    examinationResults: records.filter((record) => record.type === "EXAM")
+      .length,
 
-    assignmentResults:
-      records.filter(
-        (record) =>
-          record.type ===
-          "ASSIGNMENT",
-      ).length,
+    assignmentResults: records.filter((record) => record.type === "ASSIGNMENT")
+      .length,
 
-    subjectsCovered:
-      new Set(
-        records.map(
-          (record) =>
-            record.subject.id,
-        ),
-      ).size,
+    subjectsCovered: new Set(records.map((record) => record.subject.id)).size,
   };
 }
 
 function buildSubjectPerformance(
   records: StudentResultProfileRecord[],
 ): StudentSubjectPerformance[] {
-  const groups =
-    new Map<
-      number,
-      StudentResultProfileRecord[]
-    >();
+  const groups = new Map<number, StudentResultProfileRecord[]>();
 
   for (const record of records) {
-    const existing =
-      groups.get(
-        record.subject.id,
-      ) ?? [];
+    const existing = groups.get(record.subject.id) ?? [];
 
     existing.push(record);
 
-    groups.set(
-      record.subject.id,
-      existing,
-    );
+    groups.set(record.subject.id, existing);
   }
 
-  return Array.from(
-    groups.entries(),
-  )
-    .map(
-      ([
+  return Array.from(groups.entries())
+    .map(([subjectId, subjectRecords]) => {
+      const percentages = subjectRecords
+        .map((record) => record.percentage)
+        .filter((value): value is number => value !== null);
+
+      const latestRecord = [...subjectRecords].sort(
+        (first, second) =>
+          new Date(second.date).getTime() - new Date(first.date).getTime(),
+      )[0];
+
+      return {
         subjectId,
-        subjectRecords,
-      ]) => {
-        const percentages =
-          subjectRecords
-            .map(
-              (record) =>
-                record.percentage,
-            )
-            .filter(
-              (
-                value,
-              ): value is number =>
-                value !== null,
-            );
 
-        const latestRecord =
-          [...subjectRecords].sort(
-            (first, second) =>
-              new Date(
-                second.date,
-              ).getTime() -
-              new Date(
-                first.date,
-              ).getTime(),
-          )[0];
+        subjectName: subjectRecords[0].subject.name,
 
-        return {
-          subjectId,
+        resultCount: subjectRecords.length,
 
-          subjectName:
-            subjectRecords[0]
-              .subject.name,
+        assessmentCount: subjectRecords.filter(
+          (record) => record.type === "ASSESSMENT",
+        ).length,
 
-          resultCount:
-            subjectRecords.length,
+        examinationCount: subjectRecords.filter(
+          (record) => record.type === "EXAM",
+        ).length,
 
-          assessmentCount:
-            subjectRecords.filter(
-              (record) =>
-                record.type ===
-                "ASSESSMENT",
-            ).length,
+        assignmentCount: subjectRecords.filter(
+          (record) => record.type === "ASSIGNMENT",
+        ).length,
 
-          examinationCount:
-            subjectRecords.filter(
-              (record) =>
-                record.type ===
-                "EXAM",
-            ).length,
+        averagePercentage:
+          percentages.length > 0
+            ? Number(
+                (
+                  percentages.reduce(
+                    (total, percentage) => total + percentage,
+                    0,
+                  ) / percentages.length
+                ).toFixed(1),
+              )
+            : null,
 
-          assignmentCount:
-            subjectRecords.filter(
-              (record) =>
-                record.type ===
-                "ASSIGNMENT",
-            ).length,
+        highestPercentage:
+          percentages.length > 0 ? Math.max(...percentages) : null,
 
-          averagePercentage:
-            percentages.length >
-            0
-              ? Number(
-                  (
-                    percentages.reduce(
-                      (
-                        total,
-                        percentage,
-                      ) =>
-                        total +
-                        percentage,
-                      0,
-                    ) /
-                    percentages.length
-                  ).toFixed(1),
-                )
-              : null,
+        lowestPercentage:
+          percentages.length > 0 ? Math.min(...percentages) : null,
 
-          highestPercentage:
-            percentages.length >
-            0
-              ? Math.max(
-                  ...percentages,
-                )
-              : null,
-
-          lowestPercentage:
-            percentages.length >
-            0
-              ? Math.min(
-                  ...percentages,
-                )
-              : null,
-
-          latestPercentage:
-            latestRecord
-              ?.percentage ??
-            null,
-        };
-      },
-    )
-    .sort(
-      (first, second) =>
-        first.subjectName.localeCompare(
-          second.subjectName,
-        ),
+        latestPercentage: latestRecord?.percentage ?? null,
+      };
+    })
+    .sort((first, second) =>
+      first.subjectName.localeCompare(second.subjectName),
     );
 }
 
@@ -342,73 +210,66 @@ export async function getStudentResultProfile({
   type,
 }: {
   studentId: string;
-} & StudentResultProfileFilters): Promise<
-  StudentResultProfileData | null
-> {
-  const manager =
-    await requireStudentProfileManager();
+} & StudentResultProfileFilters): Promise<StudentResultProfileData | null> {
+  const manager = await requireStudentProfileManager();
 
-  const student =
-    await prisma.student.findFirst({
-      where: {
-        id: studentId,
+  const student = await prisma.student.findFirst({
+    where: {
+      id: studentId,
 
-        ...(manager.role ===
-        "teacher"
-          ? {
-              class: {
-                lessons: {
-                  some: {
-                    teacherId:
-                      manager.userId,
-                  },
+      ...(manager.scope === "TEACHER_OWNED"
+        ? {
+            class: {
+              lessons: {
+                some: {
+                  teacherId: manager.userId,
                 },
               },
-            }
-          : {}),
-      },
+            },
+          }
+        : {}),
+    },
 
-      select: {
-        id: true,
-        name: true,
-        surname: true,
+    select: {
+      id: true,
+      name: true,
+      surname: true,
 
-        img: true,
-        studentID: true,
+      img: true,
+      studentID: true,
 
-        sex: true,
+      sex: true,
 
-        class: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-
-        grade: {
-          select: {
-            id: true,
-            level: true,
-          },
-        },
-
-        parent: {
-          select: {
-            id: true,
-            name: true,
-            surname: true,
-            phone: true,
-          },
+      class: {
+        select: {
+          id: true,
+          name: true,
         },
       },
-    });
+
+      grade: {
+        select: {
+          id: true,
+          level: true,
+        },
+      },
+
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          surname: true,
+          phone: true,
+        },
+      },
+    },
+  });
 
   if (!student) {
     return null;
   }
 
-  const academicItemConditions: Prisma.ResultWhereInput[] =
-    [];
+  const academicItemConditions: Prisma.ResultWhereInput[] = [];
 
   if (academicYear) {
     academicItemConditions.push({
@@ -485,507 +346,377 @@ export async function getStudentResultProfile({
         }
       : {}),
 
-    ...(academicItemConditions.length >
-    0
+    ...(academicItemConditions.length > 0
       ? {
-          AND:
-            academicItemConditions,
+          AND: academicItemConditions,
         }
       : {}),
   };
 
-  const [
-    resultRecords,
-    terms,
-    subjects,
-    academicYearRecords,
-  ] = await Promise.all([
-    prisma.result.findMany({
-      where,
+  const [resultRecords, terms, subjects, academicYearRecords] =
+    await Promise.all([
+      prisma.result.findMany({
+        where,
 
-      select: {
-        id: true,
-        type: true,
+        select: {
+          id: true,
+          type: true,
 
-        score: true,
-        totalMarks: true,
-        percentage: true,
+          score: true,
+          totalMarks: true,
+          percentage: true,
 
-        grade: true,
-        remarks: true,
+          grade: true,
+          remarks: true,
 
-        createdAt: true,
+          createdAt: true,
 
-        exam: {
-          select: {
-            id: true,
-            title: true,
-            academicYear: true,
+          exam: {
+            select: {
+              id: true,
+              title: true,
+              academicYear: true,
 
-            term: {
-              select: {
-                id: true,
-                name: true,
+              term: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
-            },
 
-            lesson: {
-              select: {
-                subject: {
-                  select: {
-                    id: true,
-                    name: true,
+              lesson: {
+                select: {
+                  subject: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
                   },
-                },
 
-                class: {
-                  select: {
-                    name: true,
+                  class: {
+                    select: {
+                      name: true,
+                    },
                   },
-                },
 
-                teacher: {
-                  select: {
-                    name: true,
-                    surname: true,
+                  teacher: {
+                    select: {
+                      name: true,
+                      surname: true,
+                    },
                   },
                 },
               },
             },
           },
-        },
 
-        assignment: {
-          select: {
-            id: true,
-            title: true,
+          assignment: {
+            select: {
+              id: true,
+              title: true,
 
-            lesson: {
-              select: {
-                subject: {
-                  select: {
-                    id: true,
-                    name: true,
+              lesson: {
+                select: {
+                  subject: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
                   },
-                },
 
-                class: {
-                  select: {
-                    name: true,
+                  class: {
+                    select: {
+                      name: true,
+                    },
                   },
-                },
 
-                teacher: {
-                  select: {
-                    name: true,
-                    surname: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-
-        assessment: {
-          select: {
-            id: true,
-            title: true,
-            academicYear: true,
-
-            term: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-
-            lesson: {
-              select: {
-                subject: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-
-                class: {
-                  select: {
-                    name: true,
-                  },
-                },
-
-                teacher: {
-                  select: {
-                    name: true,
-                    surname: true,
+                  teacher: {
+                    select: {
+                      name: true,
+                      surname: true,
+                    },
                   },
                 },
               },
             },
           },
-        },
 
-        assessmentAttempt: {
-          select: {
-            id: true,
-            attemptNumber: true,
-          },
-        },
-      },
+          assessment: {
+            select: {
+              id: true,
+              title: true,
+              academicYear: true,
 
-      orderBy: [
-        {
-          createdAt: "desc",
-        },
-        {
-          id: "desc",
-        },
-      ],
-    }),
-
-    prisma.schoolTerm.findMany({
-      select: {
-        id: true,
-        name: true,
-        isActive: true,
-      },
-
-      orderBy: [
-        {
-          isActive: "desc",
-        },
-        {
-          startDate: "desc",
-        },
-      ],
-    }),
-
-    prisma.subject.findMany({
-      where: {
-        lessons: {
-          some: {
-            classId:
-              student.class.id,
-
-            ...(manager.role ===
-            "teacher"
-              ? {
-                  teacherId:
-                    manager.userId,
-                }
-              : {}),
-          },
-        },
-      },
-
-      select: {
-        id: true,
-        name: true,
-      },
-
-      orderBy: {
-        name: "asc",
-      },
-    }),
-
-    prisma.result.findMany({
-      where: {
-        studentId,
-      },
-
-      select: {
-        exam: {
-          select: {
-            academicYear: true,
-          },
-        },
-
-        assessment: {
-          select: {
-            academicYear: true,
-          },
-        },
-      },
-    }),
-  ]);
-
-  const records =
-    resultRecords
-      .map(
-        (
-          result,
-        ): StudentResultProfileRecord | null => {
-          if (
-            result.type ===
-              "ASSESSMENT" &&
-            result.assessment
-          ) {
-            return {
-              id:
-                result.id,
-
-              type:
-                "ASSESSMENT",
-
-              title:
-                result.assessment
-                  .title,
-
-              subject:
-                result.assessment
-                  .lesson.subject,
-
-              className:
-                result.assessment
-                  .lesson.class
-                  .name,
-
-              teacherName:
-                `${result.assessment.lesson.teacher.name} ${result.assessment.lesson.teacher.surname}`,
-
-              score:
-                result.score,
-
-              totalMarks:
-                result.totalMarks,
-
-              percentage:
-                resolveProfilePercentage({
-                  percentage:
-                    result.percentage,
-
-                  score:
-                    result.score,
-
-                  totalMarks:
-                    result.totalMarks,
-                }),
-
-              grade:
-                result.grade,
-
-              remarks:
-                result.remarks,
-
-              academicYear:
-                result.assessment
-                  .academicYear,
-
-              term:
-                result.assessment
-                  .term,
-
-              attemptNumber:
-                result
-                  .assessmentAttempt
-                  ?.attemptNumber ??
-                null,
-
-              date:
-                result.createdAt,
-
-              assessment: {
-                id:
-                  result.assessment
-                    .id,
-
-                attemptId:
-                  result
-                    .assessmentAttempt
-                    ?.id ??
-                  null,
+              term: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
-            };
-          }
 
-          if (
-            result.type ===
-              "EXAM" &&
-            result.exam
-          ) {
-            return {
-              id:
-                result.id,
+              lesson: {
+                select: {
+                  subject: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
 
-              type:
-                "EXAM",
+                  class: {
+                    select: {
+                      name: true,
+                    },
+                  },
 
-              title:
-                result.exam.title,
+                  teacher: {
+                    select: {
+                      name: true,
+                      surname: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
 
-              subject:
-                result.exam.lesson
-                  .subject,
-
-              className:
-                result.exam.lesson
-                  .class.name,
-
-              teacherName:
-                `${result.exam.lesson.teacher.name} ${result.exam.lesson.teacher.surname}`,
-
-              score:
-                result.score,
-
-              totalMarks:
-                result.totalMarks,
-
-              percentage:
-                resolveProfilePercentage({
-                  percentage:
-                    result.percentage,
-
-                  score:
-                    result.score,
-
-                  totalMarks:
-                    result.totalMarks,
-                }),
-
-              grade:
-                result.grade,
-
-              remarks:
-                result.remarks,
-
-              academicYear:
-                result.exam
-                  .academicYear,
-
-              term:
-                result.exam.term,
-
-              attemptNumber:
-                null,
-
-              date:
-                result.createdAt,
-
-              assessment:
-                null,
-            };
-          }
-
-          if (
-            result.type ===
-              "ASSIGNMENT" &&
-            result.assignment
-          ) {
-            return {
-              id:
-                result.id,
-
-              type:
-                "ASSIGNMENT",
-
-              title:
-                result.assignment
-                  .title,
-
-              subject:
-                result.assignment
-                  .lesson.subject,
-
-              className:
-                result.assignment
-                  .lesson.class
-                  .name,
-
-              teacherName:
-                `${result.assignment.lesson.teacher.name} ${result.assignment.lesson.teacher.surname}`,
-
-              score:
-                result.score,
-
-              totalMarks:
-                result.totalMarks,
-
-              percentage:
-                resolveProfilePercentage({
-                  percentage:
-                    result.percentage,
-
-                  score:
-                    result.score,
-
-                  totalMarks:
-                    result.totalMarks,
-                }),
-
-              grade:
-                result.grade,
-
-              remarks:
-                result.remarks,
-
-              academicYear:
-                null,
-
-              term:
-                null,
-
-              attemptNumber:
-                null,
-
-              date:
-                result.createdAt,
-
-              assessment:
-                null,
-            };
-          }
-
-          return null;
+          assessmentAttempt: {
+            select: {
+              id: true,
+              attemptNumber: true,
+            },
+          },
         },
-      )
-      .filter(
-        (
-          record,
-        ): record is StudentResultProfileRecord =>
-          record !== null,
-      );
 
-  const academicYears =
-    Array.from(
-      new Set(
-        academicYearRecords.flatMap(
-          (result) => [
-            result.exam
-              ?.academicYear,
+        orderBy: [
+          {
+            createdAt: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+      }),
 
-            result.assessment
-              ?.academicYear,
-          ],
-        ),
-      ),
-    )
-      .filter(
-        (
-          value,
-        ): value is string =>
-          Boolean(value),
-      )
-      .sort(
-        (first, second) =>
-          second.localeCompare(
-            first,
-          ),
-      );
+      prisma.schoolTerm.findMany({
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+        },
+
+        orderBy: [
+          {
+            isActive: "desc",
+          },
+          {
+            startDate: "desc",
+          },
+        ],
+      }),
+
+      prisma.subject.findMany({
+        where: {
+          lessons: {
+            some: {
+              classId: student.class.id,
+
+              ...(manager.scope === "TEACHER_OWNED"
+                ? {
+                    teacherId: manager.userId,
+                  }
+                : {}),
+            },
+          },
+        },
+
+        select: {
+          id: true,
+          name: true,
+        },
+
+        orderBy: {
+          name: "asc",
+        },
+      }),
+
+      prisma.result.findMany({
+        where: {
+          studentId,
+        },
+
+        select: {
+          exam: {
+            select: {
+              academicYear: true,
+            },
+          },
+
+          assessment: {
+            select: {
+              academicYear: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+  const records = resultRecords
+    .map((result): StudentResultProfileRecord | null => {
+      if (result.type === "ASSESSMENT" && result.assessment) {
+        return {
+          id: result.id,
+
+          type: "ASSESSMENT",
+
+          title: result.assessment.title,
+
+          subject: result.assessment.lesson.subject,
+
+          className: result.assessment.lesson.class.name,
+
+          teacherName: `${result.assessment.lesson.teacher.name} ${result.assessment.lesson.teacher.surname}`,
+
+          score: result.score,
+
+          totalMarks: result.totalMarks,
+
+          percentage: resolveProfilePercentage({
+            percentage: result.percentage,
+
+            score: result.score,
+
+            totalMarks: result.totalMarks,
+          }),
+
+          grade: result.grade,
+
+          remarks: result.remarks,
+
+          academicYear: result.assessment.academicYear,
+
+          term: result.assessment.term,
+
+          attemptNumber: result.assessmentAttempt?.attemptNumber ?? null,
+
+          date: result.createdAt,
+
+          assessment: {
+            id: result.assessment.id,
+
+            attemptId: result.assessmentAttempt?.id ?? null,
+          },
+        };
+      }
+
+      if (result.type === "EXAM" && result.exam) {
+        return {
+          id: result.id,
+
+          type: "EXAM",
+
+          title: result.exam.title,
+
+          subject: result.exam.lesson.subject,
+
+          className: result.exam.lesson.class.name,
+
+          teacherName: `${result.exam.lesson.teacher.name} ${result.exam.lesson.teacher.surname}`,
+
+          score: result.score,
+
+          totalMarks: result.totalMarks,
+
+          percentage: resolveProfilePercentage({
+            percentage: result.percentage,
+
+            score: result.score,
+
+            totalMarks: result.totalMarks,
+          }),
+
+          grade: result.grade,
+
+          remarks: result.remarks,
+
+          academicYear: result.exam.academicYear,
+
+          term: result.exam.term,
+
+          attemptNumber: null,
+
+          date: result.createdAt,
+
+          assessment: null,
+        };
+      }
+
+      if (result.type === "ASSIGNMENT" && result.assignment) {
+        return {
+          id: result.id,
+
+          type: "ASSIGNMENT",
+
+          title: result.assignment.title,
+
+          subject: result.assignment.lesson.subject,
+
+          className: result.assignment.lesson.class.name,
+
+          teacherName: `${result.assignment.lesson.teacher.name} ${result.assignment.lesson.teacher.surname}`,
+
+          score: result.score,
+
+          totalMarks: result.totalMarks,
+
+          percentage: resolveProfilePercentage({
+            percentage: result.percentage,
+
+            score: result.score,
+
+            totalMarks: result.totalMarks,
+          }),
+
+          grade: result.grade,
+
+          remarks: result.remarks,
+
+          academicYear: null,
+
+          term: null,
+
+          attemptNumber: null,
+
+          date: result.createdAt,
+
+          assessment: null,
+        };
+      }
+
+      return null;
+    })
+    .filter((record): record is StudentResultProfileRecord => record !== null);
+
+  const academicYears = Array.from(
+    new Set(
+      academicYearRecords.flatMap((result) => [
+        result.exam?.academicYear,
+
+        result.assessment?.academicYear,
+      ]),
+    ),
+  )
+    .filter((value): value is string => Boolean(value))
+    .sort((first, second) => second.localeCompare(first));
 
   return {
     student,
 
     records,
 
-    subjectPerformance:
-      buildSubjectPerformance(
-        records,
-      ),
+    subjectPerformance: buildSubjectPerformance(records),
 
-    metrics:
-      buildStudentMetrics(
-        records,
-      ),
+    metrics: buildStudentMetrics(records),
 
     filterOptions: {
       academicYears,
@@ -994,17 +725,13 @@ export async function getStudentResultProfile({
     },
 
     selectedFilters: {
-      academicYear:
-        academicYear ?? null,
+      academicYear: academicYear ?? null,
 
-      termId:
-        termId ?? null,
+      termId: termId ?? null,
 
-      subjectId:
-        subjectId ?? null,
+      subjectId: subjectId ?? null,
 
-      type:
-        type ?? null,
+      type: type ?? null,
     },
   };
 }

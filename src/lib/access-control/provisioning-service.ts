@@ -1,10 +1,26 @@
+// src/lib/access-control/provisioning-service.ts
 import "server-only";
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import {
+  clerkClient,
+} from "@clerk/nextjs/server";
 
 import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
+
+import {
+  getCurrentAccessActor,
+} from "@/lib/access-control";
+
+import {
+  canActorAssignRole,
+  shouldRequireRoleAssignmentReverification,
+} from "./account-hierarchy";
+
+import {
+  requireServerActionReverificationIfNeeded,
+} from "@/lib/access-control";
 
 import { createUserProvisioningSchema } from "./provisioning-validation";
 
@@ -16,92 +32,84 @@ import { createProvisionedSchoolProfile } from "./profile-adapters";
 /*                            ADMIN ACTOR                                     */
 /* -------------------------------------------------------------------------- */
 
-async function requireProvisioningAdmin() {
-  const {
-    userId,
-    sessionClaims,
-  } =
-    await auth();
+/* -------------------------------------------------------------------------- */
+/*                         PROVISIONING ACTOR                                 */
+/* -------------------------------------------------------------------------- */
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+async function requireProvisioningActor() {
+  const accessActor =
+    await getCurrentAccessActor();
 
-  /*
-   * During the RBAC migration phase, the
-   * existing Clerk role remains the enforcement
-   * boundary for user provisioning.
-   */
   if (
-    !userId ||
-    role !== "admin"
+    !accessActor
   ) {
     throw new Error(
-      "Unauthorized",
+      "UNAUTHENTICATED",
     );
   }
 
   /*
-   * Do NOT call currentUser() merely to obtain
-   * an audit display name.
-   *
-   * currentUser() performs an additional Clerk
-   * Backend API request. Provisioning should not
-   * fail just because an optional actor-name
-   * lookup against Clerk fails.
-   *
-   * Prefer our own local identity records.
+   * Provisioning creates the school identity itself.
    */
-  const [
-    userAccount,
-    adminProfile,
-  ] =
-    await Promise.all([
-      prisma.userAccount.findUnique({
-        where: {
-          id:
-            userId,
-        },
+  if (
+    !accessActor.can(
+      "users.create",
+    )
+  ) {
+    throw new Error(
+      "USER_CREATE_FORBIDDEN",
+    );
+  }
 
-        select: {
-          displayName:
-            true,
+  /*
+   * Provisioning also creates one or more
+   * UserRoleAssignment records.
+   *
+   * Someone allowed to create an identity should not
+   * automatically be allowed to grant RBAC authority.
+   */
+  if (
+    !accessActor.can(
+      "roles.assign",
+    )
+  ) {
+    throw new Error(
+      "ROLE_ASSIGN_FORBIDDEN",
+    );
+  }
 
-          username:
-            true,
-        },
-      }),
+  const actorAccount =
+    accessActor.actor;
 
-      prisma.admin.findUnique({
-        where: {
-          id:
-            userId,
-        },
-
-        select: {
-          username:
-            true,
-        },
-      }),
-    ]);
+  const actorRole =
+    actorAccount.legacyRole
+      ?.trim()
+      .toLowerCase() ??
+    accessActor.activeAssignments[0]
+      ?.role.key
+      ?.trim()
+      .toLowerCase() ??
+    null;
 
   const actorName =
-    userAccount?.displayName
+    actorAccount.displayName
       ?.trim() ||
-    userAccount?.username
+    actorAccount.username
       ?.trim() ||
-    adminProfile?.username
+    actorAccount.email
       ?.trim() ||
-    "Administrator";
+    "Access Administrator";
 
   return {
-    userId,
+    userId:
+      actorAccount.id,
 
-    role,
+    role:
+      actorRole,
 
     actorName,
+
+    accessActor,
   };
 }
 
@@ -109,10 +117,50 @@ async function requireProvisioningAdmin() {
 /*                           CREATE USER                                      */
 /* -------------------------------------------------------------------------- */
 
-export async function provisionUser(input: unknown) {
-  const actor = await requireProvisioningAdmin();
+export async function provisionUser(
+  input:
+    unknown,
+) {
+  let actor:
+    Awaited<
+      ReturnType<
+        typeof requireProvisioningActor
+      >
+    >;
 
-  const parsed = createUserProvisioningSchema.safeParse(input);
+  try {
+    actor =
+      await requireProvisioningActor();
+  } catch (
+    error
+  ) {
+    const code =
+      error instanceof Error
+        ? error.message
+        : "";
+
+    return {
+      success:
+        false as const,
+
+      message:
+        code ===
+        "UNAUTHENTICATED"
+          ? "You must be signed in to provision users."
+          : code ===
+              "USER_CREATE_FORBIDDEN"
+            ? "You do not have permission to create user accounts."
+            : code ===
+                "ROLE_ASSIGN_FORBIDDEN"
+              ? "You do not have permission to assign access roles."
+              : "You are not authorized to provision users.",
+    };
+  }
+
+  const parsed =
+    createUserProvisioningSchema.safeParse(
+      input,
+    );
 
   if (!parsed.success) {
     return {
@@ -130,21 +178,33 @@ export async function provisionUser(input: unknown) {
   /*                  VALIDATE ROLE SELECTION FIRST                         */
   /* ---------------------------------------------------------------------- */
 
-  const roles = await prisma.accessRole.findMany({
+  const roles =
+  await prisma.accessRole.findMany({
     where: {
       id: {
-        in: requestedRoleIds,
+        in:
+          requestedRoleIds,
       },
 
-      isActive: true,
+      isActive:
+        true,
     },
 
     select: {
-      id: true,
+      id:
+        true,
 
-      key: true,
+      key:
+        true,
 
-      name: true,
+      name:
+        true,
+
+      isActive:
+        true,
+
+      isProtected:
+        true,
     },
   });
 
@@ -167,6 +227,75 @@ export async function provisionUser(input: unknown) {
       message: `The ${requiredRoleKey} access role is required for this account type.`,
     };
   }
+
+  /* ---------------------------------------------------------------------- */
+/*                 ROLE ASSIGNMENT HIERARCHY                             */
+/* ---------------------------------------------------------------------- */
+
+for (
+  const role of
+  roles
+) {
+  const hierarchy =
+    canActorAssignRole({
+      actor:
+        actor.accessActor.actor,
+
+      role,
+    });
+
+  if (
+    !hierarchy.allowed
+  ) {
+    return {
+      success:
+        false as const,
+
+      message:
+        hierarchy.reason ??
+        `You are not allowed to assign the ${role.name} role.`,
+    };
+  }
+}
+
+
+/* ---------------------------------------------------------------------- */
+/*                 SENSITIVE ROLE REVERIFICATION                          */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * Provisioning an ordinary lower-trust identity can
+ * proceed normally.
+ *
+ * Assigning a protected or high-trust role requires
+ * the current administrator to prove their Clerk
+ * identity again before we create the external user.
+ */
+const requiresReverification =
+  roles.some(
+    (
+      role,
+    ) =>
+      shouldRequireRoleAssignmentReverification(
+        role,
+      ),
+  );
+
+const reverification =
+  await requireServerActionReverificationIfNeeded({
+    required:
+      requiresReverification,
+
+    preset:
+      "strict",
+  });
+
+if (
+  reverification
+) {
+  return reverification;
+}
+
 
   /* ---------------------------------------------------------------------- */
   /*                 LOCAL DUPLICATE CHECK BEFORE CLERK                     */

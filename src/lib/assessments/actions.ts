@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 
@@ -38,8 +38,11 @@ import { gradeAssessmentAttempt } from "./grade-attempt";
 
 import { assessmentFailure, assessmentSuccess } from "./action-result";
 
-// import { requireAssessmentManager } from "./auth";
-import { requireAssessmentStudent, requireAssessmentManager } from "./auth";
+import {
+  requireAssessmentPermission,
+  requireAssessmentPermissions,
+  requireAssessmentStudent,
+} from "./auth";
 
 import {
   calculateAssessmentTotals,
@@ -142,13 +145,14 @@ export async function createAssessmentDraft({
   lessonId?: number;
 } = {}): Promise<AssessmentActionResult<AssessmentDraftSaveResult>> {
   try {
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.create");
 
     if (lessonId) {
       const allowed = await canUseLessonForAssessment({
         lessonId,
         userId,
-        role,
+        scope,
       });
 
       if (!allowed) {
@@ -297,12 +301,13 @@ export async function saveAssessmentMetadataDraft(
       );
     }
 
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.create");
 
     const allowed = await canManageAssessment({
       assessmentId: data.id,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -335,7 +340,7 @@ export async function saveAssessmentMetadataDraft(
       const lessonAllowed = await canUseLessonForAssessment({
         lessonId: data.lessonId,
         userId,
-        role,
+        scope,
       });
 
       if (!lessonAllowed) {
@@ -442,12 +447,13 @@ export async function saveAssessmentBuilder(
       );
     }
 
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.create");
 
     const allowed = await canManageAssessment({
       assessmentId: data.id,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -459,7 +465,7 @@ export async function saveAssessmentBuilder(
     const lessonAllowed = await canUseLessonForAssessment({
       lessonId: data.lessonId,
       userId,
-      role,
+      scope,
     });
 
     if (!lessonAllowed) {
@@ -639,10 +645,6 @@ export async function publishAssessment(
   input: AssessmentBuilderInput,
 ): Promise<AssessmentActionResult<PublishAssessmentResult>> {
   try {
-    /*
-     * Publishing first performs the same strict validation
-     * required by the complete Assessment Studio.
-     */
     const parsed = assessmentBuilderSchema.safeParse(input);
 
     if (!parsed.success) {
@@ -660,13 +662,39 @@ export async function publishAssessment(
       );
     }
 
-    console.log("PUBLISH: validation passed", data.id);
+    /*
+     * Publishing from Assessment Studio also persists the
+     * latest structural changes before changing lifecycle state.
+     *
+     * Therefore this operation requires both authoring and
+     * publishing authority.
+     */
+    const { userId, role, scope } = await requireAssessmentPermissions([
+      "assessments.create",
+      "assessments.publish",
+    ]);
 
+    if (!scope) {
+      return assessmentFailure(
+        "You are not authorised to publish this assessment.",
+      );
+    }
+
+    const allowed = await canManageAssessment({
+      assessmentId: data.id,
+      userId,
+      scope,
+    });
+
+    if (!allowed) {
+      return assessmentFailure(
+        "You are not authorised to publish this assessment.",
+      );
+    }
+
+    console.log("PUBLISH: validation passed", data.id);
     console.log("PUBLISH: saving builder");
 
-    /*
-     * Save the latest question structure first.
-     */
     const saveResult = await saveAssessmentBuilder(data);
 
     console.log("PUBLISH: builder save completed", saveResult.success);
@@ -683,20 +711,6 @@ export async function publishAssessment(
     if (!integrity.valid) {
       return assessmentFailure<PublishAssessmentResult>(
         integrity.errors.join(" "),
-      );
-    }
-
-    const { userId, role } = await requireAssessmentManager();
-
-    const allowed = await canManageAssessment({
-      assessmentId: data.id,
-      userId,
-      role,
-    });
-
-    if (!allowed) {
-      return assessmentFailure(
-        "You are not authorised to publish this assessment.",
       );
     }
 
@@ -881,12 +895,14 @@ export async function returnAssessmentToDraft(
   assessmentId: number,
 ): Promise<AssessmentActionResult<undefined>> {
   try {
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } = await requireAssessmentPermission(
+      "assessments.publish",
+    );
 
     const allowed = await canManageAssessment({
       assessmentId,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -960,12 +976,14 @@ export async function closeAssessment(
   assessmentId: number,
 ): Promise<AssessmentActionResult<undefined>> {
   try {
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } = await requireAssessmentPermission(
+      "assessments.publish",
+    );
 
     const allowed = await canManageAssessment({
       assessmentId,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -1023,12 +1041,14 @@ export async function archiveAssessment(
   assessmentId: number,
 ): Promise<AssessmentActionResult<undefined>> {
   try {
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } = await requireAssessmentPermission(
+      "assessments.publish",
+    );
 
     const allowed = await canManageAssessment({
       assessmentId,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -1106,12 +1126,13 @@ export async function duplicateAssessment(
   assessmentId: number,
 ): Promise<AssessmentActionResult<AssessmentDraftSaveResult>> {
   try {
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.create");
 
     const allowed = await canManageAssessment({
       assessmentId,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -1149,7 +1170,7 @@ export async function duplicateAssessment(
     const lessonAllowed = await canUseLessonForAssessment({
       lessonId: source.lessonId,
       userId,
-      role,
+      scope,
     });
 
     if (!lessonAllowed) {
@@ -1164,7 +1185,7 @@ export async function duplicateAssessment(
 
     const duplicate = await prisma.assessment.create({
       data: {
-        title: `${source.title} — Copy`,
+        title: `${source.title} â€” Copy`,
         instructions: source.instructions,
 
         startDate: now,
@@ -1254,12 +1275,13 @@ export async function deleteAssessment(
   assessmentId: number,
 ): Promise<AssessmentActionResult<undefined>> {
   try {
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.create");
 
     const allowed = await canManageAssessment({
       assessmentId,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -1332,12 +1354,13 @@ export async function saveIncompleteAssessmentDraft(
       );
     }
 
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.create");
 
     const allowed = await canManageAssessment({
       assessmentId: input.id,
       userId,
-      role,
+      scope,
     });
 
     if (!allowed) {
@@ -1353,7 +1376,7 @@ export async function saveIncompleteAssessmentDraft(
     const lessonAllowed = await canUseLessonForAssessment({
       lessonId: input.lessonId,
       userId,
-      role,
+      scope,
     });
 
     if (!lessonAllowed) {
@@ -2636,7 +2659,8 @@ export async function saveAssessmentTeacherFeedback(
 
     const normalizedFeedback = feedback.trim();
 
-    const { userId, role } = await requireAssessmentManager();
+    const { userId, role, scope } =
+      await requireAssessmentPermission("assessments.grade");
 
     const result = await prisma.$transaction(
       async (tx) => {

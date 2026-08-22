@@ -1,108 +1,237 @@
-// import { auth } from "@clerk/nextjs/server";
-// import { NextResponse } from "next/server";
-// import prisma from "@/lib/prisma";
+// src/app/api/attendance/update/[id]/route.ts
 
-// export async function PUT(
-//   req: Request,
-//   { params }: { params: { id: string } }
-// ) {
-//   const { sessionClaims, userId } = await auth();
-//   const role = (sessionClaims?.metadata as { role?: string })?.role;
+import {
+  NextResponse,
+} from "next/server";
 
-//   const { present } = await req.json();
-//   const id = Number(params.id);
+import {
+  requireAttendancePermission,
+} from "@/lib/attendance/auth";
 
-//   if (role !== "admin") {
-//     const record = await prisma.attendance.findUnique({
-//       where: { id },
-//       include: { student: { include: { class: true } } },
-//     });
-
-//     if (record?.student.class.supervisorId !== userId) {
-//       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-//     }
-//   }
-
-//   const updated = await prisma.attendance.update({
-//     where: { id },
-//     data: { present },
-//   });
-
-//   return NextResponse.json(updated);
-// }
-
-
-
-import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 export async function PUT(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
+  req:
+    Request,
+
+  context: {
+    params: Promise<{
+      id:
+        string;
+    }>;
+  },
 ) {
   try {
-    const { sessionClaims, userId } = await auth();
-    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    /* ---------------------------------------------------------------------- */
+    /* AUTHORIZATION                                                          */
+    /* ---------------------------------------------------------------------- */
 
-    const { id } = await context.params;
-    const attendanceId = Number(id);
+    const actor =
+      await requireAttendancePermission(
+        "attendance.modify",
+      );
 
-    if (!attendanceId || Number.isNaN(attendanceId)) {
+    /* ---------------------------------------------------------------------- */
+    /* ATTENDANCE ID                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const {
+      id,
+    } =
+      await context.params;
+
+    const attendanceId =
+      Number(
+        id,
+      );
+
+    if (
+      !Number.isInteger(
+        attendanceId,
+      ) ||
+      attendanceId <=
+        0
+    ) {
       return NextResponse.json(
-        { error: "Invalid attendance ID" },
-        { status: 400 }
+        {
+          error:
+            "Invalid attendance ID",
+        },
+
+        {
+          status:
+            400,
+        },
       );
     }
 
-    const { present } = await req.json();
+    /* ---------------------------------------------------------------------- */
+    /* BODY                                                                    */
+    /* ---------------------------------------------------------------------- */
 
-    if (typeof present !== "boolean") {
+    const {
+      present,
+    } =
+      await req.json();
+
+    if (
+      typeof present !==
+      "boolean"
+    ) {
       return NextResponse.json(
-        { error: "Invalid attendance value" },
-        { status: 400 }
+        {
+          error:
+            "Invalid attendance value",
+        },
+
+        {
+          status:
+            400,
+        },
       );
     }
 
-    if (role !== "admin") {
-      const record = await prisma.attendance.findUnique({
-        where: { id: attendanceId },
-        include: {
-          student: {
-            include: {
-              class: true,
+    /* ---------------------------------------------------------------------- */
+    /* OWNERSHIP                                                              */
+    /* ---------------------------------------------------------------------- */
+
+    if (
+      actor.scope ===
+      "SUPERVISED_CLASSES"
+    ) {
+      const record =
+        await prisma.attendance.findUnique({
+          where: {
+            id:
+              attendanceId,
+          },
+
+          select: {
+            id:
+              true,
+
+            student: {
+              select: {
+                class: {
+                  select: {
+                    supervisorId:
+                      true,
+                  },
+                },
+              },
             },
           },
+        });
+
+      if (
+        !record
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Attendance record not found",
+          },
+
+          {
+            status:
+              404,
+          },
+        );
+      }
+
+      if (
+        record.student
+          .class
+          .supervisorId !==
+        actor.userId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Forbidden",
+          },
+
+          {
+            status:
+              403,
+          },
+        );
+      }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* UPDATE                                                                 */
+    /* ---------------------------------------------------------------------- */
+
+    const updated =
+      await prisma.attendance.update({
+        where: {
+          id:
+            attendanceId,
+        },
+
+        data: {
+          present,
         },
       });
 
-      if (!record) {
-        return NextResponse.json(
-          { error: "Attendance record not found" },
-          { status: 404 }
-        );
-      }
+    return NextResponse.json(
+      updated,
+    );
+  } catch (
+    error
+  ) {
+    console.error(
+      "ATTENDANCE UPDATE ERROR:",
+      error,
+    );
 
-      if (record.student.class.supervisorId !== userId) {
-        return NextResponse.json(
-          { error: "Forbidden" },
-          { status: 403 }
-        );
-      }
+    if (
+      error instanceof Error &&
+      error.message ===
+        "UNAUTHENTICATED"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Unauthorized",
+        },
+
+        {
+          status:
+            401,
+        },
+      );
     }
 
-    const updated = await prisma.attendance.update({
-      where: { id: attendanceId },
-      data: { present },
-    });
+    if (
+      error instanceof Error &&
+      error.message ===
+        "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Forbidden",
+        },
 
-    return NextResponse.json(updated);
-  } catch (error) {
-    console.error("Attendance update error:", error);
+        {
+          status:
+            403,
+        },
+      );
+    }
 
     return NextResponse.json(
-      { error: "Failed to update attendance" },
-      { status: 500 }
+      {
+        error:
+          "Failed to update attendance",
+      },
+
+      {
+        status:
+          500,
+      },
     );
   }
 }

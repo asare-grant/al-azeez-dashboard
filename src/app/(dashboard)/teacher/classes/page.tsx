@@ -1,3 +1,4 @@
+// src/app/(dashboard)/teacher/classes/page.tsx
 import Link from "next/link";
 
 import {
@@ -12,8 +13,9 @@ import {
 } from "lucide-react";
 
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
 import {
   redirect,
@@ -27,93 +29,128 @@ export const dynamic =
 export const revalidate = 0;
 
 export default async function TeacherClassesPage() {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+ const access =
+  await getCurrentAccessContext();
 
-  if (!userId) {
-    redirect("/sign-in");
-  }
+if (
+  !access.authenticated
+) {
+  redirect(
+    "/sign-in",
+  );
+}
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+if (
+  !contextHasPermission(
+    access,
+    "academics.classes.view",
+  )
+) {
+  redirect(
+    "/",
+  );
+}
 
-  if (
-    role !== "teacher" &&
-    role !== "admin"
-  ) {
-    redirect("/");
-  }
+const userId =
+  access.userId!;
 
-  const classes =
-    await prisma.class.findMany({
-      where:
-        role === "teacher"
-          ? {
-              lessons: {
-                some: {
-                  teacherId:
-                    userId,
+const teacherOnlyScope =
+  access.roleKeys.has(
+    "teacher",
+  ) &&
+  access.roleKeys.size ===
+    1;
+
+const classes =
+  await prisma.class.findMany({
+    where:
+      teacherOnlyScope
+        ? {
+            OR: [
+              {
+                supervisorId:
+                  userId,
+              },
+
+              {
+                lessons: {
+                  some: {
+                    teacherId:
+                      userId,
+                  },
                 },
               },
-            }
-          : undefined,
+            ],
+          }
+        : undefined,
 
-      select: {
-        id: true,
-        name: true,
+    select: {
+      id:
+        true,
 
-        grade: {
-          select: {
-            id: true,
-            level: true,
-          },
+      name:
+        true,
+
+      grade: {
+        select: {
+          id:
+            true,
+
+          level:
+            true,
         },
+      },
 
-        _count: {
-          select: {
-            students: true,
-            lessons: true,
-          },
+      _count: {
+        select: {
+          students:
+            true,
+
+          lessons:
+            true,
         },
+      },
 
-        lessons: {
-          where:
-            role === "teacher"
-              ? {
-                  teacherId:
-                    userId,
-                }
-              : undefined,
+      lessons: {
+        where:
+          teacherOnlyScope
+            ? {
+                teacherId:
+                  userId,
+              }
+            : undefined,
 
-          select: {
-            id: true,
+        select: {
+          id:
+            true,
 
-            subject: {
-              select: {
-                id: true,
-                name: true,
-              },
+          subject: {
+            select: {
+              id:
+                true,
+
+              name:
+                true,
             },
           },
         },
       },
+    },
 
-      orderBy: [
-        {
-          grade: {
-            level: "asc",
-          },
+    orderBy: [
+      {
+        grade: {
+          level:
+            "asc",
         },
-        {
-          name: "asc",
-        },
-      ],
-    });
+      },
+
+      {
+        name:
+          "asc",
+      },
+    ],
+  });
 
   const classData =
     classes.map(

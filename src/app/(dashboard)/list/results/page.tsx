@@ -1,66 +1,110 @@
-import {
-  redirect,
-} from "next/navigation";
+// src/app/(dashboard)/list/results/page.tsx
+
+import { redirect } from "next/navigation";
 
 import {
-  auth,
-} from "@clerk/nextjs/server";
+  contextHasPermission,
+  getCurrentAccessContext,
+} from "@/lib/access-control";
 
 import prisma from "@/lib/prisma";
 
-import StudentResultsPage from "@/components/results/StudentResultsPage"
+import StudentResultsPage from "@/components/results/StudentResultsPage";
 
-import {
-  getStudentUnifiedResults,
-} from "@/lib/results";
+import { getStudentUnifiedResults } from "@/lib/results";
 
-export const dynamic =
-  "force-dynamic";
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
-export default async function ResultsPage() {
-  const {
-    userId,
-    sessionClaims,
-  } = await auth();
+/* ========================================================================== */
+/* PAGE                                                                       */
+/* ========================================================================== */
 
-  if (!userId) {
+export default async function ResultsPage() {
+  /* ------------------------------------------------------------------------ */
+  /* ACCESS                                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  const access = await getCurrentAccessContext();
+
+  if (!access.authenticated || !access.userId) {
     redirect("/sign-in");
   }
 
-  const role = (
-    sessionClaims?.metadata as {
-      role?: string;
-    }
-  )?.role;
+  const userId = access.userId;
+
+  const canViewResults = contextHasPermission(access, "results.view");
+
+  const canManageResults = contextHasPermission(access, "results.manage");
+
+  if (!canViewResults && !canManageResults) {
+    redirect("/");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* MANAGEMENT WORKSPACE                                                     */
+  /* ------------------------------------------------------------------------ */
 
   /*
-   * Student results centre
+   * Management authority takes precedence over
+   * persona-specific result workspaces.
+   *
+   * This covers:
+   *
+   * - Administrator
+   * - Academic Director
+   * - Teacher
+   * - future delegated roles with results.manage
    */
-  if (role === "student") {
-    const [
-      student,
-      results,
-      terms,
-    ] = await Promise.all([
-      prisma.student.findUnique({
-        where: {
-          id: userId,
-        },
+  if (canManageResults) {
+    redirect("/list/results/manage");
+  }
 
-        select: {
-          name: true,
-          surname: true,
-        },
-      }),
+  /* ------------------------------------------------------------------------ */
+  /* RESOLVE SCHOOL-DOMAIN IDENTITY                                           */
+  /* ------------------------------------------------------------------------ */
 
+  const [student, parent] = await Promise.all([
+    prisma.student.findUnique({
+      where: {
+        id: userId,
+      },
+
+      select: {
+        id: true,
+
+        name: true,
+
+        surname: true,
+      },
+    }),
+
+    prisma.parent.findUnique({
+      where: {
+        id: userId,
+      },
+
+      select: {
+        id: true,
+      },
+    }),
+  ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* STUDENT SELF RESULTS                                                     */
+  /* ------------------------------------------------------------------------ */
+
+  if (student) {
+    const [results, terms] = await Promise.all([
       getStudentUnifiedResults(),
 
       prisma.schoolTerm.findMany({
         select: {
           id: true,
+
           name: true,
+
           isActive: true,
         },
 
@@ -68,16 +112,13 @@ export default async function ResultsPage() {
           {
             isActive: "desc",
           },
+
           {
             startDate: "desc",
           },
         ],
       }),
     ]);
-
-    if (!student) {
-      redirect("/student");
-    }
 
     return (
       <StudentResultsPage
@@ -88,26 +129,17 @@ export default async function ResultsPage() {
     );
   }
 
-  /*
-   * Dedicated parent results centre
-   */
-  if (role === "parent") {
-    redirect(
-      "/parent/results",
-    );
+  /* ------------------------------------------------------------------------ */
+  /* PARENT RESULTS                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  if (parent) {
+    redirect("/parent/results");
   }
 
-  /*
-   * Teacher and administrator command centre
-   */
-  if (
-    role === "teacher" ||
-    role === "admin"
-  ) {
-    redirect(
-      "/list/results/manage",
-    );
-  }
+  /* ------------------------------------------------------------------------ */
+  /* NO MATCHING RESULTS PERSONA                                              */
+  /* ------------------------------------------------------------------------ */
 
   redirect("/");
 }

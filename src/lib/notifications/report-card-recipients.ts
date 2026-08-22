@@ -1,20 +1,16 @@
 import "server-only";
 
-import type {
-  Prisma,
-} from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 import {
   excludeNotificationRecipient,
-  getAdminNotificationRecipients,
   getClassSupervisorNotificationRecipient,
+  getPermissionNotificationRecipients,
   getStudentAndParentNotificationRecipients,
   mergeNotificationRecipients,
 } from "./recipients";
 
-import type {
-  NotificationRecipient,
-} from "./service";
+import type { NotificationRecipient } from "./service";
 
 /* -------------------------------------------------------------------------- */
 /*                        REPORT SUBMITTED                                    */
@@ -24,28 +20,32 @@ export async function getReportSubmittedRecipients({
   actorId,
   tx,
 }: {
-  actorId?:
-    string | null;
+  actorId?: string | null;
 
-  tx?:
-    Prisma.TransactionClient;
-}): Promise<
-  NotificationRecipient[]
-> {
-  const recipients =
-    await getAdminNotificationRecipients({
+  tx?: Prisma.TransactionClient;
+}): Promise<NotificationRecipient[]> {
+  const recipients = await getPermissionNotificationRecipients(
+    "report_cards.review",
+    {
       tx,
-    });
+
+      /*
+       * REVIEW is an administrative workflow.
+       *
+       * A delegated reviewer may still have a legacy
+       * Teacher persona, but this notification must
+       * route to the management review workspace.
+       */
+      routingRole: "admin",
+    },
+  );
 
   /*
    * If an administrator submitted the report,
    * don't notify that same administrator about
    * their own action.
    */
-  return excludeNotificationRecipient(
-    recipients,
-    actorId,
-  );
+  return excludeNotificationRecipient(recipients, actorId);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -57,36 +57,19 @@ export async function getReportChangesRequestedRecipients({
   actorId,
   tx,
 }: {
-  classId:
-    number;
+  classId: number;
 
-  actorId?:
-    string | null;
+  actorId?: string | null;
 
-  tx?:
-    Prisma.TransactionClient;
-}): Promise<
-  NotificationRecipient[]
-> {
-  const supervisor =
-    await getClassSupervisorNotificationRecipient(
-      classId,
-      {
-        tx,
-      },
-    );
+  tx?: Prisma.TransactionClient;
+}): Promise<NotificationRecipient[]> {
+  const supervisor = await getClassSupervisorNotificationRecipient(classId, {
+    tx,
+  });
 
-  const recipients =
-    supervisor
-      ? [
-          supervisor,
-        ]
-      : [];
+  const recipients = supervisor ? [supervisor] : [];
 
-  return excludeNotificationRecipient(
-    recipients,
-    actorId,
-  );
+  return excludeNotificationRecipient(recipients, actorId);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -98,33 +81,17 @@ export async function getReportApprovedRecipients({
   actorId,
   tx,
 }: {
-  classId:
-    number;
+  classId: number;
 
-  actorId?:
-    string | null;
+  actorId?: string | null;
 
-  tx?:
-    Prisma.TransactionClient;
-}): Promise<
-  NotificationRecipient[]
-> {
-  const supervisor =
-    await getClassSupervisorNotificationRecipient(
-      classId,
-      {
-        tx,
-      },
-    );
+  tx?: Prisma.TransactionClient;
+}): Promise<NotificationRecipient[]> {
+  const supervisor = await getClassSupervisorNotificationRecipient(classId, {
+    tx,
+  });
 
-  return excludeNotificationRecipient(
-    supervisor
-      ? [
-          supervisor,
-        ]
-      : [],
-    actorId,
-  );
+  return excludeNotificationRecipient(supervisor ? [supervisor] : [], actorId);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -136,29 +103,20 @@ export async function getReportPublishedRecipients({
   actorId,
   tx,
 }: {
-  studentId:
-    string;
+  studentId: string;
 
-  actorId?:
-    string | null;
+  actorId?: string | null;
 
-  tx?:
-    Prisma.TransactionClient;
-}): Promise<
-  NotificationRecipient[]
-> {
-  const recipients =
-    await getStudentAndParentNotificationRecipients(
-      studentId,
-      {
-        tx,
-      },
-    );
-
-  return excludeNotificationRecipient(
-    recipients,
-    actorId,
+  tx?: Prisma.TransactionClient;
+}): Promise<NotificationRecipient[]> {
+  const recipients = await getStudentAndParentNotificationRecipients(
+    studentId,
+    {
+      tx,
+    },
   );
+
+  return excludeNotificationRecipient(recipients, actorId);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -170,43 +128,33 @@ export async function getReportStaleRecipients({
   actorId,
   tx,
 }: {
-  classId:
-    number;
+  classId: number;
 
-  actorId?:
-    string | null;
+  actorId?: string | null;
 
-  tx?:
-    Prisma.TransactionClient;
-}): Promise<
-  NotificationRecipient[]
-> {
-  const [
-    admins,
-    supervisor,
-  ] =
-    await Promise.all([
-      getAdminNotificationRecipients({
-        tx,
-      }),
+  tx?: Prisma.TransactionClient;
+}): Promise<NotificationRecipient[]> {
+  const [reviewers, supervisor] = await Promise.all([
+    getPermissionNotificationRecipients("report_cards.review", {
+      tx,
 
-      getClassSupervisorNotificationRecipient(
-        classId,
-        {
-          tx,
-        },
-      ),
-    ]);
+      /*
+       * Stale report cards belong to the
+       * administrative review workflow.
+       */
+      routingRole: "admin",
+    }),
+
+    getClassSupervisorNotificationRecipient(classId, {
+      tx,
+    }),
+  ]);
 
   return excludeNotificationRecipient(
     mergeNotificationRecipients(
-      admins,
+      reviewers,
 
-      supervisor
-        ? [
-            supervisor,
-          ]
-        : [],
+      supervisor ? [supervisor] : [],
     ),
 
     actorId,
